@@ -109,14 +109,16 @@ func main() {
 		for {
 			time.Sleep(5 * time.Second)
 			i++
+
 			msg := &pb.WakuMessage{
-				Payload:      []byte(fmt.Sprintf("Hello, world! %d", i)),
+				Payload:      []byte(fmt.Sprintf("Hello from Go mazafaka (%d)", i)),
 				Version:      &messageVersion,
 				ContentTopic: contentTopic.String(),
 				Timestamp:    utils.GetUnixEpoch(),
 			}
 
-			messageID, err := wakuNode.Relay().Publish(ctx, msg)
+			publishOptions := []relay.PublishOption{relay.WithPubSubTopic(relay.DefaultWakuTopic)}
+			messageID, err := wakuNode.Relay().Publish(ctx, msg, publishOptions...)
 			if err != nil {
 				logger.Info("failed to publish message", zap.Error(err))
 			} else {
