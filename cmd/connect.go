@@ -12,8 +12,6 @@ var connectCmd = &cobra.Command{
 	Use:   "connect",
 	Short: "Connect to an existing poker planning session",
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Println("connect called")
-
 		waku, err := waku.NewNode(config.Logger)
 		if err != nil {
 			config.Logger.Error("failed to create waku node", zap.Error(err))
@@ -48,18 +46,6 @@ var connectCmd = &cobra.Command{
 				config.Logger.Info("game state changed", zap.Any("state", state))
 			}
 		}
-
-		//app.ReceiveMessages(messagesChannel)
-
-		//go func() {
-		//i := 0
-		//for {
-		//	time.Sleep(5 * time.Second)
-		//	i++
-		//	message := []byte(fmt.Sprintf("%s: Hello from Go mazafaka (%d)", config.PlayerName, i))
-		//	_ = waku.PublishMessage(contentTopic, message)
-		//}
-		//}()
 	},
 }
 

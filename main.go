@@ -6,8 +6,8 @@ import (
 )
 
 /*
-    waku-pp connect 0x1234
-	waku-pp new --name="six78 sprint 42" --fleet="wakuv2.prod"
+    waku-pp connect --name="igor" --session="helloworld"
+	waku-pp new --session="six78 sprint 42" --fleet="wakuv2.prod"
 */
 
 func main() {

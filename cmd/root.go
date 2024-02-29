@@ -14,9 +14,6 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "waku-poker-planning",
 	Short: "Decentralized poker planning tool using Waku protocol",
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
 }
 
 func Execute() {
