@@ -5,6 +5,7 @@ import (
 	"go.uber.org/zap"
 	"waku-poker-planning/config"
 	"waku-poker-planning/game"
+	"waku-poker-planning/view"
 	"waku-poker-planning/waku"
 )
 
@@ -36,16 +37,19 @@ var connectCmd = &cobra.Command{
 		config.Logger.Info("peers connected")
 
 		game := game.NewGame(config.Logger, waku)
-		gameState := game.SubscribeToStateChanges()
+		//gameState := game.SubscribeToStateChanges()
 
 		game.Start()
 
-		for {
-			select {
-			case state := <-gameState:
-				config.Logger.Info("game state changed", zap.Any("state", state))
-			}
-		}
+		//for {
+		//	select {
+		//	case state := <-gameState:
+		//		config.Logger.Info("game state changed", zap.Any("state", state))
+		//	}
+		//}
+
+		v := view.NewView(game)
+		v.Run()
 	},
 }
 

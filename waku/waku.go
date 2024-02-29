@@ -55,7 +55,7 @@ func NewNode(logger *zap.Logger) (*Node, error) {
 	options := []node.WakuNodeOption{
 		node.WithWakuRelay(),
 		node.WithLightPush(),
-		//node.WithLogger(logger),
+		node.WithLogger(logger.Named("waku")),
 		//node.WithLogLevel(zap.DebugLevel),
 		node.WithHostAddress(hostAddr),
 		//node.WithDiscoveryV5(60000, nodes, true),
@@ -197,7 +197,6 @@ func (n *Node) SubscribeToMessages() (chan []byte, error) {
 		for value := range in {
 			n.logger.Info("<<< MESSAGE RECEIVED",
 				zap.String("payload", string(value.Message().Payload)),
-				zap.String("string", value.Message().String()),
 			)
 			out <- value.Message().Payload
 		}

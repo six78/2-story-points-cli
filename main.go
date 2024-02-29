@@ -6,7 +6,7 @@ import (
 )
 
 /*
-    waku-pp connect --name="igor" --session="helloworld"
+    waku-pp connect --session="helloworld" --name="igor"
 	waku-pp new --session="six78 sprint 42" --fleet="wakuv2.prod"
 */
 

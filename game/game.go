@@ -60,6 +60,10 @@ func (g *Game) SubscribeToStateChanges() StateSubscription {
 	return channel
 }
 
+func (g *Game) CurrentState() protocol.State {
+	return g.currentState
+}
+
 func (g *Game) publishChangedState(state protocol.State) {
 	for _, subscriber := range g.stateSubscribers {
 		subscriber <- state
@@ -70,7 +74,7 @@ func (g *Game) publishOnlineState() {
 	for {
 		time.Sleep(config.OnlineMessagePeriod)
 		g.logger.Debug("publishing online state")
-		g.PublishMessage(protocol.Message{
+		g.publishMessage(protocol.Message{
 			Type: protocol.MessageTypePlayerOnline,
 			Name: protocol.Player(config.PlayerName),
 		})
@@ -92,7 +96,7 @@ func (g *Game) processIncomingMessages() {
 	}
 }
 
-func (g *Game) PublishMessage(message protocol.Message) {
+func (g *Game) publishMessage(message protocol.Message) {
 	payload, err := json.Marshal(message)
 	if err != nil {
 		g.logger.Error("failed to marshal message", zap.Error(err))
