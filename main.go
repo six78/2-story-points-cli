@@ -1,6 +1,9 @@
 package main
 
-import "waku-poker-planning/cmd"
+import (
+	"waku-poker-planning/cmd"
+	"waku-poker-planning/config"
+)
 
 /*
     waku-pp connect 0x1234
@@ -8,5 +11,6 @@ import "waku-poker-planning/cmd"
 */
 
 func main() {
+	config.SetupLogger()
 	cmd.Execute()
 }

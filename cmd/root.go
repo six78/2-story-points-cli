@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"time"
 
 	"waku-poker-planning/config"
 
@@ -27,4 +29,10 @@ func Execute() {
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.PersistentFlags().StringVar(&config.Fleet, "fleet", "wakuv2.prod", "Waku fleet to use")
+	rootCmd.PersistentFlags().StringVar(&config.PlayerName, "name", generatePlayerName(), "Player name")
+	rootCmd.PersistentFlags().StringVar(&config.SessionName, "session", "helloworld", "Session name")
+}
+
+func generatePlayerName() string {
+	return fmt.Sprintf("player-%d", time.Now().Unix())
 }

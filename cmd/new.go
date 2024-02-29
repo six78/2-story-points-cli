@@ -2,12 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"waku-poker-planning/app"
-
 	"github.com/spf13/cobra"
 )
-
-var sessionName string
 
 // newCmd represents the new command
 var newCmd = &cobra.Command{
@@ -15,18 +11,18 @@ var newCmd = &cobra.Command{
 	Short: "Start a new poker planning session",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("new called")
-		app, err := app.NewApp()
-		if err != nil {
-			return err
-		}
-		return app.CreateNewSession(sessionName)
+		return nil
+		//app, err := app.NewApp()
+		//if err != nil {
+		//	return err
+		//}
+		//return app.CreateNewSession(sessionName)
+
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(newCmd)
-
-	newCmd.Flags().StringVar(&sessionName, "name", "", "Name of the poker planning session")
 
 	// Here you will define your flags and configuration settings.
 
