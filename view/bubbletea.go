@@ -7,8 +7,9 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"go.uber.org/zap"
+	"strings"
 	"waku-poker-planning/config"
+	"waku-poker-planning/game"
 	"waku-poker-planning/protocol"
 )
 
@@ -16,28 +17,28 @@ type EndOfState struct{}
 
 type model struct {
 	state        protocol.State
+	game         *game.Game
 	stateChannel chan protocol.State
 
-	//viewport    viewport.Model
 	input       textinput.Model
 	senderStyle lipgloss.Style
 }
 
-func initialModel(initialState protocol.State) model {
+func initialModel(g *game.Game) model {
 	ta := textinput.New()
 	ta.Placeholder = "Type a command..."
 	ta.Prompt = "┃ "
 	ta.Focus()
 
 	return model{
-		state:        initialState,
-		stateChannel: nil,
+		game:         g,
+		state:        g.CurrentState(),
+		stateChannel: g.SubscribeToStateChanges(),
 		input:        ta,
-		//viewport:    vp,
 	}
 }
 
-func (m model) waitForState() tea.Msg {
+func (m model) waitForGameState() tea.Msg {
 	state, more := <-m.stateChannel
 	if !more {
 		return EndOfState{}
@@ -46,95 +47,72 @@ func (m model) waitForState() tea.Msg {
 }
 
 func (m model) Init() tea.Cmd {
-	config.Logger.Debug("view model init")
-	return tea.Batch(textarea.Blink, m.waitForState)
+	return tea.Batch(textarea.Blink, m.waitForGameState)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	config.Logger.Debug("view update", zap.Any("msg", msg))
+	var inputCommand tea.Cmd
+	m.input, inputCommand = m.input.Update(msg)
 
-	var (
-		tiCmd tea.Cmd
-		//vpCmd tea.Cmd
-	)
-
-	m.input, tiCmd = m.input.Update(msg)
-	//m.viewport, vpCmd = m.viewport.Update(msg)
+	commands := []tea.Cmd{inputCommand, m.waitForGameState}
 
 	switch msg := msg.(type) {
-
 	case protocol.State:
 		m.state = msg
 
 	case tea.KeyMsg:
-		// Ctrl+c exits. Even with short running programs it's good to have
-		// a quit key, just in case your logic is off. Users will be very
-		// annoyed if they can't exit.
-
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		case tea.KeyEnter:
 			//m.messages = append(m.messages, m.senderStyle.Render("You: ")+m.input.Value())
 			//m.viewport.SetContent(strings.Join(m.messages, "\n"))
+			userCommand := m.input.Value()
+
+			if strings.HasPrefix(userCommand, "online") {
+				onlineUser := strings.TrimPrefix(userCommand, "online")
+				onlineUser = strings.Trim(onlineUser, " ")
+				commands = append(commands, func() tea.Msg {
+					m.game.PublishOnline(onlineUser)
+					return nil
+				})
+			}
+
+			if strings.HasPrefix(userCommand, "rename") {
+				user := strings.TrimPrefix(userCommand, "rename")
+				user = strings.Trim(user, " ")
+				commands = append(commands, func() tea.Msg {
+					config.PlayerName = user
+					m.game.PublishOnline(config.PlayerName)
+					return nil
+				})
+			}
+
 			m.input.Reset()
-			//m.viewport.GotoBottom()
 		}
-
-		//// Is it a key press?
-		//case tea.KeyMsg:
-		//
-		//
-		//	// Cool, what was the actual key pressed?
-		//	switch msg.String() {
-		//
-		//	// These keys should exit the program.
-		//	case "ctrl+c", "q":
-		//		return m, tea.Quit
-		//
-		//	// The "up" and "k" keys move the cursor up
-		//	case "up", "k":
-		//		if m.cursor > 0 {
-		//			m.cursor--
-		//		}
-		//
-		//	// The "down" and "j" keys move the cursor down
-		//	case "down", "j":
-		//		if m.cursor < len(m.choices)-1 {
-		//			m.cursor++
-		//		}
-		//
-		//	// The "enter" key and the spacebar (a literal space) toggle
-		//	// the selected state for the item that the cursor is pointing at.
-		//	case "enter", " ":
-		//		_, ok := m.selected[m.cursor]
-		//		if ok {
-		//			delete(m.selected, m.cursor)
-		//		} else {
-		//			m.selected[m.cursor] = struct{}{}
-		//		}
-		//	}
-
 	}
 
-	// Return the updated model to the Bubble Tea runtime for processing.
-	// Note that we're not returning a command.
-	return m, tea.Batch(tiCmd, m.waitForState)
+	return m, tea.Batch(commands...)
 }
 
 func (m model) View() string {
-	config.Logger.Debug("view View")
-
 	players, err := json.Marshal(m.state.Players)
 	if err != nil {
 		panic(err)
 	}
 
-	return fmt.Sprintf(
-		"\n VOTING FOR: %s\n\n PLAYERS: %s\n\n%s\n",
+	return fmt.Sprintf(`  LOG FILE: %s
+
+  VOTING FOR: %s
+
+  PLAYERS: %s
+
+%s
+
+`,
+		"file:///"+config.LogFilePath,
 		m.state.VoteFor,
 		players,
-		//m.viewport.View(),
 		m.input.View(),
 	)
 }

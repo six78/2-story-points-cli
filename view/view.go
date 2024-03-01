@@ -9,21 +9,20 @@ import (
 )
 
 type View struct {
-	logger  *zap.Logger
-	backend *game.Game
-	model   model
+	logger *zap.Logger
+	game   *game.Game
+	model  model
 }
 
 func NewView(backend *game.Game) *View {
 	return &View{
-		logger:  config.Logger.Named("view"),
-		backend: backend,
+		logger: config.Logger.Named("view"),
+		game:   backend,
 	}
 }
 
 func (v *View) Run() {
-	m := initialModel(v.backend.CurrentState())
-	m.stateChannel = v.backend.SubscribeToStateChanges()
+	m := initialModel(v.game)
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
 		v.logger.Error("error running program", zap.Error(err))

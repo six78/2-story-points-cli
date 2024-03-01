@@ -16,11 +16,12 @@ var SessionName string
 var PlayerName string
 var Logger *zap.Logger
 
+var LogFilePath string
+
 func SetupLogger() {
-	logFilePath := createLogFile()
-	fmt.Println("Log file path: ", logFilePath)
+	LogFilePath = createLogFile()
 	config := zap.NewDevelopmentConfig()
-	config.OutputPaths = []string{logFilePath}
+	config.OutputPaths = []string{LogFilePath}
 	config.Development = false
 	logger, err := config.Build()
 	if err != nil {

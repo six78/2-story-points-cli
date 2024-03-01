@@ -73,11 +73,7 @@ func (g *Game) publishChangedState(state protocol.State) {
 func (g *Game) publishOnlineState() {
 	for {
 		time.Sleep(config.OnlineMessagePeriod)
-		g.logger.Debug("publishing online state")
-		g.publishMessage(protocol.Message{
-			Type: protocol.MessageTypePlayerOnline,
-			Name: protocol.Player(config.PlayerName),
-		})
+		g.PublishOnline(config.PlayerName)
 	}
 }
 
@@ -109,6 +105,10 @@ func (g *Game) publishMessage(message protocol.Message) {
 	}
 }
 
-//func (g *Game) Vote(vote int) State {
-//	return g.currentState
-//}
+func (g *Game) PublishOnline(user string) {
+	g.logger.Debug("publishing online state", zap.String("user", user))
+	g.publishMessage(protocol.Message{
+		Type: protocol.MessageTypePlayerOnline,
+		Name: protocol.Player(user),
+	})
+}
