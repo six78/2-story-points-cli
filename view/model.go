@@ -8,6 +8,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"go.uber.org/zap"
+	"strconv"
 	"strings"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
@@ -125,6 +127,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				})
 			}
 
+			if strings.HasPrefix(userCommand, "vote") {
+				voteString := strings.TrimPrefix(userCommand, "vote")
+				voteString = strings.Trim(voteString, " ")
+				vote, err := strconv.Atoi(voteString)
+				if err != nil {
+					//m.commandError
+					config.Logger.Error("failed to parse vote", zap.Error(err))
+				} else {
+					commands = append(commands, func() tea.Msg {
+						m.app.PublishVote(vote)
+						return nil
+					})
+				}
+			}
+
 			m.input.Reset()
 		}
 	}
@@ -157,18 +174,32 @@ func (m model) renderGame() string {
 		panic(err)
 	}
 
-	return fmt.Sprintf(`  LOG FILE: %s
+	voteItem, err := json.Marshal(m.gameState.VoteItem)
+	if err != nil {
+		panic(err)
+	}
 
-  VOTING FOR: %s
+	voteResult, err := json.Marshal(m.gameState.TempVoteResult)
+	if err != nil {
+		panic(err)
+	}
 
-  PLAYERS: %s
+	return fmt.Sprintf(`
+  LOG FILE:     %s
+
+  PLAYERS:      %s
+
+  VOTE ITEM:    %s
+
+  VOTE RESULT:  %s
 
 %s
 
 `,
 		"file:///"+config.LogFilePath,
-		m.gameState.VoteFor,
 		players,
+		voteItem,
+		voteResult,
 		m.input.View(),
 	)
 }

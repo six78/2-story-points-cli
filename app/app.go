@@ -106,3 +106,12 @@ func (a *App) PublishUserOnline(username string) {
 
 	a.game.PublishUserOnline(username)
 }
+
+func (a *App) PublishVote(vote int) {
+	if a.game == nil {
+		config.Logger.Error("game not created")
+		return
+	}
+
+	a.game.PublishVote(vote)
+}

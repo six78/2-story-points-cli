@@ -50,6 +50,7 @@ func (g *Game) Stop() {
 
 func (g *Game) processMessage(payload []byte) {
 	g.logger.Debug("processing message", zap.String("payload", string(payload)))
+
 	message := protocol.Message{}
 	err := json.Unmarshal(payload, &message)
 	if err != nil {
@@ -84,6 +85,7 @@ func (g *Game) publishChangedState(state protocol.State) {
 }
 
 func (g *Game) publishOnlineState() {
+	g.PublishUserOnline(config.PlayerName)
 	for {
 		select {
 		case <-time.After(config.OnlineMessagePeriod):
@@ -134,5 +136,15 @@ func (g *Game) PublishUserOnline(user string) {
 	g.publishMessage(protocol.Message{
 		Type: protocol.MessageTypePlayerOnline,
 		Name: protocol.Player(user),
+	})
+}
+
+func (g *Game) PublishVote(vote int) {
+	g.logger.Debug("publishing vote", zap.Int("vote", vote))
+	g.publishMessage(protocol.Message{
+		Type:       protocol.MessageTypePlayerVote,
+		Name:       protocol.Player(config.PlayerName),
+		VoteFor:    g.currentState.VoteItem.ID,
+		VoteResult: protocol.VoteResult(vote),
 	})
 }
