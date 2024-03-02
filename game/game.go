@@ -1,6 +1,7 @@
 package game
 
 import (
+	"context"
 	"encoding/json"
 	"go.uber.org/zap"
 	"time"
@@ -17,15 +18,20 @@ type Transport interface {
 
 type Game struct {
 	logger    *zap.Logger
+	ctx       context.Context
+	quit      context.CancelFunc
 	transport Transport
 
 	currentState     protocol.State
 	stateSubscribers []StateSubscription
 }
 
-func NewGame(logger *zap.Logger, transport Transport) *Game {
+func NewGame(transport Transport) *Game {
+	ctx, quit := context.WithCancel(context.Background())
 	return &Game{
-		logger:    logger.Named("game"),
+		logger:    config.Logger.Named("game"),
+		ctx:       ctx,
+		quit:      quit,
 		transport: transport,
 	}
 }
@@ -33,6 +39,13 @@ func NewGame(logger *zap.Logger, transport Transport) *Game {
 func (g *Game) Start() {
 	go g.processIncomingMessages()
 	go g.publishOnlineState()
+}
+
+func (g *Game) Stop() {
+	for _, subscriber := range g.stateSubscribers {
+		close(subscriber)
+	}
+	g.quit()
 }
 
 func (g *Game) processMessage(payload []byte) {
@@ -72,23 +85,34 @@ func (g *Game) publishChangedState(state protocol.State) {
 
 func (g *Game) publishOnlineState() {
 	for {
-		time.Sleep(config.OnlineMessagePeriod)
-		g.PublishOnline(config.PlayerName)
+		select {
+		case <-time.After(config.OnlineMessagePeriod):
+			g.PublishUserOnline(config.PlayerName)
+		case <-g.ctx.Done():
+			return
+		}
 	}
 }
 
 func (g *Game) processIncomingMessages() {
 	sub, err := g.transport.SubscribeToMessages()
+	// TODO: defer unsubscribe
+
 	if err != nil {
 		g.logger.Error("failed to subscribe to messages", zap.Error(err))
 		return
 	}
+
 	for {
-		payload, more := <-sub
-		if !more {
+		select {
+		case payload, more := <-sub:
+			if !more {
+				return
+			}
+			g.processMessage(payload)
+		case <-g.ctx.Done():
 			return
 		}
-		g.processMessage(payload)
 	}
 }
 
@@ -105,7 +129,7 @@ func (g *Game) publishMessage(message protocol.Message) {
 	}
 }
 
-func (g *Game) PublishOnline(user string) {
+func (g *Game) PublishUserOnline(user string) {
 	g.logger.Debug("publishing online state", zap.String("user", user))
 	g.publishMessage(protocol.Message{
 		Type: protocol.MessageTypePlayerOnline,

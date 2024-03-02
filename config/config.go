@@ -1,6 +1,7 @@
 package config
 
 import (
+	"flag"
 	"fmt"
 	"go.uber.org/zap"
 	"os"
@@ -49,4 +50,18 @@ func createLogFile() string {
 	}
 
 	return path
+}
+
+func ParseArguments() {
+	flag.StringVar(&Fleet, "fleet", "wakuv2.prod", "Waku fleet name")
+	flag.StringVar(&PlayerName, "name", generatePlayerName(), "Player name")
+	flag.StringVar(&SessionName, "session", "helloworld", "Session name")
+	flag.Parse()
+
+	// TODO: Consider positional arguments as first command
+	// return strings.Join(flag.Args(), " ")
+}
+
+func generatePlayerName() string {
+	return fmt.Sprintf("player-%d", time.Now().Unix())
 }
