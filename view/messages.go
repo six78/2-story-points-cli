@@ -14,5 +14,5 @@ type AppStateMessage struct {
 }
 
 type GameStateMessage struct {
-	state protocol.State
+	state *protocol.State
 }

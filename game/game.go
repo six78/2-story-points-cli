@@ -9,7 +9,7 @@ import (
 	"waku-poker-planning/protocol"
 )
 
-type StateSubscription chan protocol.State
+type StateSubscription chan *protocol.State
 
 type Transport interface {
 	SubscribeToMessages() (chan []byte, error)
@@ -60,7 +60,7 @@ func (g *Game) processMessage(payload []byte) {
 	switch message.Type {
 	case protocol.MessageTypeState:
 		g.currentState = *message.State
-		g.publishChangedState(g.currentState)
+		g.publishChangedState(&g.currentState)
 	case protocol.MessageTypePlayerOnline:
 		g.logger.Info("player is online", zap.String("name", string(message.Name)))
 	default:
@@ -74,11 +74,11 @@ func (g *Game) SubscribeToStateChanges() StateSubscription {
 	return channel
 }
 
-func (g *Game) CurrentState() protocol.State {
-	return g.currentState
+func (g *Game) CurrentState() *protocol.State {
+	return &g.currentState
 }
 
-func (g *Game) publishChangedState(state protocol.State) {
+func (g *Game) publishChangedState(state *protocol.State) {
 	for _, subscriber := range g.stateSubscribers {
 		subscriber <- state
 	}

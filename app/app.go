@@ -22,7 +22,7 @@ type App struct {
 	waku *waku.Node
 	game *game.Game
 
-	gameStateSubscription chan protocol.State
+	gameStateSubscription game.StateSubscription
 }
 
 func NewApp() *App {
@@ -33,9 +33,9 @@ func NewApp() *App {
 	}
 }
 
-func (a *App) GameState() protocol.State {
+func (a *App) GameState() *protocol.State {
 	if a.game == nil {
-		return protocol.State{}
+		return &protocol.State{}
 	}
 	return a.game.CurrentState()
 }
@@ -84,10 +84,10 @@ func (a *App) WaitForPeersConnected() bool {
 	return a.waku.WaitForPeersConnected()
 }
 
-func (a *App) WaitForGameState() (protocol.State, bool) {
+func (a *App) WaitForGameState() (*protocol.State, bool) {
 	if a.gameStateSubscription == nil {
 		config.Logger.Error("game state subscription not created")
-		return protocol.State{}, false
+		return &protocol.State{}, false
 	}
 
 	state, more := <-a.gameStateSubscription

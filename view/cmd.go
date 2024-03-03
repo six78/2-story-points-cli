@@ -35,7 +35,7 @@ func waitForWakuPeers(a *app.App) tea.Cmd {
 func startGame(a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		a.StartGame()
-		return GameStateMessage{state: a.GameState()}
+		return nil
 	}
 }
 
@@ -50,7 +50,3 @@ func waitForGameState(app *app.App) tea.Cmd {
 		return GameStateMessage{state: state}
 	}
 }
-
-// initial command: StartWaku
-// waku started -> wait for peers
-// peers connected -> start game (wait for game nextState)

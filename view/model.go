@@ -8,9 +8,6 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"go.uber.org/zap"
-	"strconv"
-	"strings"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
@@ -30,9 +27,10 @@ type model struct {
 
 	// Actual nextState that will be rendered in components.
 	// This is filled from app during Update stage.
-	appState   app.State
-	fatalError error
-	gameState  protocol.State
+	appState         app.State
+	fatalError       error
+	lastCommandError string
+	gameState        *protocol.State
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -46,7 +44,7 @@ func initialModel(a *app.App) model {
 		app: a,
 		// Initial model values
 		appState:  app.Initializing,
-		gameState: a.GameState(),
+		gameState: nil,
 		// View components
 		input:   createTextInput(),
 		spinner: createSpinner(),
@@ -71,7 +69,11 @@ func (m model) Init() tea.Cmd {
 	return tea.Batch(textarea.Blink, m.spinner.Tick, initializeApp(m.app))
 }
 
+var updateCounter = 0
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	updateCounter++
+
 	var (
 		inputCommand   tea.Cmd
 		spinnerCommand tea.Cmd
@@ -92,7 +94,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case app.WaitingForPeers:
 			commands = append(commands, waitForWakuPeers(m.app))
 		case app.Playing:
-			commands = append(commands, startGame(m.app))
+			commands = append(commands, waitForGameState(m.app), startGame(m.app))
 		}
 
 	case GameStateMessage:
@@ -104,44 +106,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		case tea.KeyEnter:
-			//m.messages = append(m.messages, m.senderStyle.Render("You: ")+m.input.Value())
-			//m.viewport.SetContent(strings.Join(m.messages, "\n"))
-			userCommand := m.input.Value()
-
-			if strings.HasPrefix(userCommand, "online") {
-				onlineUser := strings.TrimPrefix(userCommand, "online")
-				onlineUser = strings.Trim(onlineUser, " ")
-				commands = append(commands, func() tea.Msg {
-					m.app.PublishUserOnline(onlineUser)
-					return nil
-				})
+			cmd, err := processUserCommand(m.app, m.input.Value())
+			if err != nil {
+				m.lastCommandError = err.Error()
 			}
-
-			if strings.HasPrefix(userCommand, "rename") {
-				user := strings.TrimPrefix(userCommand, "rename")
-				user = strings.Trim(user, " ")
-				commands = append(commands, func() tea.Msg {
-					config.PlayerName = user
-					m.app.PublishUserOnline(config.PlayerName)
-					return nil
-				})
+			if cmd != nil {
+				commands = append(commands, cmd)
+				m.lastCommandError = ""
 			}
-
-			if strings.HasPrefix(userCommand, "vote") {
-				voteString := strings.TrimPrefix(userCommand, "vote")
-				voteString = strings.Trim(voteString, " ")
-				vote, err := strconv.Atoi(voteString)
-				if err != nil {
-					//m.commandError
-					config.Logger.Error("failed to parse vote", zap.Error(err))
-				} else {
-					commands = append(commands, func() tea.Msg {
-						m.app.PublishVote(vote)
-						return nil
-					})
-				}
-			}
-
 			m.input.Reset()
 		}
 	}
@@ -149,7 +121,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(commands...)
 }
 
+var viewCounter = 0
+
 func (m model) View() string {
+	viewCounter++
+
 	if m.fatalError != nil {
 		return fmt.Sprintf(" ❌FATAL ERROR: %s", m.fatalError)
 	}
@@ -169,6 +145,10 @@ func (m model) View() string {
 }
 
 func (m model) renderGame() string {
+	if m.gameState == nil {
+		return m.spinner.View() + " Waiting for initial game state ..."
+	}
+
 	players, err := json.Marshal(m.gameState.Players)
 	if err != nil {
 		panic(err)
@@ -187,20 +167,22 @@ func (m model) renderGame() string {
 	return fmt.Sprintf(`
   LOG FILE:     %s
 
-  PLAYERS:      %s
-
+  PLAYER:       %s
+  STATE:        %s
   VOTE ITEM:    %s
-
   VOTE RESULT:  %s
 
+%s
 %s
 
 `,
 		"file:///"+config.LogFilePath,
+		config.PlayerName,
 		players,
 		voteItem,
 		voteResult,
 		m.input.View(),
+		m.lastCommandError,
 	)
 }
 

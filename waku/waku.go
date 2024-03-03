@@ -17,6 +17,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"time"
 	"waku-poker-planning/config"
 	pp "waku-poker-planning/protocol"
 )
@@ -164,6 +165,8 @@ func (n *Node) WaitForPeersConnected() bool {
 	}
 	for {
 		select {
+		case <-time.After(20 * time.Second):
+			return false
 		case connStatus, more := <-n.wakuConnectionStatus:
 			if !more {
 				return false
@@ -195,7 +198,7 @@ func (n *Node) SubscribeToMessages() (chan []byte, error) {
 		defer close(out)
 
 		for value := range in {
-			n.logger.Info("<<< MESSAGE RECEIVED",
+			n.logger.Info("waku message received",
 				zap.String("payload", string(value.Message().Payload)),
 			)
 			out <- value.Message().Payload
