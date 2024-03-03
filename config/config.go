@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"fmt"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"os"
 	"path/filepath"
@@ -10,11 +11,14 @@ import (
 )
 
 const OnlineMessagePeriod = 10 * time.Second
+const StateMessagePeriod = 10 * time.Second
 const logsDirectory = "logs"
 
 var Fleet string
 var SessionName string
 var PlayerName string
+var PlayerID string
+var Dealer bool
 var Logger *zap.Logger
 
 var LogFilePath string
@@ -56,7 +60,12 @@ func ParseArguments() {
 	flag.StringVar(&Fleet, "fleet", "wakuv2.prod", "Waku fleet name")
 	flag.StringVar(&PlayerName, "name", generatePlayerName(), "Player name")
 	flag.StringVar(&SessionName, "session", "helloworld", "Session name")
+	flag.BoolVar(&Dealer, "dealer", false, "Is dealer?")
 	flag.Parse()
+
+	// TODO: Find a better place for ths
+	playerUuid, _ := uuid.NewUUID()
+	PlayerID = playerUuid.String()
 
 	// TODO: Consider positional arguments as first command
 	// return strings.Join(flag.Args(), " ")

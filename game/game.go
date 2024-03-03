@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"time"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
@@ -22,6 +23,7 @@ type Game struct {
 	quit      context.CancelFunc
 	transport Transport
 
+	dealer           bool
 	currentState     protocol.State
 	stateSubscribers []StateSubscription
 }
@@ -33,12 +35,17 @@ func NewGame(transport Transport) *Game {
 		ctx:       ctx,
 		quit:      quit,
 		transport: transport,
+		dealer:    config.Dealer,
 	}
 }
 
 func (g *Game) Start() {
 	go g.processIncomingMessages()
 	go g.publishOnlineState()
+
+	if g.dealer {
+		go g.publishState()
+	}
 }
 
 func (g *Game) Stop() {
@@ -54,17 +61,65 @@ func (g *Game) processMessage(payload []byte) {
 	message := protocol.Message{}
 	err := json.Unmarshal(payload, &message)
 	if err != nil {
-		g.logger.Warn("failed to unmarshal message", zap.Error(err))
+		g.logger.Error("failed to unmarshal message", zap.Error(err))
 		return
 	}
+	logger := g.logger.With(zap.String("type", string(message.Type)))
 	switch message.Type {
 	case protocol.MessageTypeState:
-		g.currentState = *message.State
-		g.publishChangedState(&g.currentState)
+		if g.dealer {
+			logger.Warn("dealer should not receive state messages")
+			return
+		}
+		var state protocol.GameStateMessage
+		err := json.Unmarshal(payload, &state)
+		if err != nil {
+			logger.Error("failed to unmarshal message", zap.Error(err))
+			return
+		}
+		g.currentState = state.State
+		g.notifyChangedState(&g.currentState)
 	case protocol.MessageTypePlayerOnline:
-		g.logger.Info("player is online", zap.String("name", string(message.Name)))
+		var playerOnline protocol.PlayerOnlineMessage
+		err := json.Unmarshal(payload, &playerOnline)
+		if err != nil {
+			logger.Error("failed to unmarshal message", zap.Error(err))
+			return
+		}
+		g.logger.Info("player is online", zap.String("name", string(playerOnline.Name)))
+		if g.dealer {
+			//playerID := protocol.PlayerID(playerOnline.Name)
+			//if _, ok := g.currentState.Players[playerID]; !ok {
+
+			if !slices.Contains(g.currentState.Players, playerOnline.Name) {
+				g.currentState.Players = append(g.currentState.Players, playerOnline.Name)
+				g.notifyChangedState(&g.currentState)
+				go g.publishState()
+			}
+		}
+	case protocol.MessageTypePlayerVote:
+		if !g.dealer {
+			return
+		}
+		var playerVote protocol.PlayerVote
+		err := json.Unmarshal(payload, &playerVote)
+		if err != nil {
+			logger.Error("failed to unmarshal message", zap.Error(err))
+			return
+		}
+		g.logger.Info("player voted",
+			zap.String("name", string(playerVote.VoteBy)),
+			zap.String("voteFor", playerVote.VoteFor),
+			zap.Int("voteResult", int(playerVote.VoteResult)))
+
+		if g.currentState.TempVoteResult == nil {
+			g.currentState.TempVoteResult = make(map[protocol.Player]protocol.VoteResult)
+		}
+		g.currentState.TempVoteResult[playerVote.VoteBy] = playerVote.VoteResult
+		g.notifyChangedState(&g.currentState)
+		go g.publishState()
 	default:
-		g.logger.Warn("unsupported message type", zap.String("type", string(message.Type)))
+		logger.Warn("unsupported message type")
 	}
 }
 
@@ -78,7 +133,7 @@ func (g *Game) CurrentState() *protocol.State {
 	return &g.currentState
 }
 
-func (g *Game) publishChangedState(state *protocol.State) {
+func (g *Game) notifyChangedState(state *protocol.State) {
 	for _, subscriber := range g.stateSubscribers {
 		subscriber <- state
 	}
@@ -90,6 +145,17 @@ func (g *Game) publishOnlineState() {
 		select {
 		case <-time.After(config.OnlineMessagePeriod):
 			g.PublishUserOnline(config.PlayerName)
+		case <-g.ctx.Done():
+			return
+		}
+	}
+}
+
+func (g *Game) publishState() {
+	for {
+		select {
+		case <-time.After(config.StateMessagePeriod):
+			g.PublishState()
 		case <-g.ctx.Done():
 			return
 		}
@@ -118,7 +184,7 @@ func (g *Game) processIncomingMessages() {
 	}
 }
 
-func (g *Game) publishMessage(message protocol.Message) {
+func (g *Game) publishMessage(message any) {
 	payload, err := json.Marshal(message)
 	if err != nil {
 		g.logger.Error("failed to marshal message", zap.Error(err))
@@ -133,18 +199,39 @@ func (g *Game) publishMessage(message protocol.Message) {
 
 func (g *Game) PublishUserOnline(user string) {
 	g.logger.Debug("publishing online state", zap.String("user", user))
-	g.publishMessage(protocol.Message{
-		Type: protocol.MessageTypePlayerOnline,
+	g.publishMessage(protocol.PlayerOnlineMessage{
+		Message: protocol.Message{
+			Type:      protocol.MessageTypePlayerOnline,
+			Timestamp: g.timestamp(),
+		},
 		Name: protocol.Player(user),
 	})
 }
 
 func (g *Game) PublishVote(vote int) {
 	g.logger.Debug("publishing vote", zap.Int("vote", vote))
-	g.publishMessage(protocol.Message{
-		Type:       protocol.MessageTypePlayerVote,
-		Name:       protocol.Player(config.PlayerName),
+	g.publishMessage(protocol.PlayerVote{
+		Message: protocol.Message{
+			Type:      protocol.MessageTypePlayerVote,
+			Timestamp: g.timestamp(),
+		},
+		VoteBy:     protocol.Player(config.PlayerID),
 		VoteFor:    g.currentState.VoteItem.ID,
 		VoteResult: protocol.VoteResult(vote),
 	})
+}
+
+func (g *Game) PublishState() {
+	g.logger.Debug("publishing state")
+	g.publishMessage(protocol.GameStateMessage{
+		Message: protocol.Message{
+			Type:      protocol.MessageTypeState,
+			Timestamp: g.timestamp(),
+		},
+		State: g.currentState,
+	})
+}
+
+func (g *Game) timestamp() int64 {
+	return time.Now().UnixMilli()
 }

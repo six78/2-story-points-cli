@@ -9,11 +9,14 @@ var Version int = 1
 //}
 
 type Player string
+type PlayerID string
 type VoteResult int
 
 type VoteItem struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	URL         string `json:"url"`
+	Description string `json:"description"`
 }
 
 type State struct {
@@ -31,14 +34,22 @@ const (
 )
 
 type Message struct {
-	Type       MessageType `json:"type"`
-	State      *State      `json:"state,omitempty"`
-	VoteFor    string      `json:"voteFor,omitempty"`
-	Name       Player      `json:"name,omitempty"`
-	VoteResult VoteResult  `json:"voteResult,omitempty"`
+	Type      MessageType `json:"type"`
+	Timestamp int64       `json:"timestamp"`
+}
+
+type GameStateMessage struct {
+	Message
+	State State `json:"state"`
+}
+
+type PlayerOnlineMessage struct {
+	Message
+	Name Player `json:"name,omitempty"`
 }
 
 type PlayerVote struct {
+	Message
 	VoteBy     Player     `json:"voteBy"`
 	VoteFor    string     `json:"voteFor"`
 	VoteResult VoteResult `json:"voteResult"`
