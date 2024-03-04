@@ -2,9 +2,11 @@ package game
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
-	"errors"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	wp "github.com/waku-org/go-waku/waku/v2/payload"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"net/url"
@@ -16,38 +18,49 @@ import (
 type StateSubscription chan *protocol.State
 
 type Transport interface {
-	SubscribeToMessages() (chan []byte, error)
-	PublishMessage(payload []byte) error
+	SubscribeToMessages(session *protocol.Session) (chan []byte, error)
+	PublishUnencryptedMessage(session *protocol.Session, payload []byte) error
 }
 
 type Game struct {
-	logger    *zap.Logger
-	ctx       context.Context
-	quit      context.CancelFunc
-	transport Transport
+	logger       *zap.Logger
+	ctx          context.Context
+	transport    Transport
+	leaveSession chan struct{}
 
-	dealer           bool
-	currentState     protocol.State
-	stateSubscribers []StateSubscription
+	dealer                bool
+	session               *protocol.Session
+	sessionID             string
+	currentState          *protocol.State
+	currentStateTimestamp int64
+	stateSubscribers      []StateSubscription
 }
 
-func NewGame(transport Transport) *Game {
-	ctx, quit := context.WithCancel(context.Background())
+func NewGame(ctx context.Context, transport Transport) *Game {
 	return &Game{
-		logger:    config.Logger.Named("game"),
-		ctx:       ctx,
-		quit:      quit,
-		transport: transport,
-		dealer:    config.Dealer,
+		logger:       config.Logger.Named("game"),
+		ctx:          ctx,
+		transport:    transport,
+		leaveSession: nil,
+		dealer:       false,
+		session:      nil,
 	}
 }
 
 func (g *Game) Start() {
+	g.leaveSession = make(chan struct{})
+
 	go g.processIncomingMessages()
 	go g.publishOnlineState()
 
 	if g.dealer {
-		go g.publishState()
+		go g.publishStatePeriodically()
+	}
+}
+
+func (g *Game) LeaveSession() {
+	if g.leaveSession != nil {
+		close(g.leaveSession)
 	}
 }
 
@@ -55,7 +68,21 @@ func (g *Game) Stop() {
 	for _, subscriber := range g.stateSubscribers {
 		close(subscriber)
 	}
-	g.quit()
+	g.stateSubscribers = nil
+	g.LeaveSession()
+	// WARNING: wait for all routines to finish
+}
+
+func (g *Game) generateSymmetricKey() (*wp.KeyInfo, error) {
+	key := make([]byte, config.SymmetricKeyLength)
+	_, err := rand.Read(key)
+	if err != nil {
+		return nil, err
+	}
+	return &wp.KeyInfo{
+		Kind:   wp.Symmetric,
+		SymKey: key,
+	}, nil
 }
 
 func (g *Game) processMessage(payload []byte) {
@@ -74,13 +101,17 @@ func (g *Game) processMessage(payload []byte) {
 			logger.Warn("dealer should not receive state messages")
 			return
 		}
+		if message.Timestamp < g.currentStateTimestamp {
+			logger.Warn("ignoring outdated state message")
+			return
+		}
 		var state protocol.GameStateMessage
 		err := json.Unmarshal(payload, &state)
 		if err != nil {
 			logger.Error("failed to unmarshal message", zap.Error(err))
 			return
 		}
-		g.currentState = state.State
+		g.currentState = &state.State
 		g.notifyChangedState()
 	case protocol.MessageTypePlayerOnline:
 		var playerOnline protocol.PlayerOnlineMessage
@@ -97,7 +128,7 @@ func (g *Game) processMessage(payload []byte) {
 			if !slices.Contains(g.currentState.Players, playerOnline.Name) {
 				g.currentState.Players = append(g.currentState.Players, playerOnline.Name)
 				g.notifyChangedState()
-				go g.publishState()
+				go g.PublishState()
 			}
 		}
 	case protocol.MessageTypePlayerVote:
@@ -120,7 +151,7 @@ func (g *Game) processMessage(payload []byte) {
 		}
 		g.currentState.TempVoteResult[playerVote.VoteBy] = playerVote.VoteResult
 		g.notifyChangedState()
-		go g.publishState()
+		go g.PublishState()
 	default:
 		logger.Warn("unsupported message type")
 	}
@@ -133,12 +164,16 @@ func (g *Game) SubscribeToStateChanges() StateSubscription {
 }
 
 func (g *Game) CurrentState() *protocol.State {
-	return &g.currentState
+	return g.currentState
 }
 
 func (g *Game) notifyChangedState() {
+	g.logger.Debug("notifying state change",
+		zap.Int("subscribers", len(g.stateSubscribers)),
+		zap.Any("state", g.currentState),
+	)
 	for _, subscriber := range g.stateSubscribers {
-		subscriber <- &g.currentState
+		subscriber <- g.currentState
 	}
 }
 
@@ -148,17 +183,21 @@ func (g *Game) publishOnlineState() {
 		select {
 		case <-time.After(config.OnlineMessagePeriod):
 			g.PublishUserOnline(config.PlayerName)
+		case <-g.leaveSession:
+			return
 		case <-g.ctx.Done():
 			return
 		}
 	}
 }
 
-func (g *Game) publishState() {
+func (g *Game) publishStatePeriodically() {
 	for {
 		select {
 		case <-time.After(config.StateMessagePeriod):
 			g.PublishState()
+		case <-g.leaveSession:
+			return
 		case <-g.ctx.Done():
 			return
 		}
@@ -166,8 +205,8 @@ func (g *Game) publishState() {
 }
 
 func (g *Game) processIncomingMessages() {
-	sub, err := g.transport.SubscribeToMessages()
-	// TODO: defer unsubscribe
+	sub, err := g.transport.SubscribeToMessages(g.session)
+	// FIXME: defer unsubscribe
 
 	if err != nil {
 		g.logger.Error("failed to subscribe to messages", zap.Error(err))
@@ -181,6 +220,8 @@ func (g *Game) processIncomingMessages() {
 				return
 			}
 			g.processMessage(payload)
+		case <-g.leaveSession:
+			return
 		case <-g.ctx.Done():
 			return
 		}
@@ -193,7 +234,7 @@ func (g *Game) publishMessage(message any) {
 		g.logger.Error("failed to marshal message", zap.Error(err))
 		return
 	}
-	err = g.transport.PublishMessage(payload)
+	err = g.transport.PublishUnencryptedMessage(g.session, payload)
 	if err != nil {
 		g.logger.Error("failed to publish message", zap.Error(err))
 		return
@@ -231,7 +272,7 @@ func (g *Game) PublishState() {
 			Type:      protocol.MessageTypeState,
 			Timestamp: g.timestamp(),
 		},
-		State: g.currentState,
+		State: *g.currentState,
 	})
 }
 
@@ -258,8 +299,56 @@ func (g *Game) Deal(input string) error {
 	}
 
 	g.currentState.VoteItem = item
+	g.currentState.TempVoteResult = nil
 	g.notifyChangedState()
-	go g.publishState()
+	go g.PublishState()
 
 	return nil
+}
+
+func (g *Game) CreateNewSession() error {
+	keyInfo, err := g.generateSymmetricKey()
+	if err != nil {
+		return errors.Wrap(err, "failed to generate symmetric key")
+	}
+
+	info := protocol.BuildSession(keyInfo.SymKey)
+	sessionID, err := info.ToSessionID()
+
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal session info")
+	}
+
+	g.logger.Info("new session created", zap.String("sessionID", sessionID))
+	g.dealer = true
+	g.session = info
+	g.sessionID = sessionID
+	g.currentState = &protocol.State{}
+	g.currentStateTimestamp = g.timestamp()
+
+	return nil
+}
+
+func (g *Game) JoinSession(sessionID string) error {
+	info, err := protocol.ParseSessionID(sessionID)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse session ID")
+	}
+
+	g.dealer = false
+	g.session = info
+	g.sessionID = sessionID
+	g.currentState = nil
+	g.currentStateTimestamp = g.timestamp()
+	g.logger.Info("joined session", zap.String("sessionID", sessionID))
+
+	return nil
+}
+
+func (g *Game) IsDealer() bool {
+	return g.dealer
+}
+
+func (g *Game) SessionID() string {
+	return g.sessionID
 }

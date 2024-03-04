@@ -13,12 +13,12 @@ import (
 const OnlineMessagePeriod = 10 * time.Second
 const StateMessagePeriod = 10 * time.Second
 const logsDirectory = "logs"
+const SymmetricKeyLength = 16
 
 var Fleet string
-var SessionName string
 var PlayerName string
 var PlayerID string
-var Dealer bool
+
 var Logger *zap.Logger
 
 var LogFilePath string
@@ -59,8 +59,6 @@ func createLogFile() string {
 func ParseArguments() {
 	flag.StringVar(&Fleet, "fleet", "wakuv2.prod", "Waku fleet name")
 	flag.StringVar(&PlayerName, "name", generatePlayerName(), "Player name")
-	flag.StringVar(&SessionName, "session", "helloworld", "Session name")
-	flag.BoolVar(&Dealer, "dealer", false, "Is dealer?")
 	flag.Parse()
 
 	// TODO: Find a better place for ths

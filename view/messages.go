@@ -10,7 +10,7 @@ type FatalErrorMessage struct {
 }
 
 type AppStateMessage struct {
-	nextState app.State
+	finishedState app.State
 }
 
 type GameStateMessage struct {

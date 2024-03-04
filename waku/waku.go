@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/pkg/errors"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
@@ -29,26 +30,21 @@ var fleets = map[string]string{
 
 type Node struct {
 	waku   *node.WakuNode
+	ctx    context.Context
 	logger *zap.Logger
 
-	pubsubTopic  string
-	contentTopic string
+	pubsubTopic string
 
 	wakuConnectionStatus  chan node.ConnStatus
 	connectionStatus      node.ConnStatus
 	connectionStatusMutex sync.Mutex
 }
 
-func NewNode(logger *zap.Logger) (*Node, error) {
+func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 
 	hostAddr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve TCP address")
-	}
-
-	contentTopic, err := calculateContentTopic(config.SessionName)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to calculate content topic")
 	}
 
 	wakuConnectionStatus := make(chan node.ConnStatus)
@@ -73,15 +69,15 @@ func NewNode(logger *zap.Logger) (*Node, error) {
 
 	return &Node{
 		waku:                 wakuNode,
+		ctx:                  ctx,
 		logger:               logger.Named("waku"),
 		pubsubTopic:          relay.DefaultWakuTopic,
-		contentTopic:         contentTopic,
 		wakuConnectionStatus: wakuConnectionStatus,
 	}, nil
 }
 
 func (n *Node) Start() error {
-	err := n.waku.Start(context.Background())
+	err := n.waku.Start(n.ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to start waku node")
 	}
@@ -121,7 +117,7 @@ func (n *Node) discoverNodes() error {
 		return errors.Errorf("unknown fleet %s", config.Fleet)
 	}
 
-	discoveredNodes, err := dnsdisc.RetrieveNodes(context.TODO(), enrTree)
+	discoveredNodes, err := dnsdisc.RetrieveNodes(n.ctx, enrTree)
 	if err != nil {
 		return err
 	}
@@ -133,29 +129,37 @@ func (n *Node) discoverNodes() error {
 	return nil
 }
 
-func (n *Node) PublishMessage(payload []byte) error {
-	version := uint32(0)
+func (n *Node) PublishUnencryptedMessage(session *pp.Session, payload []byte) error {
 	message := &pb.WakuMessage{
-		Payload:      payload,
-		Version:      &version,
-		ContentTopic: n.contentTopic,
-		Timestamp:    utils.GetUnixEpoch(),
+		Payload: payload,
 	}
+	return n.publishWakuMessage(session, message)
+}
+
+func (n *Node) publishWakuMessage(session *pp.Session, message *pb.WakuMessage) error {
+	contentTopic, err := sessionContentTopic(session)
+	if err != nil {
+		return errors.Wrap(err, "failed to build content topic")
+	}
+
+	version := uint32(0)
+
+	message.Version = &version
+	message.ContentTopic = contentTopic
+	message.Timestamp = utils.GetUnixEpoch()
+
 	publishOptions := []relay.PublishOption{
 		relay.WithPubSubTopic(n.pubsubTopic),
 	}
 
-	messageID, err := n.waku.Relay().Publish(context.Background(), message, publishOptions...)
+	messageID, err := n.waku.Relay().Publish(n.ctx, message, publishOptions...)
 
 	if err != nil {
 		n.logger.Error("failed to publish message", zap.Error(err))
 		return errors.Wrap(err, "failed to publish message")
 	}
 
-	n.logger.Info("message sent",
-		zap.String("messageID", hex.EncodeToString(messageID)),
-		zap.String("payload", string(payload)))
-
+	n.logger.Info("message sent", zap.String("messageID", hex.EncodeToString(messageID)))
 	return nil
 }
 
@@ -178,9 +182,16 @@ func (n *Node) WaitForPeersConnected() bool {
 	}
 }
 
-func (n *Node) SubscribeToMessages() (chan []byte, error) {
-	contentFilter := protocol.NewContentFilter(relay.DefaultWakuTopic, n.contentTopic)
-	subs, err := n.waku.Relay().Subscribe(context.Background(), contentFilter)
+func (n *Node) SubscribeToMessages(session *pp.Session) (chan []byte, error) {
+	contentTopic, err := sessionContentTopic(session)
+	contentFilter := protocol.NewContentFilter(relay.DefaultWakuTopic, contentTopic)
+	subs, err := n.waku.Relay().Subscribe(n.ctx, contentFilter)
+	unsubscribe := func() {
+		err := n.waku.Relay().Unsubscribe(n.ctx, contentFilter)
+		if err != nil {
+			n.logger.Warn("failed to unsubscribe from relay", zap.Error(err))
+		}
+	}
 
 	if err != nil {
 		fmt.Println(err)
@@ -188,6 +199,7 @@ func (n *Node) SubscribeToMessages() (chan []byte, error) {
 	}
 
 	if len(subs) != 1 {
+		unsubscribe()
 		return nil, errors.Errorf("unexpected number of subscriptions: %d", len(subs))
 	}
 
@@ -196,6 +208,7 @@ func (n *Node) SubscribeToMessages() (chan []byte, error) {
 
 	go func() {
 		defer close(out)
+		defer unsubscribe()
 
 		for value := range in {
 			n.logger.Info("waku message received",
@@ -208,10 +221,24 @@ func (n *Node) SubscribeToMessages() (chan []byte, error) {
 	return out, nil
 }
 
-func calculateContentTopic(name string) (string, error) {
-	contentTopic, err := protocol.NewContentTopic("six78", strconv.Itoa(pp.Version), name, "json")
+func sessionContentTopic(info *pp.Session) (string, error) {
+	if len(info.SymmetricKey) < 4 {
+		return "", errors.New("symmetric key too short")
+	}
+
+	version := strconv.Itoa(pp.Version)
+	contentTopicName := hexutil.Encode(info.SymmetricKey[:4])
+	contentTopic, err := protocol.NewContentTopic("six78", version, contentTopicName, "json")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create content topic")
 	}
 	return contentTopic.String(), nil
 }
+
+//func (n *Node) SendPublicMessage(payload []byte) error {
+//	wp.EncodeWakuMessage()
+//}
+//
+//func (n *Node) SendPrivateMessage(payload []byte) error {
+//
+//}

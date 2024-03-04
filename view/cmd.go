@@ -3,7 +3,9 @@ package view
 import (
 	"errors"
 	tea "github.com/charmbracelet/bubbletea"
+	"go.uber.org/zap"
 	"waku-poker-planning/app"
+	"waku-poker-planning/config"
 )
 
 // Any command here must:
@@ -16,7 +18,7 @@ func initializeApp(a *app.App) tea.Cmd {
 		if err != nil {
 			return FatalErrorMessage{err}
 		}
-		return AppStateMessage{nextState: app.WaitingForPeers}
+		return AppStateMessage{finishedState: app.Initializing}
 	}
 }
 
@@ -28,24 +30,39 @@ func waitForWakuPeers(a *app.App) tea.Cmd {
 				err: errors.New("failed to connect to peers"),
 			}
 		}
-		return AppStateMessage{nextState: app.Playing}
+		return AppStateMessage{finishedState: app.WaitingForPeers}
 	}
 }
 
-func startGame(a *app.App) tea.Cmd {
+func createNewSession(a *app.App) tea.Cmd {
 	return func() tea.Msg {
-		a.StartGame()
-		return nil
+		err := a.CreateNewSession()
+		if err != nil {
+			return FatalErrorMessage{err}
+		}
+		return AppStateMessage{finishedState: app.CreatingSession}
+	}
+}
+
+func joinSession(sessionID string, a *app.App) tea.Cmd {
+	return func() tea.Msg {
+		err := a.JoinSession(sessionID)
+		config.Logger.Debug("joining session", zap.String("sessionID", sessionID), zap.Error(err))
+		if err != nil {
+			return FatalErrorMessage{err}
+		}
+		return AppStateMessage{finishedState: app.JoiningSession}
 	}
 }
 
 func waitForGameState(app *app.App) tea.Cmd {
 	return func() tea.Msg {
-		state, more := app.WaitForGameState()
+		state, more, err := app.WaitForGameState()
+		if err != nil {
+			return FatalErrorMessage{err}
+		}
 		if !more {
-			return FatalErrorMessage{
-				err: errors.New("game nextState subscription closed unexpectedly"),
-			}
+			return nil
 		}
 		return GameStateMessage{state: state}
 	}

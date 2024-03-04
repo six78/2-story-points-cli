@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"go.uber.org/zap"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
@@ -31,6 +32,7 @@ type model struct {
 	fatalError       error
 	lastCommandError string
 	gameState        *protocol.State
+	gameSessionID    string
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -43,8 +45,9 @@ func initialModel(a *app.App) model {
 	return model{
 		app: a,
 		// Initial model values
-		appState:  app.Initializing,
-		gameState: nil,
+		appState:      app.Initializing,
+		gameState:     nil,
+		gameSessionID: "",
 		// View components
 		input:   createTextInput(),
 		spinner: createSpinner(),
@@ -69,11 +72,7 @@ func (m model) Init() tea.Cmd {
 	return tea.Batch(textarea.Blink, m.spinner.Tick, initializeApp(m.app))
 }
 
-var updateCounter = 0
-
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	updateCounter++
-
 	var (
 		inputCommand   tea.Cmd
 		spinnerCommand tea.Cmd
@@ -89,12 +88,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fatalError = msg.err
 
 	case AppStateMessage:
-		m.appState = msg.nextState
-		switch msg.nextState {
-		case app.WaitingForPeers:
+		switch msg.finishedState {
+		case app.Initializing:
+			m.appState = app.WaitingForPeers
 			commands = append(commands, waitForWakuPeers(m.app))
-		case app.Playing:
-			commands = append(commands, waitForGameState(m.app), startGame(m.app))
+		case app.WaitingForPeers:
+			m.appState = app.UserInput
+		case app.UserInput:
+			break
+		case app.CreatingSession, app.JoiningSession:
+			m.appState = app.UserInput
+			m.gameSessionID = m.app.GameSessionID()
+			m.gameState = m.app.GameState()
+			config.Logger.Debug("STATE FINISHED",
+				zap.Any("finishedState", msg.finishedState),
+				zap.Any("gameSessionID", m.gameSessionID),
+				zap.Any("gameState", m.gameState),
+			)
+			commands = append(commands, waitForGameState(m.app))
 		}
 
 	case GameStateMessage:
@@ -106,7 +117,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		case tea.KeyEnter:
-			cmd, err := processUserCommand(m.app, m.input.Value())
+			cmd, err := processUserCommand(&m)
+			config.Logger.Debug("user command processed",
+				zap.Error(err),
+				zap.Any("appState", m.appState),
+			)
 			if err != nil {
 				m.lastCommandError = err.Error()
 			}
@@ -114,22 +129,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				commands = append(commands, cmd)
 				m.lastCommandError = ""
 			}
-			m.input.Reset()
 		}
 	}
 
 	return m, tea.Batch(commands...)
 }
 
-var viewCounter = 0
-
 func (m model) View() string {
-	viewCounter++
-
+	var view string
 	if m.fatalError != nil {
-		return fmt.Sprintf(" ❌FATAL ERROR: %s", m.fatalError)
+		view = fmt.Sprintf(" ☠️ FATAL ERROR: %s", m.fatalError)
+	} else {
+		view = m.renderAppState()
 	}
 
+	return fmt.Sprintf("%s\n\n%s", renderLogPath(), view)
+}
+
+func (m model) renderAppState() string {
 	switch m.appState {
 	case app.Idle:
 		return fmt.Sprintf("nothing is happning. boring life.")
@@ -137,7 +154,7 @@ func (m model) View() string {
 		return m.spinner.View() + " Starting Waku..."
 	case app.WaitingForPeers:
 		return m.spinner.View() + " Connecting to Waku peers ..."
-	case app.Playing:
+	case app.UserInput:
 		return m.renderGame()
 	}
 
@@ -145,6 +162,18 @@ func (m model) View() string {
 }
 
 func (m model) renderGame() string {
+	if m.gameSessionID == "" {
+		return fmt.Sprintf(
+			`  Join a game session or create a new one ...
+
+%s
+%s
+`,
+			m.input.View(),
+			m.lastCommandError,
+		)
+	}
+
 	if m.gameState == nil {
 		return m.spinner.View() + " Waiting for initial game state ..."
 	}
@@ -159,9 +188,8 @@ func (m model) renderGame() string {
 		panic(err)
 	}
 
-	return fmt.Sprintf(`
-  LOG FILE:     %s
-
+	return fmt.Sprintf(
+		`  SESSION:      %s
   PLAYER:       %s
   STATE:        %s
   VOTE ITEM:    %s
@@ -170,7 +198,7 @@ func (m model) renderGame() string {
 %s
 %s
 `,
-		"file:///"+config.LogFilePath,
+		m.gameSessionID,
 		config.PlayerName,
 		players,
 		render(&m.gameState.VoteItem),
@@ -178,6 +206,10 @@ func (m model) renderGame() string {
 		m.input.View(),
 		m.lastCommandError,
 	)
+}
+
+func renderLogPath() string {
+	return fmt.Sprintf("LOG FILE: file:///%s", config.LogFilePath)
 }
 
 func render(item *protocol.VoteItem) string {

@@ -1,6 +1,11 @@
 package protocol
 
-var Version int = 1
+import (
+	"github.com/mr-tron/base58"
+	"github.com/pkg/errors"
+)
+
+const Version int = 1
 
 //
 //type Player struct {
@@ -53,4 +58,30 @@ type PlayerVote struct {
 	VoteBy     Player     `json:"voteBy"`
 	VoteFor    string     `json:"voteFor"`
 	VoteResult VoteResult `json:"voteResult"`
+}
+
+type Session struct {
+	SymmetricKey []byte `json:"SymmetricKey"`
+}
+
+func (info *Session) ToSessionID() (string, error) {
+	sessionID := base58.Encode(info.SymmetricKey)
+	return sessionID, nil
+}
+
+func ParseSessionID(sessionID string) (*Session, error) {
+	decoded, err := base58.Decode(sessionID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode session ID")
+	}
+
+	return &Session{
+		SymmetricKey: decoded,
+	}, nil
+}
+
+func BuildSession(symmetricKey []byte) *Session {
+	return &Session{
+		SymmetricKey: symmetricKey,
+	}
 }

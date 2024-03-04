@@ -17,52 +17,63 @@ const (
 	Rename             = "rename"
 	Vote               = "vote"
 	Deal               = "deal"
+	New                = "new"
+	Join               = "join"
 )
 
-var userCommands = map[UserCommand]func(app *app.App, args []string) (tea.Cmd, error){
+var userCommands = map[UserCommand]func(m *model, args []string) (tea.Cmd, error){
 	Online: processOnlineCommand,
 	Rename: processRenameCommand,
 	Vote:   processVoteCommand,
-	Deal:   processDeal,
+	Deal:   processDealCommand,
+	New:    processNewCommand,
+	Join:   processJoinCommand,
 }
 
-func processUserCommand(app *app.App, command string) (tea.Cmd, error) {
+func processUserCommand(m *model) (tea.Cmd, error) {
+	command := m.input.Value()
+	defer m.input.Reset()
+
 	args := strings.Fields(command)
 	if len(args) == 0 {
 		return nil, errors.New("empty command")
 	}
+
 	commandRoot := UserCommand(args[0])
 	commandFn, ok := userCommands[commandRoot]
 	if !ok {
 		return nil, fmt.Errorf("unknown command: %s", commandRoot)
 	}
-	return commandFn(app, args[1:])
+
+	cmd, err := commandFn(m, args[1:])
+
+	return cmd, err
 }
 
-func processOnlineCommand(app *app.App, args []string) (tea.Cmd, error) {
+func processOnlineCommand(m *model, args []string) (tea.Cmd, error) {
 	if len(args) == 0 {
 		return nil, errors.New("empty user")
 	}
 	cmd := func() tea.Msg {
-		app.PublishUserOnline(args[0])
+		m.app.PublishUserOnline(args[0])
 		return nil
 	}
 	return cmd, nil
 }
 
-func processRenameCommand(app *app.App, args []string) (tea.Cmd, error) {
+func processRenameCommand(m *model, args []string) (tea.Cmd, error) {
 	if len(args) == 0 {
 		return nil, errors.New("empty user")
 	}
 	cmd := func() tea.Msg {
 		config.PlayerName = args[0]
-		app.PublishUserOnline(config.PlayerName)
+		m.app.PublishUserOnline(config.PlayerName)
 		return nil
 	}
 	return cmd, nil
 }
 
-func processVoteCommand(app *app.App, args []string) (tea.Cmd, error) {
+func processVoteCommand(m *model, args []string) (tea.Cmd, error) {
 	if len(args) == 0 {
 		return nil, errors.New("empty vote")
 	}
@@ -71,22 +82,35 @@ func processVoteCommand(app *app.App, args []string) (tea.Cmd, error) {
 		return nil, fmt.Errorf("failed to parse vote: %w", err)
 	}
 	cmd := func() tea.Msg {
-		app.PublishVote(vote)
+		m.app.PublishVote(vote)
 		return nil
 	}
 	return cmd, nil
 }
 
-func processDeal(app *app.App, args []string) (tea.Cmd, error) {
+func processDealCommand(m *model, args []string) (tea.Cmd, error) {
 	if len(args) == 0 {
 		return nil, errors.New("empty deal")
 	}
 	cmd := func() tea.Msg {
-		err := app.Deal(args[0])
+		err := m.app.Deal(args[0])
 		if err != nil {
 			return FatalErrorMessage{err}
 		}
 		return nil
 	}
 	return cmd, nil
+}
+
+func processNewCommand(m *model, args []string) (tea.Cmd, error) {
+	m.appState = app.CreatingSession
+	return createNewSession(m.app), nil
+}
+
+func processJoinCommand(m *model, args []string) (tea.Cmd, error) {
+	if len(args) == 0 {
+		return nil, errors.New("empty session ID")
+	}
+	m.appState = app.JoiningSession
+	return joinSession(args[0], m.app), nil
 }
