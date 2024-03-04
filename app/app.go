@@ -115,3 +115,11 @@ func (a *App) PublishVote(vote int) {
 
 	a.game.PublishVote(vote)
 }
+
+func (a *App) Deal(input string) error {
+	if a.game == nil {
+		return errors.New("game not created")
+	}
+
+	return a.game.Deal(input)
+}

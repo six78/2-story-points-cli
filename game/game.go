@@ -3,8 +3,11 @@ package game
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
+	"net/url"
 	"time"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
@@ -78,7 +81,7 @@ func (g *Game) processMessage(payload []byte) {
 			return
 		}
 		g.currentState = state.State
-		g.notifyChangedState(&g.currentState)
+		g.notifyChangedState()
 	case protocol.MessageTypePlayerOnline:
 		var playerOnline protocol.PlayerOnlineMessage
 		err := json.Unmarshal(payload, &playerOnline)
@@ -93,7 +96,7 @@ func (g *Game) processMessage(payload []byte) {
 
 			if !slices.Contains(g.currentState.Players, playerOnline.Name) {
 				g.currentState.Players = append(g.currentState.Players, playerOnline.Name)
-				g.notifyChangedState(&g.currentState)
+				g.notifyChangedState()
 				go g.publishState()
 			}
 		}
@@ -116,7 +119,7 @@ func (g *Game) processMessage(payload []byte) {
 			g.currentState.TempVoteResult = make(map[protocol.Player]protocol.VoteResult)
 		}
 		g.currentState.TempVoteResult[playerVote.VoteBy] = playerVote.VoteResult
-		g.notifyChangedState(&g.currentState)
+		g.notifyChangedState()
 		go g.publishState()
 	default:
 		logger.Warn("unsupported message type")
@@ -133,9 +136,9 @@ func (g *Game) CurrentState() *protocol.State {
 	return &g.currentState
 }
 
-func (g *Game) notifyChangedState(state *protocol.State) {
+func (g *Game) notifyChangedState() {
 	for _, subscriber := range g.stateSubscribers {
-		subscriber <- state
+		subscriber <- &g.currentState
 	}
 }
 
@@ -234,4 +237,29 @@ func (g *Game) PublishState() {
 
 func (g *Game) timestamp() int64 {
 	return time.Now().UnixMilli()
+}
+
+func (g *Game) Deal(input string) error {
+	item := protocol.VoteItem{}
+
+	itemUuid, err := uuid.NewUUID()
+	if err != nil {
+		return errors.New("failed to generate UUID")
+	}
+
+	item.ID = itemUuid.String()
+
+	u, err := url.Parse(input)
+	if err == nil {
+		item.URL = u.String()
+		// TODO: fetch title/description
+	} else {
+		item.Name = input
+	}
+
+	g.currentState.VoteItem = item
+	g.notifyChangedState()
+	go g.publishState()
+
+	return nil
 }

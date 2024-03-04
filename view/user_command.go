@@ -16,12 +16,14 @@ const (
 	Online UserCommand = "online"
 	Rename             = "rename"
 	Vote               = "vote"
+	Deal               = "deal"
 )
 
 var userCommands = map[UserCommand]func(app *app.App, args []string) (tea.Cmd, error){
 	Online: processOnlineCommand,
 	Rename: processRenameCommand,
 	Vote:   processVoteCommand,
+	Deal:   processDeal,
 }
 
 func processUserCommand(app *app.App, command string) (tea.Cmd, error) {
@@ -70,6 +72,20 @@ func processVoteCommand(app *app.App, args []string) (tea.Cmd, error) {
 	}
 	cmd := func() tea.Msg {
 		app.PublishVote(vote)
+		return nil
+	}
+	return cmd, nil
+}
+
+func processDeal(app *app.App, args []string) (tea.Cmd, error) {
+	if len(args) == 0 {
+		return nil, errors.New("empty deal")
+	}
+	cmd := func() tea.Msg {
+		err := app.Deal(args[0])
+		if err != nil {
+			return FatalErrorMessage{err}
+		}
 		return nil
 	}
 	return cmd, nil

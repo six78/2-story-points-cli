@@ -154,11 +154,6 @@ func (m model) renderGame() string {
 		panic(err)
 	}
 
-	voteItem, err := json.Marshal(m.gameState.VoteItem)
-	if err != nil {
-		panic(err)
-	}
-
 	voteResult, err := json.Marshal(m.gameState.TempVoteResult)
 	if err != nil {
 		panic(err)
@@ -174,16 +169,25 @@ func (m model) renderGame() string {
 
 %s
 %s
-
 `,
 		"file:///"+config.LogFilePath,
 		config.PlayerName,
 		players,
-		voteItem,
+		render(&m.gameState.VoteItem),
 		voteResult,
 		m.input.View(),
 		m.lastCommandError,
 	)
+}
+
+func render(item *protocol.VoteItem) string {
+	if item.URL == "" {
+		return item.Name
+	}
+	if item.Name == "" {
+		return item.URL
+	}
+	return fmt.Sprintf("%s (%s)", item.URL, item.Name)
 }
 
 // Ensure that model fulfils the tea.Model interface at compile time.
