@@ -5,7 +5,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const Version int = 1
+const Version byte = 1
 
 //
 //type Player struct {
@@ -61,11 +61,19 @@ type PlayerVote struct {
 }
 
 type Session struct {
-	SymmetricKey []byte `json:"SymmetricKey"`
+	Version      byte   `json:"version"`
+	SymmetricKey []byte `json:"symmetricKey"`
 }
 
+// SessionID: base58 encoded byte array:
+// byte 0: 	    version
+// byte 1..end: symmetric key
+
 func (info *Session) ToSessionID() (string, error) {
-	sessionID := base58.Encode(info.SymmetricKey)
+	bytes := make([]byte, 0, 1+len(info.SymmetricKey))
+	bytes = append(bytes, Version)
+	bytes = append(bytes, info.SymmetricKey...)
+	sessionID := base58.Encode(bytes)
 	return sessionID, nil
 }
 
@@ -75,8 +83,15 @@ func ParseSessionID(sessionID string) (*Session, error) {
 		return nil, errors.Wrap(err, "failed to decode session ID")
 	}
 
+	decodedVersion := decoded[0]
+
+	if decodedVersion != Version {
+		return nil, errors.Errorf("unexpected version: %d", decodedVersion)
+	}
+
 	return &Session{
-		SymmetricKey: decoded,
+		Version:      decodedVersion,
+		SymmetricKey: decoded[1:],
 	}, nil
 }
 

@@ -3,9 +3,7 @@ package view
 import (
 	"errors"
 	tea "github.com/charmbracelet/bubbletea"
-	"go.uber.org/zap"
 	"waku-poker-planning/app"
-	"waku-poker-planning/config"
 )
 
 // Any command here must:
@@ -47,7 +45,6 @@ func createNewSession(a *app.App) tea.Cmd {
 func joinSession(sessionID string, a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		err := a.JoinSession(sessionID)
-		config.Logger.Debug("joining session", zap.String("sessionID", sessionID), zap.Error(err))
 		if err != nil {
 			return FatalErrorMessage{err}
 		}

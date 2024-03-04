@@ -226,7 +226,7 @@ func sessionContentTopic(info *pp.Session) (string, error) {
 		return "", errors.New("symmetric key too short")
 	}
 
-	version := strconv.Itoa(pp.Version)
+	version := strconv.Itoa(int(pp.Version))
 	contentTopicName := hexutil.Encode(info.SymmetricKey[:4])
 	contentTopic, err := protocol.NewContentTopic("six78", version, contentTopicName, "json")
 	if err != nil {
