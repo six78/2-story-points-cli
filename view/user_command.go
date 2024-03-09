@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
+	"go.uber.org/zap"
 	"strconv"
 	"strings"
 	"waku-poker-planning/app"
@@ -30,24 +31,38 @@ var userCommands = map[UserCommand]func(m *model, args []string) (tea.Cmd, error
 	Join:   processJoinCommand,
 }
 
-func processUserCommand(m *model) (tea.Cmd, error) {
-	command := m.input.Value()
-	defer m.input.Reset()
+func processUserCommand(m *model, command string) tea.Cmd {
+	var err error
+
+	defer func() {
+		config.Logger.Debug("user command processed",
+			zap.Error(err),
+			zap.Any("appState", m.appState),
+		)
+
+		if err != nil {
+			m.lastCommandError = err.Error()
+		} else {
+			m.lastCommandError = ""
+		}
+	}()
 
 	args := strings.Fields(command)
 	if len(args) == 0 {
-		return nil, errors.New("empty command")
+		err = errors.New("empty command")
+		return nil
 	}
 
 	commandRoot := UserCommand(args[0])
 	commandFn, ok := userCommands[commandRoot]
 	if !ok {
-		return nil, fmt.Errorf("unknown command: %s", commandRoot)
+		err = fmt.Errorf("unknown command: %s", commandRoot)
+		return nil
 	}
 
 	cmd, err := commandFn(m, args[1:])
 
-	return cmd, err
+	return cmd
 }
 
 func processOnlineCommand(m *model, args []string) (tea.Cmd, error) {

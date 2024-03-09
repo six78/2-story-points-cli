@@ -93,7 +93,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.appState = app.WaitingForPeers
 			commands = append(commands, waitForWakuPeers(m.app))
 		case app.WaitingForPeers:
-			m.appState = app.UserInput
+			if config.InitialCommand == "" {
+				m.appState = app.UserInput
+			} else {
+				cmd := processUserCommand(&m, config.InitialCommand)
+				commands = append(commands, cmd)
+			}
 		case app.UserInput:
 			break
 		case app.CreatingSession, app.JoiningSession:
@@ -117,17 +122,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		case tea.KeyEnter:
-			cmd, err := processUserCommand(&m)
-			config.Logger.Debug("user command processed",
-				zap.Error(err),
-				zap.Any("appState", m.appState),
-			)
-			if err != nil {
-				m.lastCommandError = err.Error()
-			}
+			cmd := processUserCommand(&m, m.input.Value())
+			m.input.Reset()
 			if cmd != nil {
 				commands = append(commands, cmd)
-				m.lastCommandError = ""
 			}
 		}
 	}
@@ -178,6 +176,26 @@ func (m model) renderGame() string {
 		return m.spinner.View() + " Waiting for initial game state ..."
 	}
 
+	return fmt.Sprintf(
+		`  SESSION:      %s
+  PLAYER:       %s
+  VOTE ITEM:    %s
+
+%s
+
+%s
+%s
+`,
+		m.gameSessionID,
+		config.PlayerName,
+		render(&m.gameState.VoteItem),
+		m.renderPlayers(),
+		m.input.View(),
+		m.lastCommandError,
+	)
+}
+
+func (m model) renderPlayers() string {
 	players, err := json.Marshal(m.gameState.Players)
 	if err != nil {
 		panic(err)
@@ -189,22 +207,10 @@ func (m model) renderGame() string {
 	}
 
 	return fmt.Sprintf(
-		`  SESSION:      %s
-  PLAYER:       %s
-  STATE:        %s
-  VOTE ITEM:    %s
-  VOTE RESULT:  %s
-
-%s
-%s
-`,
-		m.gameSessionID,
-		config.PlayerName,
+		`  PLAYER:       %s
+  VOTE RESULT:  %s`,
 		players,
-		render(&m.gameState.VoteItem),
 		voteResult,
-		m.input.View(),
-		m.lastCommandError,
 	)
 }
 

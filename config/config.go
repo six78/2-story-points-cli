@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -18,6 +19,7 @@ const SymmetricKeyLength = 16
 var Fleet string
 var PlayerName string
 var PlayerID string
+var InitialCommand string
 
 var Logger *zap.Logger
 
@@ -65,8 +67,7 @@ func ParseArguments() {
 	playerUuid, _ := uuid.NewUUID()
 	PlayerID = playerUuid.String()
 
-	// TODO: Consider positional arguments as first command
-	// return strings.Join(flag.Args(), " ")
+	InitialCommand = strings.Join(flag.Args(), " ")
 }
 
 func generatePlayerName() string {
