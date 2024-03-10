@@ -22,9 +22,9 @@ const (
 )
 
 type App struct {
-	waku *waku.Node
-	game *game.Game
+	Game *game.Game
 
+	waku *waku.Node
 	ctx  context.Context
 	quit context.CancelFunc
 
@@ -36,7 +36,7 @@ func NewApp() *App {
 
 	return &App{
 		waku:                  nil,
-		game:                  nil,
+		Game:                  nil,
 		ctx:                   ctx,
 		quit:                  quit,
 		gameStateSubscription: nil,
@@ -44,10 +44,10 @@ func NewApp() *App {
 }
 
 func (a *App) GameState() *protocol.State {
-	if a.game == nil {
+	if a.Game == nil {
 		return &protocol.State{}
 	}
-	return a.game.CurrentState()
+	return a.Game.CurrentState()
 }
 
 func (a *App) Initialize() error {
@@ -66,15 +66,15 @@ func (a *App) Initialize() error {
 	}
 
 	a.waku = w
-	a.game = game.NewGame(a.ctx, a.waku)
-	a.gameStateSubscription = a.game.SubscribeToStateChanges()
+	a.Game = game.NewGame(a.ctx, a.waku)
+	a.gameStateSubscription = a.Game.SubscribeToStateChanges()
 
 	return nil
 }
 
 func (a *App) Stop() {
-	if a.game != nil {
-		a.game.Stop()
+	if a.Game != nil {
+		a.Game.Stop()
 	}
 	if a.waku != nil {
 		a.waku.Stop()
@@ -83,7 +83,7 @@ func (a *App) Stop() {
 }
 
 func (a *App) StartGame() {
-	a.game.Start()
+	a.Game.Start()
 }
 
 func (a *App) WaitForPeersConnected() bool {
@@ -97,8 +97,8 @@ func (a *App) WaitForPeersConnected() bool {
 
 func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 	if a.gameStateSubscription == nil {
-		config.Logger.Error("game state subscription not created")
-		return &protocol.State{}, false, errors.New("game state subscription not created")
+		config.Logger.Error("Game state subscription not created")
+		return &protocol.State{}, false, errors.New("Game state subscription not created")
 	}
 
 	state, more := <-a.gameStateSubscription
@@ -108,73 +108,72 @@ func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 	return state, more, nil
 }
 
-// PublishUserOnline should be used for testing purposes only
-func (a *App) PublishUserOnline(username string) {
-	if a.game == nil {
-		config.Logger.Error("game not created")
-		return
-	}
-
-	a.game.PublishUserOnline(username)
-}
-
 func (a *App) PublishVote(vote int) {
-	if a.game == nil {
-		config.Logger.Error("game not created")
+	if a.Game == nil {
+		config.Logger.Error("Game not created")
 		return
 	}
 
-	a.game.PublishVote(vote)
+	a.Game.PublishVote(vote)
 }
 
 func (a *App) Deal(input string) error {
-	if a.game == nil {
-		return errors.New("game not created")
+	if a.Game == nil {
+		return errors.New("Game not created")
 	}
 
-	return a.game.Deal(input)
+	return a.Game.Deal(input)
 }
 
 func (a *App) CreateNewSession() error {
-	if a.game == nil {
-		return errors.New("game not created")
+	if a.Game == nil {
+		return errors.New("Game not created")
 	}
 
-	a.game.LeaveSession()
+	a.Game.LeaveSession()
 
-	err := a.game.CreateNewSession()
+	err := a.Game.CreateNewSession()
 	if err != nil {
 		return errors.Wrap(err, "failed to create new session")
 	}
 
-	a.game.Start()
+	a.Game.Start()
 	return nil
 }
 
 func (a *App) JoinSession(sessionID string) error {
-	if a.game == nil {
-		return errors.New("game not created")
+	if a.Game == nil {
+		return errors.New("Game not created")
 	}
 
-	if a.game.SessionID() == sessionID {
+	if a.Game.SessionID() == sessionID {
 		return errors.New("already in this session")
 	}
 
-	a.game.LeaveSession()
+	a.Game.LeaveSession()
 
-	err := a.game.JoinSession(sessionID)
+	err := a.Game.JoinSession(sessionID)
 	if err != nil {
 		return errors.Wrap(err, "failed to join session")
 	}
 
-	a.game.Start()
+	a.Game.Start()
 	return nil
 }
 
 func (a *App) IsDealer() bool {
-	return a.game != nil && a.game.IsDealer()
+	return a.Game != nil && a.Game.IsDealer()
 }
 
 func (a *App) GameSessionID() string {
-	return a.game.SessionID()
+	return a.Game.SessionID()
+}
+
+func (a *App) RenamePlayer(name string) {
+	if a.Game == nil {
+		config.Logger.Error("Game not created")
+		return
+	}
+
+	a.Game.RenamePlayer(name)
 }

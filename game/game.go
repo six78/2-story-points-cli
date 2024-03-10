@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	wp "github.com/waku-org/go-waku/waku/v2/payload"
 	"go.uber.org/zap"
-	"golang.org/x/exp/slices"
 	"net/url"
 	"time"
 	"waku-poker-planning/config"
@@ -28,7 +27,8 @@ type Game struct {
 	transport    Transport
 	leaveSession chan struct{}
 
-	dealer                bool
+	player *protocol.Player
+
 	session               *protocol.Session
 	sessionID             string
 	currentState          *protocol.State
@@ -37,13 +37,22 @@ type Game struct {
 }
 
 func NewGame(ctx context.Context, transport Transport) *Game {
+	playerUuid, err := uuid.NewUUID()
+	if err != nil {
+		panic(errors.Wrap(err, "failed to generate user uuid"))
+	}
+
 	return &Game{
 		logger:       config.Logger.Named("game"),
 		ctx:          ctx,
 		transport:    transport,
 		leaveSession: nil,
-		dealer:       false,
-		session:      nil,
+		player: &protocol.Player{
+			ID:       protocol.PlayerID(playerUuid.String()),
+			Name:     config.PlayerName(),
+			IsDealer: false,
+		},
+		session: nil,
 	}
 }
 
@@ -53,7 +62,7 @@ func (g *Game) Start() {
 	go g.processIncomingMessages()
 	go g.publishOnlineState()
 
-	if g.dealer {
+	if g.player.IsDealer {
 		go g.publishStatePeriodically()
 	}
 }
@@ -95,9 +104,10 @@ func (g *Game) processMessage(payload []byte) {
 		return
 	}
 	logger := g.logger.With(zap.String("type", string(message.Type)))
+
 	switch message.Type {
 	case protocol.MessageTypeState:
-		if g.dealer {
+		if g.player.IsDealer {
 			logger.Warn("dealer should not receive state messages")
 			return
 		}
@@ -113,6 +123,7 @@ func (g *Game) processMessage(payload []byte) {
 		}
 		g.currentState = &state.State
 		g.notifyChangedState()
+
 	case protocol.MessageTypePlayerOnline:
 		var playerOnline protocol.PlayerOnlineMessage
 		err := json.Unmarshal(payload, &playerOnline)
@@ -120,19 +131,21 @@ func (g *Game) processMessage(payload []byte) {
 			logger.Error("failed to unmarshal message", zap.Error(err))
 			return
 		}
-		g.logger.Info("player is online", zap.String("name", string(playerOnline.Name)))
-		if g.dealer {
-			//playerID := protocol.PlayerID(playerOnline.Name)
-			//if _, ok := g.currentState.Players[playerID]; !ok {
-
-			if !slices.Contains(g.currentState.Players, playerOnline.Name) {
-				g.currentState.Players = append(g.currentState.Players, playerOnline.Name)
+		g.logger.Info("player is online", zap.Any("player", playerOnline.Player))
+		if g.player.IsDealer {
+			if _, ok := g.currentState.Players[playerOnline.Player.ID]; !ok {
+				playerOnline.Player.Order = len(g.currentState.Players)
+				if g.currentState.Players == nil {
+					g.currentState.Players = make(map[protocol.PlayerID]protocol.Player)
+				}
+				g.currentState.Players[playerOnline.Player.ID] = playerOnline.Player
 				g.notifyChangedState()
 				go g.PublishState()
 			}
 		}
+
 	case protocol.MessageTypePlayerVote:
-		if !g.dealer {
+		if !g.player.IsDealer {
 			return
 		}
 		var playerVote protocol.PlayerVote
@@ -147,11 +160,12 @@ func (g *Game) processMessage(payload []byte) {
 			zap.Int("voteResult", int(playerVote.VoteResult)))
 
 		if g.currentState.TempVoteResult == nil {
-			g.currentState.TempVoteResult = make(map[protocol.Player]protocol.VoteResult)
+			g.currentState.TempVoteResult = make(map[protocol.PlayerID]protocol.VoteResult)
 		}
 		g.currentState.TempVoteResult[playerVote.VoteBy] = playerVote.VoteResult
 		g.notifyChangedState()
 		go g.PublishState()
+
 	default:
 		logger.Warn("unsupported message type")
 	}
@@ -178,11 +192,11 @@ func (g *Game) notifyChangedState() {
 }
 
 func (g *Game) publishOnlineState() {
-	g.PublishUserOnline(config.PlayerName)
+	g.PublishUserOnline(g.player)
 	for {
 		select {
 		case <-time.After(config.OnlineMessagePeriod):
-			g.PublishUserOnline(config.PlayerName)
+			g.PublishUserOnline(g.player)
 		case <-g.leaveSession:
 			return
 		case <-g.ctx.Done():
@@ -241,14 +255,14 @@ func (g *Game) publishMessage(message any) {
 	}
 }
 
-func (g *Game) PublishUserOnline(user string) {
-	g.logger.Debug("publishing online state", zap.String("user", user))
+func (g *Game) PublishUserOnline(player *protocol.Player) {
+	g.logger.Debug("publishing online state")
 	g.publishMessage(protocol.PlayerOnlineMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypePlayerOnline,
 			Timestamp: g.timestamp(),
 		},
-		Name: protocol.Player(user),
+		Player: *player,
 	})
 }
 
@@ -259,13 +273,18 @@ func (g *Game) PublishVote(vote int) {
 			Type:      protocol.MessageTypePlayerVote,
 			Timestamp: g.timestamp(),
 		},
-		VoteBy:     protocol.Player(config.PlayerID),
+		VoteBy:     g.player.ID,
 		VoteFor:    g.currentState.VoteItem.ID,
 		VoteResult: protocol.VoteResult(vote),
 	})
 }
 
 func (g *Game) PublishState() {
+	if !g.player.IsDealer {
+		g.logger.Warn("only dealer can publish state")
+		return
+	}
+
 	g.logger.Debug("publishing state")
 	g.publishMessage(protocol.GameStateMessage{
 		Message: protocol.Message{
@@ -281,6 +300,10 @@ func (g *Game) timestamp() int64 {
 }
 
 func (g *Game) Deal(input string) error {
+	if !g.player.IsDealer {
+		return errors.New("only dealer can deal")
+	}
+
 	item := protocol.VoteItem{}
 
 	itemUuid, err := uuid.NewUUID()
@@ -320,10 +343,12 @@ func (g *Game) CreateNewSession() error {
 	}
 
 	g.logger.Info("new session created", zap.String("sessionID", sessionID))
-	g.dealer = true
+	g.player.IsDealer = true
 	g.session = info
 	g.sessionID = sessionID
-	g.currentState = &protocol.State{}
+	g.currentState = &protocol.State{
+		Players: make(map[protocol.PlayerID]protocol.Player),
+	}
 	g.currentStateTimestamp = g.timestamp()
 
 	return nil
@@ -335,7 +360,7 @@ func (g *Game) JoinSession(sessionID string) error {
 		return errors.Wrap(err, "failed to parse session ID")
 	}
 
-	g.dealer = false
+	g.player.IsDealer = false
 	g.session = info
 	g.sessionID = sessionID
 	g.currentState = nil
@@ -346,9 +371,18 @@ func (g *Game) JoinSession(sessionID string) error {
 }
 
 func (g *Game) IsDealer() bool {
-	return g.dealer
+	return g.player.IsDealer
 }
 
 func (g *Game) SessionID() string {
 	return g.sessionID
+}
+
+func (g *Game) Player() protocol.Player {
+	return *g.player
+}
+
+func (g *Game) RenamePlayer(name string) {
+	g.player.Name = name
+	g.PublishUserOnline(g.player)
 }

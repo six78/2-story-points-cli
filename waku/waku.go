@@ -112,9 +112,9 @@ func (n *Node) watchConnectionStatus() {
 }
 
 func (n *Node) discoverNodes() error {
-	enrTree, ok := fleets[config.Fleet]
+	enrTree, ok := fleets[config.Fleet()]
 	if !ok {
-		return errors.Errorf("unknown fleet %s", config.Fleet)
+		return errors.Errorf("unknown fleet %s", config.Fleet())
 	}
 
 	discoveredNodes, err := dnsdisc.RetrieveNodes(n.ctx, enrTree)

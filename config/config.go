@@ -3,7 +3,6 @@ package config
 import (
 	"flag"
 	"fmt"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"os"
 	"path/filepath"
@@ -11,18 +10,16 @@ import (
 	"time"
 )
 
-const OnlineMessagePeriod = 10 * time.Second
+const OnlineMessagePeriod = 5 * time.Second
 const StateMessagePeriod = 10 * time.Second
 const logsDirectory = "logs"
 const SymmetricKeyLength = 16
 
-var Fleet string
-var PlayerName string
-var PlayerID string
-var InitialCommand string
+var fleet string
+var playerName string
+var initialAction string
 
 var Logger *zap.Logger
-
 var LogFilePath string
 
 func SetupLogger() {
@@ -59,17 +56,25 @@ func createLogFile() string {
 }
 
 func ParseArguments() {
-	flag.StringVar(&Fleet, "fleet", "wakuv2.prod", "Waku fleet name")
-	flag.StringVar(&PlayerName, "name", generatePlayerName(), "Player name")
+	flag.StringVar(&fleet, "fleet", "wakuv2.prod", "Waku fleet name")
+	flag.StringVar(&playerName, "name", generatePlayerName(), "Player name")
 	flag.Parse()
 
-	// TODO: Find a better place for ths
-	playerUuid, _ := uuid.NewUUID()
-	PlayerID = playerUuid.String()
-
-	InitialCommand = strings.Join(flag.Args(), " ")
+	initialAction = strings.Join(flag.Args(), " ")
 }
 
 func generatePlayerName() string {
 	return fmt.Sprintf("player-%d", time.Now().Unix())
+}
+
+func Fleet() string {
+	return fleet
+}
+
+func PlayerName() string {
+	return playerName
+}
+
+func InitialAction() string {
+	return initialAction
 }

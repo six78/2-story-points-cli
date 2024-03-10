@@ -1,14 +1,16 @@
 package view
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	"go.uber.org/zap"
+	"math"
+	"sort"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
@@ -93,10 +95,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.appState = app.WaitingForPeers
 			commands = append(commands, waitForWakuPeers(m.app))
 		case app.WaitingForPeers:
-			if config.InitialCommand == "" {
+			if config.InitialAction() == "" {
 				m.appState = app.UserInput
 			} else {
-				cmd := processUserCommand(&m, config.InitialCommand)
+				cmd := runAction(&m, config.InitialAction())
 				commands = append(commands, cmd)
 			}
 		case app.UserInput:
@@ -122,7 +124,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		case tea.KeyEnter:
-			cmd := processUserCommand(&m, m.input.Value())
+			cmd := runAction(&m, m.input.Value())
 			m.input.Reset()
 			if cmd != nil {
 				commands = append(commands, cmd)
@@ -187,7 +189,7 @@ func (m model) renderGame() string {
 %s
 `,
 		m.gameSessionID,
-		config.PlayerName,
+		m.app.Game.Player().Name,
 		render(&m.gameState.VoteItem),
 		m.renderPlayers(),
 		m.input.View(),
@@ -195,23 +197,101 @@ func (m model) renderGame() string {
 	)
 }
 
+type PlayerVoteResult struct {
+	Player protocol.Player
+	Vote   string
+}
+
 func (m model) renderPlayers() string {
-	players, err := json.Marshal(m.gameState.Players)
-	if err != nil {
-		panic(err)
+	var players []PlayerVoteResult
+
+	for playerID, player := range m.gameState.Players {
+		voteResult := PlayerVoteResult{
+			Player: player,
+			Vote:   "🤔",
+		}
+		if vote, ok := m.gameState.TempVoteResult[playerID]; ok {
+			voteResult.Vote = fmt.Sprintf("%d", vote)
+		}
+		players = append(players, voteResult)
 	}
 
-	voteResult, err := json.Marshal(m.gameState.TempVoteResult)
-	if err != nil {
-		panic(err)
+	for playerID, vote := range m.gameState.TempVoteResult {
+		if _, ok := m.gameState.Players[playerID]; ok {
+			continue
+		}
+		players = append(players, PlayerVoteResult{
+			Player: protocol.Player{
+				ID:    playerID,
+				Name:  string(playerID),
+				Order: math.MaxInt32,
+			},
+			Vote: fmt.Sprintf("%d", vote),
+		})
 	}
 
-	return fmt.Sprintf(
-		`  PLAYER:       %s
-  VOTE RESULT:  %s`,
-		players,
-		voteResult,
-	)
+	sort.Slice(players[:], func(i, j int) bool {
+		playerI := players[i].Player
+		playerJ := players[j].Player
+		if playerI.Order != playerJ.Order {
+			return playerI.Order < playerJ.Order
+		}
+		return playerI.Name < playerJ.Name
+	})
+
+	var votes []string
+	for _, player := range players {
+		votes = append(votes, player.Vote)
+	}
+
+	var playerNames []string
+	for _, player := range players {
+		playerNames = append(playerNames, player.Player.Name)
+	}
+
+	var CommonStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FAFAFA")).
+		//Background(lipgloss.Color("#7D56F4")).
+		//PaddingTop(2).
+		PaddingLeft(1).
+		PaddingRight(1).
+		//Width(22)
+		Align(lipgloss.Center)
+
+	var HeaderStyle = CommonStyle.Copy().
+		Bold(true)
+
+	rows := [][]string{
+		votes,
+	}
+
+	t := table.New().
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			switch {
+			case row == 0:
+				return HeaderStyle
+			default:
+				return CommonStyle
+			}
+		}).
+		Headers(playerNames...).
+		Rows(rows...)
+
+	return t.String()
+}
+
+func (m model) getPlayerInfo(playerID protocol.PlayerID) protocol.Player {
+	player, playerFound := m.gameState.Players[playerID]
+	if playerFound {
+		return player
+	}
+	return protocol.Player{
+		ID:    playerID,
+		Name:  string(playerID),
+		Order: math.MaxInt32,
+	}
 }
 
 func renderLogPath() string {

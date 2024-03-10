@@ -11,27 +11,25 @@ import (
 	"waku-poker-planning/config"
 )
 
-type UserCommand string
+type Action string
 
 const (
-	Online UserCommand = "online"
-	Rename             = "rename"
-	Vote               = "vote"
-	Deal               = "deal"
-	New                = "new"
-	Join               = "join"
+	Rename Action = "rename"
+	Vote          = "vote"
+	Deal          = "deal"
+	New           = "new"
+	Join          = "join"
 )
 
-var userCommands = map[UserCommand]func(m *model, args []string) (tea.Cmd, error){
-	Online: processOnlineCommand,
-	Rename: processRenameCommand,
-	Vote:   processVoteCommand,
-	Deal:   processDealCommand,
-	New:    processNewCommand,
-	Join:   processJoinCommand,
+var actions = map[Action]func(m *model, args []string) (tea.Cmd, error){
+	Rename: runRenameAction,
+	Vote:   runVoteAction,
+	Deal:   runDealAction,
+	New:    runNewAction,
+	Join:   runJoinAction,
 }
 
-func processUserCommand(m *model, command string) tea.Cmd {
+func runAction(m *model, command string) tea.Cmd {
 	var err error
 
 	defer func() {
@@ -53,8 +51,8 @@ func processUserCommand(m *model, command string) tea.Cmd {
 		return nil
 	}
 
-	commandRoot := UserCommand(args[0])
-	commandFn, ok := userCommands[commandRoot]
+	commandRoot := Action(args[0])
+	commandFn, ok := actions[commandRoot]
 	if !ok {
 		err = fmt.Errorf("unknown command: %s", commandRoot)
 		return nil
@@ -65,30 +63,18 @@ func processUserCommand(m *model, command string) tea.Cmd {
 	return cmd
 }
 
-func processOnlineCommand(m *model, args []string) (tea.Cmd, error) {
+func runRenameAction(m *model, args []string) (tea.Cmd, error) {
 	if len(args) == 0 {
 		return nil, errors.New("empty user")
 	}
 	cmd := func() tea.Msg {
-		m.app.PublishUserOnline(args[0])
+		m.app.RenamePlayer(args[0])
 		return nil
 	}
 	return cmd, nil
 }
 
-func processRenameCommand(m *model, args []string) (tea.Cmd, error) {
-	if len(args) == 0 {
-		return nil, errors.New("empty user")
-	}
-	cmd := func() tea.Msg {
-		config.PlayerName = args[0]
-		m.app.PublishUserOnline(config.PlayerName)
-		return nil
-	}
-	return cmd, nil
-}
-
-func processVoteCommand(m *model, args []string) (tea.Cmd, error) {
+func runVoteAction(m *model, args []string) (tea.Cmd, error) {
 	if len(args) == 0 {
 		return nil, errors.New("empty vote")
 	}
@@ -103,7 +89,7 @@ func processVoteCommand(m *model, args []string) (tea.Cmd, error) {
 	return cmd, nil
 }
 
-func processDealCommand(m *model, args []string) (tea.Cmd, error) {
+func runDealAction(m *model, args []string) (tea.Cmd, error) {
 	if len(args) == 0 {
 		return nil, errors.New("empty deal")
 	}
@@ -117,12 +103,12 @@ func processDealCommand(m *model, args []string) (tea.Cmd, error) {
 	return cmd, nil
 }
 
-func processNewCommand(m *model, args []string) (tea.Cmd, error) {
+func runNewAction(m *model, args []string) (tea.Cmd, error) {
 	m.appState = app.CreatingSession
 	return createNewSession(m.app), nil
 }
 
-func processJoinCommand(m *model, args []string) (tea.Cmd, error) {
+func runJoinAction(m *model, args []string) (tea.Cmd, error) {
 	if len(args) == 0 {
 		return nil, errors.New("empty session ID")
 	}
