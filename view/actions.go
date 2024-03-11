@@ -9,16 +9,19 @@ import (
 	"strings"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
+	"waku-poker-planning/protocol"
 )
 
 type Action string
 
 const (
 	Rename Action = "rename"
-	Vote          = "vote"
-	Deal          = "deal"
 	New           = "new"
 	Join          = "join"
+	Vote          = "vote"
+	Deal          = "deal"
+	Reveal        = "reveal"
+	Finish        = "finish"
 )
 
 var actions = map[Action]func(m *model, args []string) (tea.Cmd, error){
@@ -27,6 +30,8 @@ var actions = map[Action]func(m *model, args []string) (tea.Cmd, error){
 	Deal:   runDealAction,
 	New:    runNewAction,
 	Join:   runJoinAction,
+	Reveal: runRevealAction,
+	Finish: runFinihAction,
 }
 
 func runAction(m *model, command string) tea.Cmd {
@@ -83,7 +88,7 @@ func runVoteAction(m *model, args []string) (tea.Cmd, error) {
 		return nil, fmt.Errorf("failed to parse vote: %w", err)
 	}
 	cmd := func() tea.Msg {
-		m.app.PublishVote(vote)
+		m.app.Game.PublishVote(protocol.VoteResult(vote))
 		return nil
 	}
 	return cmd, nil
@@ -96,7 +101,7 @@ func runDealAction(m *model, args []string) (tea.Cmd, error) {
 	cmd := func() tea.Msg {
 		err := m.app.Deal(args[0])
 		if err != nil {
-			return FatalErrorMessage{err}
+			return ActionErrorMessage{err}
 		}
 		return nil
 	}
@@ -114,4 +119,19 @@ func runJoinAction(m *model, args []string) (tea.Cmd, error) {
 	}
 	m.appState = app.JoiningSession
 	return joinSession(args[0], m.app), nil
+}
+
+func runRevealAction(m *model, args []string) (tea.Cmd, error) {
+	cmd := func() tea.Msg {
+		err := m.app.Game.Reveal()
+		if err != nil {
+			return ActionErrorMessage{err}
+		}
+		return nil
+	}
+	return cmd, nil
+}
+
+func runFinihAction(m *model, args []string) (tea.Cmd, error) {
+	return nil, errors.New("action not implemented")
 }

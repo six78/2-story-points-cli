@@ -108,15 +108,6 @@ func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 	return state, more, nil
 }
 
-func (a *App) PublishVote(vote int) {
-	if a.Game == nil {
-		config.Logger.Error("Game not created")
-		return
-	}
-
-	a.Game.PublishVote(vote)
-}
-
 func (a *App) Deal(input string) error {
 	if a.Game == nil {
 		return errors.New("Game not created")

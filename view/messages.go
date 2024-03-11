@@ -16,3 +16,7 @@ type AppStateMessage struct {
 type GameStateMessage struct {
 	state *protocol.State
 }
+
+type ActionErrorMessage struct {
+	err error
+}

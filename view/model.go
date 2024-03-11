@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 	"go.uber.org/zap"
-	"math"
 	"sort"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
@@ -38,9 +37,8 @@ type model struct {
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
-	input       textinput.Model
-	spinner     spinner.Model
-	senderStyle lipgloss.Style
+	input   textinput.Model
+	spinner spinner.Model
 }
 
 func initialModel(a *app.App) model {
@@ -66,7 +64,8 @@ func createTextInput() textinput.Model {
 
 func createSpinner() spinner.Model {
 	s := spinner.New()
-	s.Spinner = spinner.Dot
+	s.Spinner = spinner.MiniDot
+	//s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	return s
 }
 
@@ -88,6 +87,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case FatalErrorMessage:
 		m.fatalError = msg.err
+
+	case ActionErrorMessage:
+		m.lastCommandError = msg.err.Error()
 
 	case AppStateMessage:
 		switch msg.finishedState {
@@ -149,7 +151,7 @@ func (m model) View() string {
 func (m model) renderAppState() string {
 	switch m.appState {
 	case app.Idle:
-		return fmt.Sprintf("nothing is happning. boring life.")
+		return "nothing is happening. boring life."
 	case app.Initializing:
 		return m.spinner.View() + " Starting Waku..."
 	case app.WaitingForPeers:
@@ -179,9 +181,9 @@ func (m model) renderGame() string {
 	}
 
 	return fmt.Sprintf(
-		`  SESSION:      %s
+		`  SESSION ID:   %s
   PLAYER:       %s
-  VOTE ITEM:    %s
+  ISSUE:        %s
 
 %s
 
@@ -200,33 +202,18 @@ func (m model) renderGame() string {
 type PlayerVoteResult struct {
 	Player protocol.Player
 	Vote   string
+	Style  lipgloss.Style
 }
 
 func (m model) renderPlayers() string {
-	var players []PlayerVoteResult
+	players := make([]PlayerVoteResult, 0, len(m.gameState.Players))
 
 	for playerID, player := range m.gameState.Players {
-		voteResult := PlayerVoteResult{
-			Player: player,
-			Vote:   "🤔",
-		}
-		if vote, ok := m.gameState.TempVoteResult[playerID]; ok {
-			voteResult.Vote = fmt.Sprintf("%d", vote)
-		}
-		players = append(players, voteResult)
-	}
-
-	for playerID, vote := range m.gameState.TempVoteResult {
-		if _, ok := m.gameState.Players[playerID]; ok {
-			continue
-		}
+		vote, style := renderVote(&m, playerID)
 		players = append(players, PlayerVoteResult{
-			Player: protocol.Player{
-				ID:    playerID,
-				Name:  string(playerID),
-				Order: math.MaxInt32,
-			},
-			Vote: fmt.Sprintf("%d", vote),
+			Player: player,
+			Vote:   vote,
+			Style:  style,
 		})
 	}
 
@@ -255,7 +242,6 @@ func (m model) renderPlayers() string {
 		//PaddingTop(2).
 		PaddingLeft(1).
 		PaddingRight(1).
-		//Width(22)
 		Align(lipgloss.Center)
 
 	var HeaderStyle = CommonStyle.Copy().
@@ -273,7 +259,7 @@ func (m model) renderPlayers() string {
 			case row == 0:
 				return HeaderStyle
 			default:
-				return CommonStyle
+				return players[col].Style
 			}
 		}).
 		Headers(playerNames...).
@@ -282,16 +268,47 @@ func (m model) renderPlayers() string {
 	return t.String()
 }
 
-func (m model) getPlayerInfo(playerID protocol.PlayerID) protocol.Player {
-	player, playerFound := m.gameState.Players[playerID]
-	if playerFound {
-		return player
+var CommonVoteStyle = lipgloss.NewStyle().
+	PaddingLeft(1).
+	PaddingRight(1).
+	Align(lipgloss.Center)
+
+var NoVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#444444"))
+var ReadyVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#5fd700"))
+var LightVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#00d7ff"))
+var MediumVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ffd787"))
+var DangerVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ff005f"))
+
+func voteStyle(vote protocol.VoteResult) lipgloss.Style {
+	if vote >= 13 {
+		return DangerVoteStyle
 	}
-	return protocol.Player{
-		ID:    playerID,
-		Name:  string(playerID),
-		Order: math.MaxInt32,
+	if vote >= 5 {
+		return MediumVoteStyle
 	}
+	return LightVoteStyle
+}
+
+func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
+	if m.gameState.VoteState == protocol.IdleState {
+		return "", CommonVoteStyle
+	}
+	vote, ok := m.gameState.TempVoteResult[playerID]
+	if !ok {
+		if m.gameState.VoteState == protocol.RevealedState ||
+			m.gameState.VoteState == protocol.FinishedState {
+			return "X", NoVoteStyle
+		}
+		return m.spinner.View(), CommonVoteStyle
+	}
+	if playerID == m.app.Game.Player().ID {
+		playerVote := m.app.Game.PlayerVote()
+		vote = &playerVote
+	}
+	if vote == nil {
+		return "✓", ReadyVoteStyle
+	}
+	return fmt.Sprintf("%d", *vote), voteStyle(*vote)
 }
 
 func renderLogPath() string {

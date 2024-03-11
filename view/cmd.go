@@ -36,7 +36,7 @@ func createNewSession(a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		err := a.CreateNewSession()
 		if err != nil {
-			return FatalErrorMessage{err}
+			return ActionErrorMessage{err}
 		}
 		return AppStateMessage{finishedState: app.CreatingSession}
 	}
@@ -46,7 +46,7 @@ func joinSession(sessionID string, a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		err := a.JoinSession(sessionID)
 		if err != nil {
-			return FatalErrorMessage{err}
+			return ActionErrorMessage{err}
 		}
 		return AppStateMessage{finishedState: app.JoiningSession}
 	}

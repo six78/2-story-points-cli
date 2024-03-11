@@ -7,12 +7,6 @@ import (
 
 const Version byte = 1
 
-//
-//type Player struct {
-//	Name   string
-//	Dealer bool
-//}
-
 type PlayerID string
 type VoteResult int
 
@@ -31,10 +25,20 @@ type VoteItem struct {
 	VoteHistory map[PlayerID]VoteResult `json:"voteHistory"`
 }
 
+type VoteState string
+
+const (
+	IdleState     VoteState = "idle"
+	VotingState             = "voting"
+	RevealedState           = "revealed"
+	FinishedState           = "finished"
+)
+
 type State struct {
-	Players        map[PlayerID]Player     `json:"players"`
-	VoteItem       VoteItem                `json:"voteItem"`
-	TempVoteResult map[PlayerID]VoteResult `json:"tempVoteResults"`
+	Players        map[PlayerID]Player      `json:"players"`
+	VoteItem       VoteItem                 `json:"voteItem"`
+	TempVoteResult map[PlayerID]*VoteResult `json:"tempVoteResults"`
+	VoteState      VoteState                `json:"voteState"`
 }
 
 type MessageType string

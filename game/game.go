@@ -27,7 +27,8 @@ type Game struct {
 	transport    Transport
 	leaveSession chan struct{}
 
-	player *protocol.Player
+	player     *protocol.Player
+	playerVote protocol.VoteResult
 
 	session               *protocol.Session
 	sessionID             string
@@ -52,7 +53,8 @@ func NewGame(ctx context.Context, transport Transport) *Game {
 			Name:     config.PlayerName(),
 			IsDealer: false,
 		},
-		session: nil,
+		playerVote: 0,
+		session:    nil,
 	}
 }
 
@@ -122,7 +124,7 @@ func (g *Game) processMessage(payload []byte) {
 			return
 		}
 		g.currentState = &state.State
-		g.notifyChangedState()
+		g.notifyChangedState(false)
 
 	case protocol.MessageTypePlayerOnline:
 		var playerOnline protocol.PlayerOnlineMessage
@@ -139,8 +141,7 @@ func (g *Game) processMessage(payload []byte) {
 					g.currentState.Players = make(map[protocol.PlayerID]protocol.Player)
 				}
 				g.currentState.Players[playerOnline.Player.ID] = playerOnline.Player
-				g.notifyChangedState()
-				go g.PublishState()
+				g.notifyChangedState(true)
 			}
 		}
 
@@ -160,11 +161,10 @@ func (g *Game) processMessage(payload []byte) {
 			zap.Int("voteResult", int(playerVote.VoteResult)))
 
 		if g.currentState.TempVoteResult == nil {
-			g.currentState.TempVoteResult = make(map[protocol.PlayerID]protocol.VoteResult)
+			g.currentState.TempVoteResult = make(map[protocol.PlayerID]*protocol.VoteResult)
 		}
-		g.currentState.TempVoteResult[playerVote.VoteBy] = playerVote.VoteResult
-		g.notifyChangedState()
-		go g.PublishState()
+		g.currentState.TempVoteResult[playerVote.VoteBy] = &playerVote.VoteResult
+		g.notifyChangedState(true)
 
 	default:
 		logger.Warn("unsupported message type")
@@ -181,13 +181,20 @@ func (g *Game) CurrentState() *protocol.State {
 	return g.currentState
 }
 
-func (g *Game) notifyChangedState() {
+func (g *Game) notifyChangedState(publish bool) {
+	state := g.hiddenCurrentState()
+
 	g.logger.Debug("notifying state change",
 		zap.Int("subscribers", len(g.stateSubscribers)),
-		zap.Any("state", g.currentState),
+		zap.Any("state", state),
 	)
+
 	for _, subscriber := range g.stateSubscribers {
-		subscriber <- g.currentState
+		subscriber <- state
+	}
+
+	if publish {
+		go g.publishState(state)
 	}
 }
 
@@ -209,7 +216,7 @@ func (g *Game) publishStatePeriodically() {
 	for {
 		select {
 		case <-time.After(config.StateMessagePeriod):
-			g.PublishState()
+			g.publishState(g.hiddenCurrentState())
 		case <-g.leaveSession:
 			return
 		case <-g.ctx.Done():
@@ -266,8 +273,13 @@ func (g *Game) PublishUserOnline(player *protocol.Player) {
 	})
 }
 
-func (g *Game) PublishVote(vote int) {
-	g.logger.Debug("publishing vote", zap.Int("vote", vote))
+func (g *Game) PublishVote(vote protocol.VoteResult) {
+	if g.currentState.VoteState != protocol.VotingState {
+		g.logger.Warn("cannot vote when voting is not in progress")
+		return
+	}
+	g.logger.Debug("publishing vote", zap.Any("vote", vote))
+	g.playerVote = vote
 	g.publishMessage(protocol.PlayerVote{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypePlayerVote,
@@ -275,13 +287,18 @@ func (g *Game) PublishVote(vote int) {
 		},
 		VoteBy:     g.player.ID,
 		VoteFor:    g.currentState.VoteItem.ID,
-		VoteResult: protocol.VoteResult(vote),
+		VoteResult: vote,
 	})
 }
 
-func (g *Game) PublishState() {
+func (g *Game) publishState(state *protocol.State) {
 	if !g.player.IsDealer {
 		g.logger.Warn("only dealer can publish state")
+		return
+	}
+
+	if state == nil {
+		g.logger.Error("no state to publish")
 		return
 	}
 
@@ -291,7 +308,7 @@ func (g *Game) PublishState() {
 			Type:      protocol.MessageTypeState,
 			Timestamp: g.timestamp(),
 		},
-		State: *g.currentState,
+		State: *state,
 	})
 }
 
@@ -302,6 +319,10 @@ func (g *Game) timestamp() int64 {
 func (g *Game) Deal(input string) error {
 	if !g.player.IsDealer {
 		return errors.New("only dealer can deal")
+	}
+
+	if g.currentState.VoteState != protocol.IdleState {
+		return errors.New("cannot deal when voting is in progress")
 	}
 
 	item := protocol.VoteItem{}
@@ -323,8 +344,8 @@ func (g *Game) Deal(input string) error {
 
 	g.currentState.VoteItem = item
 	g.currentState.TempVoteResult = nil
-	g.notifyChangedState()
-	go g.PublishState()
+	g.currentState.VoteState = protocol.VotingState
+	g.notifyChangedState(true)
 
 	return nil
 }
@@ -347,7 +368,8 @@ func (g *Game) CreateNewSession() error {
 	g.session = info
 	g.sessionID = sessionID
 	g.currentState = &protocol.State{
-		Players: make(map[protocol.PlayerID]protocol.Player),
+		Players:   make(map[protocol.PlayerID]protocol.Player),
+		VoteState: protocol.IdleState,
 	}
 	g.currentStateTimestamp = g.timestamp()
 
@@ -382,7 +404,46 @@ func (g *Game) Player() protocol.Player {
 	return *g.player
 }
 
+func (g *Game) PlayerVote() protocol.VoteResult {
+	return g.playerVote
+}
+
 func (g *Game) RenamePlayer(name string) {
 	g.player.Name = name
 	g.PublishUserOnline(g.player)
+}
+
+func (g *Game) Reveal() error {
+	if !g.player.IsDealer {
+		return errors.New("only dealer can reveal cards")
+	}
+
+	if g.currentState.VoteState != protocol.VotingState {
+		return errors.New("cannot reveal when voting is not in progress")
+	}
+
+	g.currentState.VoteState = protocol.RevealedState
+	g.notifyChangedState(true)
+	return nil
+}
+
+func (g *Game) hiddenCurrentState() *protocol.State {
+	if g.currentState == nil {
+		return nil
+	}
+
+	// Create a deep copy of the state
+	hiddenState := *g.currentState
+
+	// Manually copy the map, otherwise it's a modifiable reference
+	hiddenState.TempVoteResult = make(map[protocol.PlayerID]*protocol.VoteResult, len(g.currentState.TempVoteResult))
+	for playerID, vote := range g.currentState.TempVoteResult {
+		if hiddenState.VoteState == protocol.VotingState {
+			hiddenState.TempVoteResult[playerID] = nil
+		} else {
+			hiddenState.TempVoteResult[playerID] = vote
+		}
+	}
+
+	return &hiddenState
 }
