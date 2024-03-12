@@ -39,6 +39,7 @@ type State struct {
 	VoteItem       VoteItem                 `json:"voteItem"`
 	TempVoteResult map[PlayerID]*VoteResult `json:"tempVoteResults"`
 	VoteState      VoteState                `json:"voteState"`
+	Deck           Deck                     `json:"deck"`
 }
 
 type MessageType string
@@ -70,6 +71,8 @@ type PlayerVote struct {
 	VoteFor    string     `json:"voteFor"`
 	VoteResult VoteResult `json:"voteResult"`
 }
+
+type Deck []VoteResult
 
 type Session struct {
 	Version      byte   `json:"version"`

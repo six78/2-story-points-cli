@@ -9,6 +9,7 @@ import (
 	"strings"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
+	"waku-poker-planning/game"
 	"waku-poker-planning/protocol"
 )
 
@@ -22,6 +23,7 @@ const (
 	Deal          = "deal"
 	Reveal        = "reveal"
 	Finish        = "finish"
+	Deck          = "deck"
 )
 
 var actions = map[Action]func(m *model, args []string) (tea.Cmd, error){
@@ -31,7 +33,8 @@ var actions = map[Action]func(m *model, args []string) (tea.Cmd, error){
 	New:    runNewAction,
 	Join:   runJoinAction,
 	Reveal: runRevealAction,
-	Finish: runFinihAction,
+	Finish: runFinishAction,
+	Deck:   runDeckAction,
 }
 
 func runAction(m *model, command string) tea.Cmd {
@@ -88,7 +91,10 @@ func runVoteAction(m *model, args []string) (tea.Cmd, error) {
 		return nil, fmt.Errorf("failed to parse vote: %w", err)
 	}
 	cmd := func() tea.Msg {
-		m.app.Game.PublishVote(protocol.VoteResult(vote))
+		err := m.app.Game.PublishVote(protocol.VoteResult(vote))
+		if err != nil {
+			return ActionErrorMessage{err}
+		}
 		return nil
 	}
 	return cmd, nil
@@ -132,6 +138,57 @@ func runRevealAction(m *model, args []string) (tea.Cmd, error) {
 	return cmd, nil
 }
 
-func runFinihAction(m *model, args []string) (tea.Cmd, error) {
+func runFinishAction(m *model, args []string) (tea.Cmd, error) {
 	return nil, errors.New("action not implemented")
+}
+
+func parseDeck(args []string) (protocol.Deck, error) {
+
+	if len(args) == 0 {
+		return nil, errors.New("deck can't be empty")
+	}
+
+	if len(args) == 1 {
+		// attempt to parse deck by name
+		deckName := strings.ToLower(args[0])
+		deck, ok := game.GetDeck(deckName)
+		if !ok {
+			return nil, fmt.Errorf("unknown deck: '%s', available decks: %s",
+				args[0], strings.Join(game.AvailableDecks(), ", "))
+		}
+		return deck, nil
+	}
+
+	deck := protocol.Deck{}
+	cards := map[string]struct{}{}
+
+	for _, card := range args {
+		vote, err := strconv.Atoi(card)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse card: '%w'", err)
+		}
+		if _, ok := cards[card]; ok {
+			return nil, fmt.Errorf("duplicate card: '%s'", card)
+		}
+		cards[card] = struct{}{}
+		deck = append(deck, protocol.VoteResult(vote))
+	}
+
+	return deck, nil
+}
+
+func runDeckAction(m *model, args []string) (tea.Cmd, error) {
+	deck, err := parseDeck(args)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd := func() tea.Msg {
+		err := m.app.Game.SetDeck(deck)
+		if err != nil {
+			return ActionErrorMessage{err}
+		}
+		return nil
+	}
+	return cmd, nil
 }
