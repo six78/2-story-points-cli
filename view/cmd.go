@@ -36,23 +36,23 @@ func waitForWakuPeers(a *app.App) tea.Cmd {
 	}
 }
 
-func createNewSession(a *app.App) tea.Cmd {
+func createNewRoom(a *app.App) tea.Cmd {
 	return func() tea.Msg {
-		err := a.CreateNewSession()
+		err := a.CreateNewRoom()
 		if err != nil {
 			return ActionErrorMessage{err}
 		}
-		return AppStateMessage{finishedState: CreatingSession}
+		return AppStateMessage{finishedState: CreatingRoom}
 	}
 }
 
-func joinSession(sessionID string, a *app.App) tea.Cmd {
+func joinRoom(roomID string, a *app.App) tea.Cmd {
 	return func() tea.Msg {
-		err := a.JoinSession(sessionID)
+		err := a.JoinRoom(roomID)
 		if err != nil {
 			return ActionErrorMessage{err}
 		}
-		return AppStateMessage{finishedState: JoiningSession}
+		return AppStateMessage{finishedState: JoiningRoom}
 	}
 }
 

@@ -3,6 +3,6 @@ package game
 import "waku-poker-planning/protocol"
 
 type Transport interface {
-	SubscribeToMessages(session *protocol.Session) (chan []byte, error)
-	PublishUnencryptedMessage(session *protocol.Session, payload []byte) error
+	SubscribeToMessages(room *protocol.Room) (chan []byte, error)
+	PublishUnencryptedMessage(room *protocol.Room, payload []byte) error
 }

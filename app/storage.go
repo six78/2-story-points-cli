@@ -18,7 +18,6 @@ const applicationName = "waku-poker-planning"
 
 type Storage struct {
 	playerID protocol.PlayerID
-	sessions map[protocol.SessionID]*protocol.Session
 
 	configDirs configdir.ConfigDir
 	mutex      *sync.RWMutex
@@ -61,10 +60,6 @@ func (s *Storage) readPlayerID() (protocol.PlayerID, error) {
 
 	config.Logger.Error("failed to parse player UUID, creating a new one", zap.Error(err))
 	return s.createPlayerID()
-}
-
-func (s *Storage) readSessions() (map[protocol.SessionID]*protocol.Session, error) {
-
 }
 
 func (s *Storage) createPlayerID() (protocol.PlayerID, error) {

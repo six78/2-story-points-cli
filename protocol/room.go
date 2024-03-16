@@ -5,44 +5,44 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Session struct {
+type Room struct {
 	Version      byte   `json:"version"`
 	SymmetricKey []byte `json:"symmetricKey"`
 }
 
-type SessionID struct {
+type RoomID struct {
 	string
 }
 
-func NewSessionID(sessionID string) SessionID {
-	return SessionID{sessionID}
+func NewRoomID(roomID string) RoomID {
+	return RoomID{roomID}
 }
 
-func (id SessionID) String() string {
+func (id RoomID) String() string {
 	return id.string
 }
 
-// SessionID: base58 encoded byte array:
+// RoomID: base58 encoded byte array:
 // - byte 0: 	    version
 // - byte 1..end: symmetric key
 // Total expected length: 17 bytes
 
-func (info *Session) ToSessionID() (SessionID, error) {
+func (info *Room) ToRoomID() (RoomID, error) {
 	bytes := make([]byte, 0, 1+len(info.SymmetricKey))
 	bytes = append(bytes, Version)
 	bytes = append(bytes, info.SymmetricKey...)
-	sessionID := base58.Encode(bytes)
-	return NewSessionID(sessionID), nil
+	roomID := base58.Encode(bytes)
+	return NewRoomID(roomID), nil
 }
 
-func ParseSessionID(sessionID string) (*Session, error) {
-	decoded, err := base58.Decode(sessionID)
+func ParseRoomID(roomID string) (*Room, error) {
+	decoded, err := base58.Decode(roomID)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode session ID")
+		return nil, errors.Wrap(err, "failed to decode room ID")
 	}
 
 	if len(decoded) < 1 {
-		return nil, errors.New("session id is too short")
+		return nil, errors.New("room id is too short")
 	}
 
 	decodedVersion := decoded[0]
@@ -51,14 +51,14 @@ func ParseSessionID(sessionID string) (*Session, error) {
 		return nil, errors.Errorf("unexpected version: %d", decodedVersion)
 	}
 
-	return &Session{
+	return &Room{
 		Version:      decodedVersion,
 		SymmetricKey: decoded[1:],
 	}, nil
 }
 
-func BuildSession(symmetricKey []byte) *Session {
-	return &Session{
+func BuildRoom(symmetricKey []byte) *Room {
+	return &Room{
 		SymmetricKey: symmetricKey,
 	}
 }

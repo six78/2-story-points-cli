@@ -7,11 +7,6 @@ import (
 	"waku-poker-planning/view"
 )
 
-/*
-    waku-pp connect --session="helloworld" --name="igor"
-	waku-pp new --session="six78 sprint 42" --fleet="wakuv2.prod"
-*/
-
 func main() {
 	config.SetupLogger()
 	config.ParseArguments()

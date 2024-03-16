@@ -100,16 +100,16 @@ func runDealAction(m *model, args []string) (tea.Cmd, error) {
 }
 
 func runNewAction(m *model, args []string) (tea.Cmd, error) {
-	m.state = CreatingSession
-	return createNewSession(m.app), nil
+	m.state = CreatingRoom
+	return createNewRoom(m.app), nil
 }
 
 func runJoinAction(m *model, args []string) (tea.Cmd, error) {
 	if len(args) == 0 {
-		return nil, errors.New("empty session ID")
+		return nil, errors.New("empty room ID")
 	}
-	m.state = JoiningSession
-	return joinSession(args[0], m.app), nil
+	m.state = JoiningRoom
+	return joinRoom(args[0], m.app), nil
 }
 
 func runRevealAction(m *model, args []string) (tea.Cmd, error) {

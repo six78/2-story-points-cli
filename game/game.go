@@ -19,16 +19,16 @@ import (
 type StateSubscription chan *protocol.State
 
 type Game struct {
-	logger       *zap.Logger
-	ctx          context.Context
-	transport    Transport
-	leaveSession chan struct{}
+	logger    *zap.Logger
+	ctx       context.Context
+	transport Transport
+	leaveRoom chan struct{}
 
 	player     *protocol.Player
 	playerVote protocol.VoteResult
 
-	session          *protocol.Session
-	sessionID        protocol.SessionID
+	room             *protocol.Room
+	roomID           protocol.RoomID
 	state            *protocol.State
 	stateTimestamp   int64
 	stateSubscribers []StateSubscription
@@ -36,22 +36,22 @@ type Game struct {
 
 func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerID) *Game {
 	return &Game{
-		logger:       config.Logger.Named("game"),
-		ctx:          ctx,
-		transport:    transport,
-		leaveSession: nil,
+		logger:    config.Logger.Named("game"),
+		ctx:       ctx,
+		transport: transport,
+		leaveRoom: nil,
 		player: &protocol.Player{
 			ID:       playerID,
 			Name:     config.PlayerName(),
 			IsDealer: false,
 		},
 		playerVote: 0,
-		session:    nil,
+		room:       nil,
 	}
 }
 
 func (g *Game) Start() {
-	g.leaveSession = make(chan struct{})
+	g.leaveRoom = make(chan struct{})
 
 	go g.processIncomingMessages()
 	go g.publishOnlineState()
@@ -61,9 +61,9 @@ func (g *Game) Start() {
 	}
 }
 
-func (g *Game) LeaveSession() {
-	if g.leaveSession != nil {
-		close(g.leaveSession)
+func (g *Game) LeaveRoom() {
+	if g.leaveRoom != nil {
+		close(g.leaveRoom)
 	}
 }
 
@@ -72,7 +72,7 @@ func (g *Game) Stop() {
 		close(subscriber)
 	}
 	g.stateSubscribers = nil
-	g.LeaveSession()
+	g.LeaveRoom()
 	// WARNING: wait for all routines to finish
 }
 
@@ -203,7 +203,7 @@ func (g *Game) publishOnlineState() {
 		select {
 		case <-time.After(config.OnlineMessagePeriod):
 			g.PublishUserOnline(g.player)
-		case <-g.leaveSession:
+		case <-g.leaveRoom:
 			return
 		case <-g.ctx.Done():
 			return
@@ -216,7 +216,7 @@ func (g *Game) publishStatePeriodically() {
 		select {
 		case <-time.After(config.StateMessagePeriod):
 			g.publishState(g.hiddenCurrentState())
-		case <-g.leaveSession:
+		case <-g.leaveRoom:
 			return
 		case <-g.ctx.Done():
 			return
@@ -225,7 +225,7 @@ func (g *Game) publishStatePeriodically() {
 }
 
 func (g *Game) processIncomingMessages() {
-	sub, err := g.transport.SubscribeToMessages(g.session)
+	sub, err := g.transport.SubscribeToMessages(g.room)
 	// FIXME: defer unsubscribe
 
 	if err != nil {
@@ -240,7 +240,7 @@ func (g *Game) processIncomingMessages() {
 				return
 			}
 			g.processMessage(payload)
-		case <-g.leaveSession:
+		case <-g.leaveRoom:
 			return
 		case <-g.ctx.Done():
 			return
@@ -249,8 +249,8 @@ func (g *Game) processIncomingMessages() {
 }
 
 func (g *Game) publishMessage(message any) {
-	if g.session == nil {
-		g.logger.Warn("no session to publish message")
+	if g.room == nil {
+		g.logger.Warn("no room to publish message")
 		return
 
 	}
@@ -259,7 +259,7 @@ func (g *Game) publishMessage(message any) {
 		g.logger.Error("failed to marshal message", zap.Error(err))
 		return
 	}
-	err = g.transport.PublishUnencryptedMessage(g.session, payload)
+	err = g.transport.PublishUnencryptedMessage(g.room, payload)
 	if err != nil {
 		g.logger.Error("failed to publish message", zap.Error(err))
 		return
@@ -357,23 +357,23 @@ func (g *Game) Deal(input string) error {
 	return nil
 }
 
-func (g *Game) CreateNewSession() error {
+func (g *Game) CreateNewRoom() error {
 	keyInfo, err := g.generateSymmetricKey()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate symmetric key")
 	}
 
-	info := protocol.BuildSession(keyInfo.SymKey)
-	sessionID, err := info.ToSessionID()
+	info := protocol.BuildRoom(keyInfo.SymKey)
+	roomID, err := info.ToRoomID()
 
 	if err != nil {
-		return errors.Wrap(err, "failed to marshal session info")
+		return errors.Wrap(err, "failed to marshal room info")
 	}
 
-	g.logger.Info("new session created", zap.String("sessionID", sessionID.String()))
+	g.logger.Info("new room created", zap.String("roomID", roomID.String()))
 	g.player.IsDealer = true
-	g.session = info
-	g.sessionID = sessionID
+	g.room = info
+	g.roomID = roomID
 
 	deck, _ := GetDeck(Fibonacci)
 	g.state = &protocol.State{
@@ -386,18 +386,18 @@ func (g *Game) CreateNewSession() error {
 	return nil
 }
 
-func (g *Game) JoinSession(sessionID string) error {
-	info, err := protocol.ParseSessionID(sessionID)
+func (g *Game) JoinRoom(roomID string) error {
+	info, err := protocol.ParseRoomID(roomID)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse session ID")
+		return errors.Wrap(err, "failed to parse room ID")
 	}
 
 	g.player.IsDealer = false
-	g.session = info
-	g.sessionID = protocol.NewSessionID(sessionID)
+	g.room = info
+	g.roomID = protocol.NewRoomID(roomID)
 	g.state = nil
 	g.stateTimestamp = g.timestamp()
-	g.logger.Info("joined session", zap.String("sessionID", sessionID))
+	g.logger.Info("joined room", zap.String("roomID", roomID))
 
 	return nil
 }
@@ -406,8 +406,8 @@ func (g *Game) IsDealer() bool {
 	return g.player.IsDealer
 }
 
-func (g *Game) SessionID() string {
-	return g.sessionID.String()
+func (g *Game) RoomID() string {
+	return g.roomID.String()
 }
 
 func (g *Game) Player() protocol.Player {

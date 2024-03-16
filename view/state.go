@@ -8,6 +8,6 @@ const (
 	InputPlayerName
 	WaitingForPeers
 	UserAction
-	CreatingSession
-	JoiningSession
+	CreatingRoom
+	JoiningRoom
 )

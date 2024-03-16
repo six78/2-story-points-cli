@@ -129,15 +129,15 @@ func (n *Node) discoverNodes() error {
 	return nil
 }
 
-func (n *Node) PublishUnencryptedMessage(session *pp.Session, payload []byte) error {
+func (n *Node) PublishUnencryptedMessage(room *pp.Room, payload []byte) error {
 	message := &pb.WakuMessage{
 		Payload: payload,
 	}
-	return n.publishWakuMessage(session, message)
+	return n.publishWakuMessage(room, message)
 }
 
-func (n *Node) publishWakuMessage(session *pp.Session, message *pb.WakuMessage) error {
-	contentTopic, err := sessionContentTopic(session)
+func (n *Node) publishWakuMessage(room *pp.Room, message *pb.WakuMessage) error {
+	contentTopic, err := roomContentTopic(room)
 	if err != nil {
 		return errors.Wrap(err, "failed to build content topic")
 	}
@@ -185,8 +185,8 @@ func (n *Node) WaitForPeersConnected() bool {
 	}
 }
 
-func (n *Node) SubscribeToMessages(session *pp.Session) (chan []byte, error) {
-	contentTopic, err := sessionContentTopic(session)
+func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
+	contentTopic, err := roomContentTopic(room)
 	contentFilter := protocol.NewContentFilter(relay.DefaultWakuTopic, contentTopic)
 	subs, err := n.waku.Relay().Subscribe(n.ctx, contentFilter)
 	unsubscribe := func() {
@@ -224,7 +224,7 @@ func (n *Node) SubscribeToMessages(session *pp.Session) (chan []byte, error) {
 	return out, nil
 }
 
-func sessionContentTopic(info *pp.Session) (string, error) {
+func roomContentTopic(info *pp.Room) (string, error) {
 	if len(info.SymmetricKey) < 4 {
 		return "", errors.New("symmetric key too short")
 	}

@@ -19,7 +19,7 @@ type App struct {
 	quit context.CancelFunc
 
 	gameStateSubscription game.StateSubscription
-	playedID              protocol.PlayerID
+	playerID              protocol.PlayerID
 }
 
 func NewApp() *App {
@@ -112,36 +112,36 @@ func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 	return state, more, nil
 }
 
-func (a *App) CreateNewSession() error {
+func (a *App) CreateNewRoom() error {
 	if a.Game == nil {
 		return errors.New("Game not created")
 	}
 
-	a.Game.LeaveSession()
+	a.Game.LeaveRoom()
 
-	err := a.Game.CreateNewSession()
+	err := a.Game.CreateNewRoom()
 	if err != nil {
-		return errors.Wrap(err, "failed to create new sessions")
+		return errors.Wrap(err, "failed to create new room")
 	}
 
 	a.Game.Start()
 	return nil
 }
 
-func (a *App) JoinSession(sessionID string) error {
+func (a *App) JoinRoom(roomID string) error {
 	if a.Game == nil {
 		return errors.New("Game not created")
 	}
 
-	if a.Game.SessionID() == sessionID {
-		return errors.New("already in this sessions")
+	if a.Game.RoomID() == roomID {
+		return errors.New("already in this room")
 	}
 
-	a.Game.LeaveSession()
+	a.Game.LeaveRoom()
 
-	err := a.Game.JoinSession(sessionID)
+	err := a.Game.JoinRoom(roomID)
 	if err != nil {
-		return errors.Wrap(err, "failed to join sessions")
+		return errors.Wrap(err, "failed to join room")
 	}
 
 	a.Game.Start()
@@ -152,11 +152,6 @@ func (a *App) IsDealer() bool {
 	return a.Game != nil && a.Game.IsDealer()
 }
 
-func (a *App) GameSessionID() string {
-	return a.Game.SessionID()
-}
-
-func (a *App) PlayerID() protocol.PlayerID {
-
-	return a.storage.PlayerID()
+func (a *App) GameRoomID() string {
+	return a.Game.RoomID()
 }

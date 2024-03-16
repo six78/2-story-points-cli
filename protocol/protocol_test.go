@@ -6,15 +6,15 @@ import (
 	"testing"
 )
 
-func TestSessionID(t *testing.T) {
+func TestRoomID(t *testing.T) {
 	key := []byte{1, 2, 3, 4}
-	sent := BuildSession(key)
+	sent := BuildRoom(key)
 
-	sessionID, err := sent.ToSessionID()
+	roomID, err := sent.ToRoomID()
 	require.NoError(t, err)
-	require.NotEmpty(t, sessionID)
+	require.NotEmpty(t, roomID)
 
-	received, err := ParseSessionID(sessionID)
+	received, err := ParseRoomID(roomID.String())
 	require.NoError(t, err)
 	require.NotEmpty(t, received)
 

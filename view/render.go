@@ -32,9 +32,9 @@ func (m model) renderPlayerNameInput() string {
 }
 
 func (m model) renderGame() string {
-	if m.gameSessionID == "" {
+	if m.roomID == "" {
 		return fmt.Sprintf(
-			" Join a game session or create a new one ...\n\n%s%s",
+			" Join a room or create a new one ...\n\n%s%s",
 			m.input.View(),
 			m.lastCommandError,
 		)
@@ -45,7 +45,7 @@ func (m model) renderGame() string {
 	}
 
 	return fmt.Sprintf(`
-SESSION ID:   %s
+ROOM ID:      %s
 DECK:         %s
 ISSUE:        %s
 
@@ -53,7 +53,7 @@ ISSUE:        %s
 
 %s
 `,
-		m.gameSessionID,
+		m.roomID,
 		renderDeck(&m.gameState.Deck),
 		renderIssue(&m.gameState.VoteItem),
 		m.renderPlayers(),

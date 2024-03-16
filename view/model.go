@@ -30,7 +30,7 @@ type model struct {
 	fatalError       error
 	lastCommandError string
 	gameState        *protocol.State
-	gameSessionID    string
+	roomID           string
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -42,9 +42,9 @@ func initialModel(a *app.App) model {
 	return model{
 		app: a,
 		// Initial model values
-		state:         Initializing,
-		gameState:     nil,
-		gameSessionID: "",
+		state:     Initializing,
+		gameState: nil,
+		roomID:    "",
 		// View components
 		input:   createTextInput(),
 		spinner: createSpinner(),
@@ -115,9 +115,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case UserAction:
 			break
-		case CreatingSession, JoiningSession:
+		case CreatingRoom, JoiningRoom:
 			m.state = UserAction
-			m.gameSessionID = m.app.GameSessionID()
+			m.roomID = m.app.GameRoomID()
 			m.gameState = m.app.GameState()
 			commands = append(commands, waitForGameState(m.app))
 		}
