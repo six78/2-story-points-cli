@@ -1,7 +1,6 @@
 package view
 
 import (
-	"waku-poker-planning/app"
 	"waku-poker-planning/protocol"
 )
 
@@ -10,7 +9,7 @@ type FatalErrorMessage struct {
 }
 
 type AppStateMessage struct {
-	finishedState app.State
+	finishedState State
 }
 
 type GameStateMessage struct {

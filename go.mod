@@ -3,7 +3,6 @@ module waku-poker-planning
 go 1.20
 
 require (
-	github.com/bradfitz/slice v0.0.0-20180809154707-2b758aa73013
 	github.com/charmbracelet/bubbles v0.18.0
 	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/lipgloss v0.9.1
@@ -11,6 +10,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/pkg/errors v0.9.1
+	github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0
 	github.com/stretchr/testify v1.8.4
 	github.com/waku-org/go-waku v0.9.0
 	go.uber.org/zap v1.24.0
@@ -130,7 +130,6 @@ require (
 	go.uber.org/dig v1.17.0 // indirect
 	go.uber.org/fx v1.20.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go4.org v0.0.0-20180809161055-417644f6feb5 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.14.0 // indirect

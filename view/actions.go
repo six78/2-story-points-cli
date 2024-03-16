@@ -4,11 +4,9 @@ import (
 	"errors"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
-	"waku-poker-planning/app"
-	"waku-poker-planning/config"
+	"time"
 	"waku-poker-planning/game"
 	"waku-poker-planning/protocol"
 )
@@ -24,6 +22,7 @@ const (
 	Reveal        = "reveal"
 	Finish        = "finish"
 	Deck          = "deck"
+	Sleep         = "sleep"
 )
 
 var actions = map[Action]func(m *model, args []string) (tea.Cmd, error){
@@ -35,40 +34,26 @@ var actions = map[Action]func(m *model, args []string) (tea.Cmd, error){
 	Reveal: runRevealAction,
 	Finish: runFinishAction,
 	Deck:   runDeckAction,
+	Sleep:  processSleep,
 }
 
-func runAction(m *model, command string) tea.Cmd {
-	var err error
+// FIXME: actions should be fully in tea.Cmd.
+// 		  No error can be returned from here.
 
-	defer func() {
-		config.Logger.Debug("user command processed",
-			zap.Error(err),
-			zap.Any("appState", m.appState),
-		)
-
-		if err != nil {
-			m.lastCommandError = err.Error()
-		} else {
-			m.lastCommandError = ""
-		}
-	}()
-
-	args := strings.Fields(command)
-	if len(args) == 0 {
-		err = errors.New("empty command")
+func processSleep(m *model, args []string) (tea.Cmd, error) {
+	cmd := func() tea.Msg {
+		time.Sleep(5 * time.Second)
 		return nil
 	}
+	return cmd, nil
+}
 
-	commandRoot := Action(args[0])
-	commandFn, ok := actions[commandRoot]
-	if !ok {
-		err = fmt.Errorf("unknown command: %s", commandRoot)
-		return nil
+func processPlayerNameInput(m *model, playerName string) (tea.Cmd, error) {
+	cmd := func() tea.Msg {
+		m.app.Game.RenamePlayer(playerName)
+		return AppStateMessage{finishedState: InputPlayerName}
 	}
-
-	cmd, err := commandFn(m, args[1:])
-
-	return cmd
+	return cmd, nil
 }
 
 func runRenameAction(m *model, args []string) (tea.Cmd, error) {
@@ -76,7 +61,7 @@ func runRenameAction(m *model, args []string) (tea.Cmd, error) {
 		return nil, errors.New("empty user")
 	}
 	cmd := func() tea.Msg {
-		m.app.RenamePlayer(args[0])
+		m.app.Game.RenamePlayer(args[0])
 		return nil
 	}
 	return cmd, nil
@@ -105,7 +90,7 @@ func runDealAction(m *model, args []string) (tea.Cmd, error) {
 		return nil, errors.New("empty deal")
 	}
 	cmd := func() tea.Msg {
-		err := m.app.Deal(args[0])
+		err := m.app.Game.Deal(args[0])
 		if err != nil {
 			return ActionErrorMessage{err}
 		}
@@ -115,7 +100,7 @@ func runDealAction(m *model, args []string) (tea.Cmd, error) {
 }
 
 func runNewAction(m *model, args []string) (tea.Cmd, error) {
-	m.appState = app.CreatingSession
+	m.state = CreatingSession
 	return createNewSession(m.app), nil
 }
 
@@ -123,7 +108,7 @@ func runJoinAction(m *model, args []string) (tea.Cmd, error) {
 	if len(args) == 0 {
 		return nil, errors.New("empty session ID")
 	}
-	m.appState = app.JoiningSession
+	m.state = JoiningSession
 	return joinSession(args[0], m.app), nil
 }
 

@@ -164,12 +164,15 @@ func (n *Node) publishWakuMessage(session *pp.Session, message *pb.WakuMessage) 
 }
 
 func (n *Node) WaitForPeersConnected() bool {
+	n.logger.Debug("<<< WaitForPeersConnected START")
+	defer n.logger.Debug("<<< WaitForPeersConnected END")
 	if n.waku.PeerCount() > 0 {
 		return true
 	}
+	ctx, _ := context.WithTimeout(n.ctx, 20*time.Second)
 	for {
 		select {
-		case <-time.After(20 * time.Second):
+		case <-ctx.Done():
 			return false
 		case connStatus, more := <-n.wakuConnectionStatus:
 			if !more {

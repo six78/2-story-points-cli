@@ -3,11 +3,14 @@ package config
 import (
 	"flag"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+	"waku-poker-planning/protocol"
 )
 
 const OnlineMessagePeriod = 5 * time.Second
@@ -18,6 +21,8 @@ const SymmetricKeyLength = 16
 var fleet string
 var playerName string
 var initialAction string
+var debug bool
+var anonymous bool
 
 var Logger *zap.Logger
 var LogFilePath string
@@ -57,13 +62,15 @@ func createLogFile() string {
 
 func ParseArguments() {
 	flag.StringVar(&fleet, "fleet", "wakuv2.prod", "Waku fleet name")
-	flag.StringVar(&playerName, "name", generatePlayerName(), "Player name")
+	flag.StringVar(&playerName, "name", "", "Player name")
+	flag.BoolVar(&debug, "debug", false, "Show debug info")
+	flag.BoolVar(&anonymous, "anonymous", false, "Anonymouse mode")
 	flag.Parse()
 
 	initialAction = strings.Join(flag.Args(), " ")
 }
 
-func generatePlayerName() string {
+func GeneratePlayerName() string {
 	return fmt.Sprintf("player-%d", time.Now().Unix())
 }
 
@@ -77,4 +84,20 @@ func PlayerName() string {
 
 func InitialAction() string {
 	return initialAction
+}
+
+func Debug() bool {
+	return debug
+}
+
+func Anonymous() bool {
+	return anonymous
+}
+
+func GeneratePlayerID() (protocol.PlayerID, error) {
+	playerUUID, err := uuid.NewUUID()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to generate player UUID")
+	}
+	return protocol.PlayerID(playerUUID.String()), nil
 }

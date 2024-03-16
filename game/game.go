@@ -18,11 +18,6 @@ import (
 
 type StateSubscription chan *protocol.State
 
-type Transport interface {
-	SubscribeToMessages(session *protocol.Session) (chan []byte, error)
-	PublishUnencryptedMessage(session *protocol.Session, payload []byte) error
-}
-
 type Game struct {
 	logger       *zap.Logger
 	ctx          context.Context
@@ -33,25 +28,20 @@ type Game struct {
 	playerVote protocol.VoteResult
 
 	session          *protocol.Session
-	sessionID        string
+	sessionID        protocol.SessionID
 	state            *protocol.State
 	stateTimestamp   int64
 	stateSubscribers []StateSubscription
 }
 
-func NewGame(ctx context.Context, transport Transport) *Game {
-	playerUuid, err := uuid.NewUUID()
-	if err != nil {
-		panic(errors.Wrap(err, "failed to generate user uuid"))
-	}
-
+func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerID) *Game {
 	return &Game{
 		logger:       config.Logger.Named("game"),
 		ctx:          ctx,
 		transport:    transport,
 		leaveSession: nil,
 		player: &protocol.Player{
-			ID:       protocol.PlayerID(playerUuid.String()),
+			ID:       playerID,
 			Name:     config.PlayerName(),
 			IsDealer: false,
 		},
@@ -259,6 +249,11 @@ func (g *Game) processIncomingMessages() {
 }
 
 func (g *Game) publishMessage(message any) {
+	if g.session == nil {
+		g.logger.Warn("no session to publish message")
+		return
+
+	}
 	payload, err := json.Marshal(message)
 	if err != nil {
 		g.logger.Error("failed to marshal message", zap.Error(err))
@@ -375,13 +370,16 @@ func (g *Game) CreateNewSession() error {
 		return errors.Wrap(err, "failed to marshal session info")
 	}
 
-	g.logger.Info("new session created", zap.String("sessionID", sessionID))
+	g.logger.Info("new session created", zap.String("sessionID", sessionID.String()))
 	g.player.IsDealer = true
 	g.session = info
 	g.sessionID = sessionID
+
+	deck, _ := GetDeck(Fibonacci)
 	g.state = &protocol.State{
 		Players:   make(map[protocol.PlayerID]protocol.Player),
 		VoteState: protocol.IdleState,
+		Deck:      deck,
 	}
 	g.stateTimestamp = g.timestamp()
 
@@ -396,7 +394,7 @@ func (g *Game) JoinSession(sessionID string) error {
 
 	g.player.IsDealer = false
 	g.session = info
-	g.sessionID = sessionID
+	g.sessionID = protocol.NewSessionID(sessionID)
 	g.state = nil
 	g.stateTimestamp = g.timestamp()
 	g.logger.Info("joined session", zap.String("sessionID", sessionID))
@@ -409,7 +407,7 @@ func (g *Game) IsDealer() bool {
 }
 
 func (g *Game) SessionID() string {
-	return g.sessionID
+	return g.sessionID.String()
 }
 
 func (g *Game) Player() protocol.Player {

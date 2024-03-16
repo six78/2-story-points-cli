@@ -10,33 +10,25 @@ import (
 	"waku-poker-planning/waku"
 )
 
-type State int
-
-const (
-	Idle State = iota
-	Initializing
-	WaitingForPeers
-	UserInput
-	CreatingSession
-	JoiningSession
-)
-
 type App struct {
-	Game *game.Game
+	Game    *game.Game
+	waku    *waku.Node
+	storage *Storage
 
-	waku *waku.Node
 	ctx  context.Context
 	quit context.CancelFunc
 
 	gameStateSubscription game.StateSubscription
+	playedID              protocol.PlayerID
 }
 
 func NewApp() *App {
 	ctx, quit := context.WithCancel(context.Background())
 
 	return &App{
-		waku:                  nil,
 		Game:                  nil,
+		waku:                  nil,
+		storage:               nil,
 		ctx:                   ctx,
 		quit:                  quit,
 		gameStateSubscription: nil,
@@ -51,6 +43,13 @@ func (a *App) GameState() *protocol.State {
 }
 
 func (a *App) Initialize() error {
+	var err error
+	a.storage, err = NewStorage()
+
+	if err != nil {
+		return errors.Wrap(err, "failed to create storage")
+	}
+
 	w, err := waku.NewNode(a.ctx, config.Logger)
 	if err != nil {
 		printedErr := errors.New("failed to create waku node")
@@ -65,8 +64,17 @@ func (a *App) Initialize() error {
 		return printedErr
 	}
 
+	playerID := a.storage.PlayerID()
+	if config.Anonymous() {
+		playerID, err = config.GeneratePlayerID()
+		if err != nil {
+			return errors.Wrap(err, "failed to generate player ID")
+		}
+	}
+
 	a.waku = w
-	a.Game = game.NewGame(a.ctx, a.waku)
+	a.Game = game.NewGame(a.ctx, a.waku, playerID)
+	//a.Game.RenamePlayer(a.storage.GetPlayerName())
 	a.gameStateSubscription = a.Game.SubscribeToStateChanges()
 
 	return nil
@@ -80,10 +88,6 @@ func (a *App) Stop() {
 		a.waku.Stop()
 	}
 	a.quit()
-}
-
-func (a *App) StartGame() {
-	a.Game.Start()
 }
 
 func (a *App) WaitForPeersConnected() bool {
@@ -108,14 +112,6 @@ func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 	return state, more, nil
 }
 
-func (a *App) Deal(input string) error {
-	if a.Game == nil {
-		return errors.New("Game not created")
-	}
-
-	return a.Game.Deal(input)
-}
-
 func (a *App) CreateNewSession() error {
 	if a.Game == nil {
 		return errors.New("Game not created")
@@ -125,7 +121,7 @@ func (a *App) CreateNewSession() error {
 
 	err := a.Game.CreateNewSession()
 	if err != nil {
-		return errors.Wrap(err, "failed to create new session")
+		return errors.Wrap(err, "failed to create new sessions")
 	}
 
 	a.Game.Start()
@@ -138,14 +134,14 @@ func (a *App) JoinSession(sessionID string) error {
 	}
 
 	if a.Game.SessionID() == sessionID {
-		return errors.New("already in this session")
+		return errors.New("already in this sessions")
 	}
 
 	a.Game.LeaveSession()
 
 	err := a.Game.JoinSession(sessionID)
 	if err != nil {
-		return errors.Wrap(err, "failed to join session")
+		return errors.Wrap(err, "failed to join sessions")
 	}
 
 	a.Game.Start()
@@ -160,11 +156,7 @@ func (a *App) GameSessionID() string {
 	return a.Game.SessionID()
 }
 
-func (a *App) RenamePlayer(name string) {
-	if a.Game == nil {
-		config.Logger.Error("Game not created")
-		return
-	}
+func (a *App) PlayerID() protocol.PlayerID {
 
-	a.Game.RenamePlayer(name)
+	return a.storage.PlayerID()
 }
