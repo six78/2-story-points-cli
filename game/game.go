@@ -362,6 +362,7 @@ func (g *Game) Deal(input string) (protocol.VoteItemID, error) {
 		Text:   input,
 		Votes:  make(map[protocol.PlayerID]*protocol.VoteResult),
 		Result: nil,
+		Order:  len(g.state.VoteList),
 	}
 
 	// keep legacy fields for now

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
+	"golang.org/x/exp/maps"
 	"sort"
 	"strings"
 	"waku-poker-planning/config"
@@ -59,7 +60,7 @@ VOTE LIST:
 		m.roomID,
 		renderDeck(&m.gameState.Deck),
 		renderIssue(m.gameState.VoteList[m.gameState.CurrentVoteItemID]),
-		renderVoteList(&m.gameState.VoteList),
+		renderVoteList(m.gameState.VoteList),
 		m.renderPlayers(),
 		m.renderActionInput(),
 	)
@@ -216,9 +217,15 @@ func renderIssue(item *protocol.VoteItem) string {
 	return fmt.Sprintf("%s [%s]", item.Text, item.ID)
 }
 
-func renderVoteList(voteList *map[protocol.VoteItemID]*protocol.VoteItem) string {
-	var items []string
-	for id, item := range *voteList {
+func renderVoteList(voteList map[protocol.VoteItemID]*protocol.VoteItem) string {
+	var itemStrings []string
+	items := maps.Values(voteList)
+
+	sort.Slice(items[:], func(i, j int) bool {
+		return items[i].Order < items[j].Order
+	})
+
+	for _, item := range items {
 		var votes []string
 		for _, vote := range item.Votes {
 			voteString := "nil"
@@ -231,13 +238,12 @@ func renderVoteList(voteList *map[protocol.VoteItemID]*protocol.VoteItem) string
 		if item.Result != nil {
 			resultString = fmt.Sprintf("%d", *item.Result)
 		}
-		itemString := fmt.Sprintf("%s: %s, result: %s, votes: [%s]",
-			id,
+		itemString := fmt.Sprintf("%s - result: %s, votes: [%s]",
 			item.Text,
 			resultString,
 			strings.Join(votes, ","),
 		)
-		items = append(items, itemString)
+		itemStrings = append(itemStrings, itemString)
 	}
-	return strings.Join(items, "\n")
+	return strings.Join(itemStrings, "\n")
 }

@@ -21,6 +21,7 @@ type VoteItem struct {
 	Text   string                   `json:"url"` // In most cases text will be a URL
 	Votes  map[PlayerID]*VoteResult `json:"votes"`
 	Result *VoteResult              `json:"result"`
+	Order  int                      `json:"order"`
 }
 
 type VoteState string
