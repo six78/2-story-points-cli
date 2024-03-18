@@ -13,8 +13,6 @@ import (
 
 const playerFileName = "player.json"
 const dbFileName = "db.json"
-const vendorName = "six78"
-const applicationName = "waku-poker-planning"
 
 type Storage struct {
 	playerID protocol.PlayerID
@@ -25,7 +23,7 @@ type Storage struct {
 
 func NewStorage() (*Storage, error) {
 	s := &Storage{
-		configDirs: configdir.New(vendorName, applicationName),
+		configDirs: configdir.New(config.VendorName, config.ApplicationName),
 		mutex:      &sync.RWMutex{},
 	}
 	return s, s.initialize()

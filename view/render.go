@@ -49,13 +49,17 @@ ROOM ID:      %s
 DECK:         %s
 ISSUE:        %s
 
+VOTE LIST:
+%s
+
 %s
 
 %s
 `,
 		m.roomID,
 		renderDeck(&m.gameState.Deck),
-		renderIssue(&m.gameState.VoteItem),
+		renderIssue(m.gameState.VoteList[m.gameState.CurrentVoteItemID]),
+		renderVoteList(&m.gameState.VoteList),
 		m.renderPlayers(),
 		m.renderActionInput(),
 	)
@@ -192,7 +196,9 @@ func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
 }
 
 func renderLogPath() string {
-	return fmt.Sprintf("LOG FILE: file:///%s", config.LogFilePath)
+	//path := config.LogFilePath
+	path := strings.Replace(config.LogFilePath, " ", "%20", -1)
+	return fmt.Sprintf("LOG FILE: file:///%s", path)
 }
 
 func renderDeck(deck *protocol.Deck) string {
@@ -204,11 +210,34 @@ func renderDeck(deck *protocol.Deck) string {
 }
 
 func renderIssue(item *protocol.VoteItem) string {
-	if item.URL == "" {
-		return item.Name
+	if item == nil {
+		return "nil"
 	}
-	if item.Name == "" {
-		return item.URL
+	return fmt.Sprintf("%s [%s]", item.Text, item.ID)
+}
+
+func renderVoteList(voteList *map[protocol.VoteItemID]*protocol.VoteItem) string {
+	var items []string
+	for id, item := range *voteList {
+		var votes []string
+		for _, vote := range item.Votes {
+			voteString := "nil"
+			if vote != nil {
+				voteString = fmt.Sprintf("%d", *vote)
+			}
+			votes = append(votes, voteString)
+		}
+		resultString := "nil"
+		if item.Result != nil {
+			resultString = fmt.Sprintf("%d", *item.Result)
+		}
+		itemString := fmt.Sprintf("%s: %s, result: %s, votes: [%s]",
+			id,
+			item.Text,
+			resultString,
+			strings.Join(votes, ","),
+		)
+		items = append(items, itemString)
 	}
-	return fmt.Sprintf("%s (%s)", item.URL, item.Name)
+	return strings.Join(items, "\n")
 }

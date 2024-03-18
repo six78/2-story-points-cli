@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/shibukawa/configdir"
 	"go.uber.org/zap"
 	"os"
 	"path/filepath"
@@ -18,7 +19,11 @@ const StateMessagePeriod = 10 * time.Second
 const logsDirectory = "logs"
 const SymmetricKeyLength = 16
 
+const VendorName = "six78"
+const ApplicationName = "waku-poker-planning"
+
 var fleet string
+var nameserver string
 var playerName string
 var initialAction string
 var debug bool
@@ -40,14 +45,21 @@ func SetupLogger() {
 }
 
 func createLogFile() string {
-	executableFilePath, err := os.Executable()
-	if err != nil {
-		panic(err)
-	}
+	//executableFilePath, err := os.Executable()
+	//if err != nil {
+	//	panic(err)
+	//}
 
-	executableDir := filepath.Dir(executableFilePath)
+	//s.configDirs.QueryFolderContainsFile(playerFileName).Path)
+
 	name := fmt.Sprintf("waku-pp-%s.log", time.Now().Format(time.RFC3339))
-	path := filepath.Join(executableDir, logsDirectory, name)
+	//path := filepath.Join(executableDir, logsDirectory, name)
+	//executableDir := filepath.Dir(executableFilePath)
+
+	configDirs := configdir.New(VendorName, ApplicationName)
+	folders := configDirs.QueryFolders(configdir.Global)
+	path := filepath.Join(folders[0].Path, logsDirectory, name)
+	//err = folders[0].WriteFile(path, []byte(playerUUID))
 
 	if err := os.MkdirAll(filepath.Dir(path), 0770); err != nil {
 		panic(err)
@@ -62,6 +74,8 @@ func createLogFile() string {
 
 func ParseArguments() {
 	flag.StringVar(&fleet, "fleet", "wakuv2.prod", "Waku fleet name")
+	flag.StringVar(&nameserver, "nameserver", "", "Waku nameserver")
+
 	flag.StringVar(&playerName, "name", "", "Player name")
 	flag.BoolVar(&debug, "debug", false, "Show debug info")
 	flag.BoolVar(&anonymous, "anonymous", false, "Anonymouse mode")
@@ -76,6 +90,10 @@ func GeneratePlayerName() string {
 
 func Fleet() string {
 	return fleet
+}
+
+func Nameserver() string {
+	return nameserver
 }
 
 func PlayerName() string {
@@ -100,4 +118,12 @@ func GeneratePlayerID() (protocol.PlayerID, error) {
 		return "", errors.Wrap(err, "failed to generate player UUID")
 	}
 	return protocol.PlayerID(playerUUID.String()), nil
+}
+
+func GenerateVoteItemID() (protocol.VoteItemID, error) {
+	itemUUID, err := uuid.NewUUID()
+	if err != nil {
+		return "", errors.New("failed to generate vote item UUID")
+	}
+	return protocol.VoteItemID(itemUUID.String()), nil
 }

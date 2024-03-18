@@ -53,6 +53,7 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 		node.WithWakuRelay(),
 		node.WithLightPush(),
 		node.WithLogger(logger.Named("waku")),
+		//node.WithDNS4Domain(),
 		//node.WithLogLevel(zap.DebugLevel),
 		node.WithHostAddress(hostAddr),
 		//node.WithDiscoveryV5(60000, nodes, true),
@@ -89,7 +90,7 @@ func (n *Node) Start() error {
 		return errors.Wrap(err, "failed to discover nodes")
 	}
 
-	go n.watchConnectionStatus()
+	//go n.watchConnectionStatus()
 	//go n.receiveMessages(contentTopic)
 
 	return nil
@@ -117,7 +118,12 @@ func (n *Node) discoverNodes() error {
 		return errors.Errorf("unknown fleet %s", config.Fleet())
 	}
 
-	discoveredNodes, err := dnsdisc.RetrieveNodes(n.ctx, enrTree)
+	var options []dnsdisc.DNSDiscoveryOption
+	if nameserver := config.Nameserver(); nameserver != "" {
+		options = append(options, dnsdisc.WithNameserver(nameserver))
+	}
+
+	discoveredNodes, err := dnsdisc.RetrieveNodes(n.ctx, enrTree, options...)
 	if err != nil {
 		return err
 	}
@@ -169,12 +175,17 @@ func (n *Node) WaitForPeersConnected() bool {
 	if n.waku.PeerCount() > 0 {
 		return true
 	}
-	ctx, _ := context.WithTimeout(n.ctx, 20*time.Second)
+	ctx, cancel := context.WithTimeout(n.ctx, 20*time.Second)
+	defer cancel()
 	for {
 		select {
 		case <-ctx.Done():
 			return false
 		case connStatus, more := <-n.wakuConnectionStatus:
+			n.logger.Debug("<<< waku connection status",
+				zap.Any("connStatus", connStatus),
+				zap.Bool("more", more),
+			)
 			if !more {
 				return false
 			}
@@ -187,6 +198,9 @@ func (n *Node) WaitForPeersConnected() bool {
 
 func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
 	contentTopic, err := roomContentTopic(room)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build content topic")
+	}
 	contentFilter := protocol.NewContentFilter(relay.DefaultWakuTopic, contentTopic)
 	subs, err := n.waku.Relay().Subscribe(n.ctx, contentFilter)
 	unsubscribe := func() {

@@ -29,7 +29,7 @@ func (id RoomID) String() string {
 
 func (info *Room) ToRoomID() (RoomID, error) {
 	bytes := make([]byte, 0, 1+len(info.SymmetricKey))
-	bytes = append(bytes, Version)
+	bytes = append(bytes, info.Version)
 	bytes = append(bytes, info.SymmetricKey...)
 	roomID := base58.Encode(bytes)
 	return NewRoomID(roomID), nil
@@ -59,6 +59,7 @@ func ParseRoomID(roomID string) (*Room, error) {
 
 func BuildRoom(symmetricKey []byte) *Room {
 	return &Room{
+		Version:      Version,
 		SymmetricKey: symmetricKey,
 	}
 }

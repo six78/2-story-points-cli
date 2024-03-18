@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
+	"golang.org/x/exp/slices"
 	"strconv"
 	"strings"
 	"time"
@@ -67,16 +68,24 @@ func runRenameAction(m *model, args []string) (tea.Cmd, error) {
 	return cmd, nil
 }
 
+func parseVote(input string) (protocol.VoteResult, error) {
+	vote, err := strconv.Atoi(input)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse vote: %w", err)
+	}
+	return protocol.VoteResult(vote), nil
+}
+
 func runVoteAction(m *model, args []string) (tea.Cmd, error) {
 	if len(args) == 0 {
 		return nil, errors.New("empty vote")
 	}
-	vote, err := strconv.Atoi(args[0])
+	vote, err := parseVote(args[0])
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse vote: %w", err)
 	}
 	cmd := func() tea.Msg {
-		err := m.app.Game.PublishVote(protocol.VoteResult(vote))
+		err := m.app.Game.PublishVote(vote)
 		if err != nil {
 			return ActionErrorMessage{err}
 		}
@@ -90,7 +99,7 @@ func runDealAction(m *model, args []string) (tea.Cmd, error) {
 		return nil, errors.New("empty deal")
 	}
 	cmd := func() tea.Msg {
-		err := m.app.Game.Deal(args[0])
+		_, err := m.app.Game.Deal(args[0])
 		if err != nil {
 			return ActionErrorMessage{err}
 		}
@@ -124,7 +133,24 @@ func runRevealAction(m *model, args []string) (tea.Cmd, error) {
 }
 
 func runFinishAction(m *model, args []string) (tea.Cmd, error) {
-	return nil, errors.New("action not implemented")
+	cmd := func() tea.Msg {
+		if len(args) == 0 {
+			return ActionErrorMessage{err: errors.New("empty result")}
+		}
+		result, err := parseVote(args[0])
+		if err != nil {
+			return ActionErrorMessage{err}
+		}
+		if !slices.Contains(m.gameState.Deck, result) {
+			return ActionErrorMessage{err: errors.New("result not in deck")}
+		}
+		err = m.app.Game.Finish(result)
+		if err != nil {
+			return ActionErrorMessage{err}
+		}
+		return nil
+	}
+	return cmd, nil
 }
 
 func parseDeck(args []string) (protocol.Deck, error) {
