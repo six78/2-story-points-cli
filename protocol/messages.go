@@ -4,10 +4,7 @@ const Version byte = 1
 
 type PlayerID string
 type VoteItemID string
-type VoteResult int // TODO: change type to string. Empty string means vote is not revealed.
-
-// TODO: Come up with a common approach for pointers.
-// 		 One solution is to make VoteResult a string.
+type VoteResult string
 
 type Player struct {
 	ID   PlayerID `json:"id"`
@@ -15,10 +12,10 @@ type Player struct {
 }
 
 type Issue struct {
-	ID         VoteItemID               `json:"id"`
-	TitleOrURL string                   `json:"titleOrUrl"`
-	Votes      map[PlayerID]*VoteResult `json:"votes"`  // TODO: Remove pointer
-	Result     *VoteResult              `json:"result"` // NOTE: keep pointer. Because "empty string means vote is not revealed"
+	ID         VoteItemID              `json:"id"`
+	TitleOrURL string                  `json:"titleOrUrl"`
+	Votes      map[PlayerID]VoteResult `json:"votes"`
+	Result     *VoteResult             `json:"result"` // NOTE: keep pointer. Because "empty string means vote is not revealed"
 }
 
 type VoteState string

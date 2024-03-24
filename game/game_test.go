@@ -21,7 +21,7 @@ func TestStateSize(t *testing.T) {
 		Issues:  make(protocol.IssuesList, 0, issuesCount),
 	}
 
-	votes := make(map[protocol.PlayerID]*protocol.VoteResult, playersCount)
+	votes := make(map[protocol.PlayerID]protocol.VoteResult, playersCount)
 	deck, deckFound := GetDeck(Fibonacci)
 	require.True(t, deckFound)
 
@@ -36,8 +36,8 @@ func TestStateSize(t *testing.T) {
 			Name: fmt.Sprintf("player-%d", i),
 		})
 
-		result := protocol.VoteResult(i % len(deck))
-		votes[playerID] = &result
+		vote := fmt.Sprintf("%d", i%len(deck))
+		votes[playerID] = protocol.VoteResult(vote)
 	}
 
 	for i := 0; i < issuesCount; i++ {
@@ -80,20 +80,20 @@ func TestSimpleGame(t *testing.T) {
 	game.Start()
 
 	const firstItemText = "a"
-	const dealerVote = protocol.VoteResult(1)
+	const dealerVote = protocol.VoteResult("1")
 
-	var fisrtVoteItemID protocol.VoteItemID
+	var firstVoteItemID protocol.VoteItemID
 
 	checkVoteItems := func(t *testing.T, issuesList protocol.IssuesList) *protocol.Issue {
 		require.Len(t, issuesList, 1)
-		item := issuesList.Get(fisrtVoteItemID)
+		item := issuesList.Get(firstVoteItemID)
 		require.NotNil(t, item)
 		require.Equal(t, firstItemText, item.TitleOrURL)
 		return item
 	}
 
 	{ // Deal first vote item
-		fisrtVoteItemID, err = game.Deal(firstItemText)
+		firstVoteItemID, err = game.Deal(firstItemText)
 		require.NoError(t, err)
 
 		state := expectState(t, sub, nil)
@@ -116,7 +116,7 @@ func TestSimpleGame(t *testing.T) {
 		require.Equal(t, dealerVote, playerVote.VoteResult)
 
 		state := expectState(t, sub, func(state *protocol.State) bool {
-			item := state.Issues.Get(fisrtVoteItemID)
+			item := state.Issues.Get(firstVoteItemID)
 			if item == nil {
 				return false
 			}
@@ -130,7 +130,7 @@ func TestSimpleGame(t *testing.T) {
 
 		vote, ok := item.Votes[game.Player().ID]
 		require.True(t, ok)
-		require.Nil(t, vote)
+		require.Empty(t, vote)
 	}
 
 	{ // Reveal votes
@@ -145,10 +145,10 @@ func TestSimpleGame(t *testing.T) {
 		vote, ok := item.Votes[game.Player().ID]
 		require.True(t, ok)
 		require.NotNil(t, vote)
-		require.Equal(t, dealerVote, *vote)
+		require.Equal(t, dealerVote, vote)
 	}
 
-	const votingResult = protocol.VoteResult(1)
+	const votingResult = protocol.VoteResult("1")
 
 	{ // Finish voting
 		err = game.Finish(votingResult)
@@ -162,7 +162,7 @@ func TestSimpleGame(t *testing.T) {
 
 		vote, ok := item.Votes[game.Player().ID]
 		require.True(t, ok)
-		require.Equal(t, dealerVote, *vote)
+		require.Equal(t, dealerVote, vote)
 	}
 
 	const secondItemText = "b"
@@ -171,7 +171,7 @@ func TestSimpleGame(t *testing.T) {
 	checkVoteItems = func(t *testing.T, voteList protocol.IssuesList) *protocol.Issue {
 		require.Len(t, voteList, 2)
 
-		item := voteList.Get(fisrtVoteItemID)
+		item := voteList.Get(firstVoteItemID)
 		require.NotNil(t, item)
 		require.Equal(t, firstItemText, item.TitleOrURL)
 

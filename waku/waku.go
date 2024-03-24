@@ -142,6 +142,16 @@ func (n *Node) PublishUnencryptedMessage(room *pp.Room, payload []byte) error {
 	return n.publishWakuMessage(room, message)
 }
 
+func (n *Node) PublishPublicMessage(room *pp.Room, payload []byte) error {
+	n.logger.Error("PublishPublicMessage not implemented")
+	return errors.New("PublishPublicMessage not implemented")
+}
+
+func (n *Node) PublishPrivateMessage(room *pp.Room, payload []byte) error {
+	n.logger.Error("PublishPrivateMessage not implemented")
+	return errors.New("PublishPrivateMessage not implemented")
+}
+
 func (n *Node) publishWakuMessage(room *pp.Room, message *pb.WakuMessage) error {
 	contentTopic, err := roomContentTopic(room)
 	if err != nil {
@@ -170,8 +180,6 @@ func (n *Node) publishWakuMessage(room *pp.Room, message *pb.WakuMessage) error 
 }
 
 func (n *Node) WaitForPeersConnected() bool {
-	n.logger.Debug("<<< WaitForPeersConnected START")
-	defer n.logger.Debug("<<< WaitForPeersConnected END")
 	if n.waku.PeerCount() > 0 {
 		return true
 	}
@@ -251,11 +259,3 @@ func roomContentTopic(info *pp.Room) (string, error) {
 	}
 	return contentTopic.String(), nil
 }
-
-//func (n *Node) SendPublicMessage(payload []byte) error {
-//	wp.EncodeWakuMessage()
-//}
-//
-//func (n *Node) SendPrivateMessage(payload []byte) error {
-//
-//}

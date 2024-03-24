@@ -47,3 +47,11 @@ func (t *TransportMock) PublishUnencryptedMessage(room *protocol.Room, payload [
 
 	return nil
 }
+
+func (t *TransportMock) PublishPublicMessage(room *protocol.Room, payload []byte) error {
+	return t.PublishUnencryptedMessage(room, payload)
+}
+
+func (t *TransportMock) PublishPrivateMessage(room *protocol.Room, payload []byte) error {
+	return t.PublishUnencryptedMessage(room, payload)
+}

@@ -47,7 +47,7 @@ func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerI
 			ID:   playerID,
 			Name: config.PlayerName(),
 		},
-		playerVote: 0,
+		playerVote: "",
 		room:       nil,
 	}
 }
@@ -175,7 +175,8 @@ func (g *Game) processMessage(payload []byte) {
 		g.logger.Info("player vote accepted",
 			zap.String("name", string(playerVote.VoteBy)),
 			zap.String("voteFor", string(playerVote.VoteFor)),
-			zap.Int("voteResult", int(playerVote.VoteResult)))
+			zap.String("voteResult", string(playerVote.VoteResult)),
+		)
 
 		item := g.state.Issues.Get(playerVote.VoteFor)
 		if item == nil {
@@ -183,7 +184,7 @@ func (g *Game) processMessage(payload []byte) {
 			return
 		}
 
-		item.Votes[playerVote.VoteBy] = &playerVote.VoteResult
+		item.Votes[playerVote.VoteBy] = playerVote.VoteResult
 		g.notifyChangedState(true)
 
 	default:
@@ -368,7 +369,7 @@ func (g *Game) Deal(input string) (protocol.VoteItemID, error) {
 	issue := protocol.Issue{
 		ID:         protocol.VoteItemID(itemUuid.String()),
 		TitleOrURL: input,
-		Votes:      make(map[protocol.PlayerID]*protocol.VoteResult),
+		Votes:      make(map[protocol.PlayerID]protocol.VoteResult),
 		Result:     nil,
 	}
 
@@ -482,10 +483,10 @@ func (g *Game) hiddenCurrentState() *protocol.State {
 	hiddenState.Issues = make([]*protocol.Issue, 0, len(g.state.Issues))
 	for _, item := range g.state.Issues {
 		copiedItem := *item
-		copiedItem.Votes = make(map[protocol.PlayerID]*protocol.VoteResult, len(item.Votes))
+		copiedItem.Votes = make(map[protocol.PlayerID]protocol.VoteResult, len(item.Votes))
 		for playerID, vote := range item.Votes {
 			if item.ID == g.state.ActiveIssue {
-				copiedItem.Votes[playerID] = nil
+				copiedItem.Votes[playerID] = ""
 			} else {
 				copiedItem.Votes[playerID] = vote
 			}
