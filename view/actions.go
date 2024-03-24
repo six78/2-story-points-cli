@@ -5,7 +5,6 @@ import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"golang.org/x/exp/slices"
-	"strconv"
 	"strings"
 	"time"
 	"waku-poker-planning/game"
@@ -16,14 +15,14 @@ type Action string
 
 const (
 	Rename Action = "rename"
-	New           = "new"
-	Join          = "join"
-	Vote          = "vote"
-	Deal          = "deal"
-	Reveal        = "reveal"
-	Finish        = "finish"
-	Deck          = "deck"
-	Sleep         = "sleep"
+	New    Action = "new"
+	Join   Action = "join"
+	Vote   Action = "vote"
+	Deal   Action = "deal"
+	Reveal Action = "reveal"
+	Finish Action = "finish"
+	Deck   Action = "deck"
+	Sleep  Action = "sleep"
 )
 
 var actions = map[Action]func(m *model, args []string) (tea.Cmd, error){
@@ -69,11 +68,7 @@ func runRenameAction(m *model, args []string) (tea.Cmd, error) {
 }
 
 func parseVote(input string) (protocol.VoteResult, error) {
-	vote, err := strconv.Atoi(input)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse vote: %w", err)
-	}
-	return protocol.VoteResult(vote), nil
+	return protocol.VoteResult(input), nil
 }
 
 func runVoteAction(m *model, args []string) (tea.Cmd, error) {
@@ -174,15 +169,11 @@ func parseDeck(args []string) (protocol.Deck, error) {
 	cards := map[string]struct{}{}
 
 	for _, card := range args {
-		vote, err := strconv.Atoi(card)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse card: '%w'", err)
-		}
 		if _, ok := cards[card]; ok {
 			return nil, fmt.Errorf("duplicate card: '%s'", card)
 		}
 		cards[card] = struct{}{}
-		deck = append(deck, protocol.VoteResult(vote))
+		deck = append(deck, protocol.VoteResult(card))
 	}
 
 	return deck, nil

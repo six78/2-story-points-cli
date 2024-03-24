@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/pkg/errors"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
@@ -14,10 +13,7 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
-	"golang.org/x/exp/maps"
 	"net"
-	"strconv"
-	"sync"
 	"time"
 	"waku-poker-planning/config"
 	pp "waku-poker-planning/protocol"
@@ -35,9 +31,9 @@ type Node struct {
 
 	pubsubTopic string
 
-	wakuConnectionStatus  chan node.ConnStatus
-	connectionStatus      node.ConnStatus
-	connectionStatusMutex sync.Mutex
+	wakuConnectionStatus chan node.ConnStatus
+
+	roomCache RoomCache
 }
 
 func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
@@ -74,6 +70,7 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 		logger:               logger.Named("waku"),
 		pubsubTopic:          relay.DefaultWakuTopic,
 		wakuConnectionStatus: wakuConnectionStatus,
+		roomCache:            NewRoomCache(),
 	}, nil
 }
 
@@ -98,18 +95,6 @@ func (n *Node) Start() error {
 
 func (n *Node) Stop() {
 	n.waku.Stop()
-}
-
-func (n *Node) watchConnectionStatus() {
-	var more bool
-	for {
-		n.connectionStatus, more = <-n.wakuConnectionStatus
-		if !more {
-			return
-		}
-		peersCount := len(maps.Keys(n.connectionStatus.Peers))
-		n.logger.Debug("connection status", zap.Any("peersCount", peersCount))
-	}
 }
 
 func (n *Node) discoverNodes() error {
@@ -153,7 +138,7 @@ func (n *Node) PublishPrivateMessage(room *pp.Room, payload []byte) error {
 }
 
 func (n *Node) publishWakuMessage(room *pp.Room, message *pb.WakuMessage) error {
-	contentTopic, err := roomContentTopic(room)
+	contentTopic, err := n.roomCache.Get(room)
 	if err != nil {
 		return errors.Wrap(err, "failed to build content topic")
 	}
@@ -205,7 +190,7 @@ func (n *Node) WaitForPeersConnected() bool {
 }
 
 func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
-	contentTopic, err := roomContentTopic(room)
+	contentTopic, err := n.roomCache.Get(room)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build content topic")
 	}
@@ -244,18 +229,4 @@ func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
 	}()
 
 	return out, nil
-}
-
-func roomContentTopic(info *pp.Room) (string, error) {
-	if len(info.SymmetricKey) < 4 {
-		return "", errors.New("symmetric key too short")
-	}
-
-	version := strconv.Itoa(int(pp.Version))
-	contentTopicName := hexutil.Encode(info.SymmetricKey[:4])
-	contentTopic, err := protocol.NewContentTopic("six78", version, contentTopicName, "json")
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create content topic")
-	}
-	return contentTopic.String(), nil
 }

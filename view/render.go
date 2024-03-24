@@ -5,6 +5,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 	"sort"
+	"strconv"
 	"strings"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
@@ -57,7 +58,7 @@ VOTE LIST:
 %s
 `,
 		m.roomID,
-		renderDeck(&m.gameState.Deck),
+		renderDeck(m.gameState.Deck),
 		renderIssue(m.gameState.Issues.Get(m.gameState.ActiveIssue)),
 		renderVoteList(m.gameState.Issues),
 		m.renderPlayers(),
@@ -155,10 +156,14 @@ var MediumVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ffd787"
 var DangerVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ff005f"))
 
 func voteStyle(vote protocol.VoteResult) lipgloss.Style {
-	if vote >= 13 {
+	voteNumber, err := strconv.Atoi(string(vote))
+	if err != nil {
+		return CommonVoteStyle
+	}
+	if voteNumber >= 13 {
 		return DangerVoteStyle
 	}
-	if vote >= 5 {
+	if voteNumber >= 5 {
 		return MediumVoteStyle
 	}
 	return LightVoteStyle
@@ -183,12 +188,12 @@ func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
 	}
 	if playerID == m.app.Game.Player().ID {
 		playerVote := m.app.Game.PlayerVote()
-		vote = &playerVote
+		vote = playerVote
 	}
-	if vote == nil {
+	if vote == "" {
 		return "✓", ReadyVoteStyle
 	}
-	return fmt.Sprintf("%d", *vote), voteStyle(*vote)
+	return string(vote), voteStyle(vote)
 }
 
 func renderLogPath() string {
@@ -197,10 +202,10 @@ func renderLogPath() string {
 	return fmt.Sprintf("LOG FILE: file:///%s", path)
 }
 
-func renderDeck(deck *protocol.Deck) string {
-	votes := make([]string, 0, len([]protocol.VoteResult(*deck)))
-	for _, vote := range []protocol.VoteResult(*deck) {
-		votes = append(votes, fmt.Sprintf("%d", vote))
+func renderDeck(deck protocol.Deck) string {
+	votes := make([]string, 0, len(deck))
+	for _, vote := range deck {
+		votes = append(votes, string(vote))
 	}
 	return strings.Join(votes, ", ")
 }
@@ -219,8 +224,8 @@ func renderVoteList(voteList protocol.IssuesList) string {
 		var votes []string
 		for _, vote := range item.Votes {
 			voteString := "nil"
-			if vote != nil {
-				voteString = fmt.Sprintf("%d", *vote)
+			if vote != "" {
+				voteString = string(vote)
 			}
 			votes = append(votes, voteString)
 		}
@@ -229,7 +234,7 @@ func renderVoteList(voteList protocol.IssuesList) string {
 		})
 		resultString := "nil"
 		if item.Result != nil {
-			resultString = fmt.Sprintf("%d", *item.Result)
+			resultString = string(*item.Result)
 		}
 		itemString := fmt.Sprintf("%s - result: %s, votes: [%s]",
 			item.TitleOrURL,
