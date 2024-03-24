@@ -4,24 +4,21 @@ const Version byte = 1
 
 type PlayerID string
 type VoteItemID string
-type VoteResult int // WARNING: change type to string. Empty string means vote is not revealed.
+type VoteResult int // TODO: change type to string. Empty string means vote is not revealed.
 
 // TODO: Come up with a common approach for pointers.
 // 		 One solution is to make VoteResult a string.
 
 type Player struct {
-	ID       PlayerID
-	Name     string
-	IsDealer bool
-	Order    int
+	ID   PlayerID `json:"id"`
+	Name string   `json:"name"`
 }
 
-type VoteItem struct {
-	ID     VoteItemID               `json:"id"`
-	Text   string                   `json:"url"` // In most cases text will be a URL
-	Votes  map[PlayerID]*VoteResult `json:"votes"`
-	Result *VoteResult              `json:"result"`
-	Order  int                      `json:"order"`
+type Issue struct {
+	ID         VoteItemID               `json:"id"`
+	TitleOrURL string                   `json:"titleOrUrl"`
+	Votes      map[PlayerID]*VoteResult `json:"votes"`  // TODO: Remove pointer
+	Result     *VoteResult              `json:"result"` // NOTE: keep pointer. Because "empty string means vote is not revealed"
 }
 
 type VoteState string
@@ -33,18 +30,20 @@ const (
 	FinishedState VoteState = "finished"
 )
 
+//type VoteStateDidukh struct {
+//	Issue          Issue
+//	Revealed       bool
+//	TempVoteResult map[PlayerID]*VoteResult
+//}
+
+// TODO:  Vote -> Estimate ?
+
 type State struct {
-	Players   map[PlayerID]Player `json:"players"`
-	VoteState VoteState           `json:"voteState"`
+	Players   []Player  `json:"players"`
+	VoteState VoteState `json:"voteState"`
 
-	// Deprecated: TempVoteResults is deprecated. Use VoteList[CurrentVoteItemID] instead.
-	TempVoteResult map[PlayerID]*VoteResult `json:"tempVoteResults"`
-
-	// Deprecated: VoteItem is deprecated. Use CurrentVoteItemID and VoteList instead.
-	VoteItem VoteItem `json:"voteItem"`
-
-	CurrentVoteItemID VoteItemID               `json:"currentVoteItemID"`
-	VoteList          map[VoteItemID]*VoteItem `json:"voteList"` // add order to voteitem
+	ActiveIssue VoteItemID `json:"activeIssue"`
+	Issues      IssuesList `json:"issues"`
 
 	Deck Deck `json:"deck"`
 }

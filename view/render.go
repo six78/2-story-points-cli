@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"golang.org/x/exp/maps"
 	"sort"
 	"strings"
 	"waku-poker-planning/config"
@@ -59,8 +58,8 @@ VOTE LIST:
 `,
 		m.roomID,
 		renderDeck(&m.gameState.Deck),
-		renderIssue(m.gameState.VoteList[m.gameState.CurrentVoteItemID]),
-		renderVoteList(m.gameState.VoteList),
+		renderIssue(m.gameState.Issues.Get(m.gameState.ActiveIssue)),
+		renderVoteList(m.gameState.Issues),
 		m.renderPlayers(),
 		m.renderActionInput(),
 	)
@@ -88,23 +87,14 @@ func (m model) renderActionError() string {
 func (m model) renderPlayers() string {
 	players := make([]PlayerVoteResult, 0, len(m.gameState.Players))
 
-	for playerID, player := range m.gameState.Players {
-		vote, style := renderVote(&m, playerID)
+	for _, player := range m.gameState.Players {
+		vote, style := renderVote(&m, player.ID)
 		players = append(players, PlayerVoteResult{
 			Player: player,
 			Vote:   vote,
 			Style:  style,
 		})
 	}
-
-	sort.Slice(players[:], func(i, j int) bool {
-		playerI := players[i].Player
-		playerJ := players[j].Player
-		if playerI.Order != playerJ.Order {
-			return playerI.Order < playerJ.Order
-		}
-		return playerI.Name < playerJ.Name
-	})
 
 	var votes []string
 	var playerNames []string
@@ -178,7 +168,12 @@ func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
 	if m.gameState.VoteState == protocol.IdleState {
 		return "", CommonVoteStyle
 	}
-	vote, ok := m.gameState.TempVoteResult[playerID]
+	issue := m.gameState.Issues.Get(m.gameState.ActiveIssue)
+	if issue == nil {
+		config.Logger.Error("active issue not found")
+		return "nil", CommonVoteStyle
+	}
+	vote, ok := issue.Votes[playerID]
 	if !ok {
 		if m.gameState.VoteState == protocol.RevealedState ||
 			m.gameState.VoteState == protocol.FinishedState {
@@ -210,22 +205,17 @@ func renderDeck(deck *protocol.Deck) string {
 	return strings.Join(votes, ", ")
 }
 
-func renderIssue(item *protocol.VoteItem) string {
+func renderIssue(item *protocol.Issue) string {
 	if item == nil {
 		return "nil"
 	}
-	return fmt.Sprintf("%s [%s]", item.Text, item.ID)
+	return fmt.Sprintf("%s [%s]", item.TitleOrURL, item.ID)
 }
 
-func renderVoteList(voteList map[protocol.VoteItemID]*protocol.VoteItem) string {
+func renderVoteList(voteList protocol.IssuesList) string {
 	var itemStrings []string
-	items := maps.Values(voteList)
 
-	sort.Slice(items[:], func(i, j int) bool {
-		return items[i].Order < items[j].Order
-	})
-
-	for _, item := range items {
+	for _, item := range voteList {
 		var votes []string
 		for _, vote := range item.Votes {
 			voteString := "nil"
@@ -234,12 +224,15 @@ func renderVoteList(voteList map[protocol.VoteItemID]*protocol.VoteItem) string 
 			}
 			votes = append(votes, voteString)
 		}
+		sort.Slice(votes[:], func(i, j int) bool {
+			return votes[i] < votes[j]
+		})
 		resultString := "nil"
 		if item.Result != nil {
 			resultString = fmt.Sprintf("%d", *item.Result)
 		}
 		itemString := fmt.Sprintf("%s - result: %s, votes: [%s]",
-			item.Text,
+			item.TitleOrURL,
 			resultString,
 			strings.Join(votes, ","),
 		)

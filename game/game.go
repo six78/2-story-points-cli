@@ -22,7 +22,9 @@ type Game struct {
 	ctx       context.Context
 	transport Transport
 	leaveRoom chan struct{}
+	features  FeatureFlags
 
+	isDealer   bool
 	player     *protocol.Player
 	playerVote protocol.VoteResult
 
@@ -39,10 +41,11 @@ func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerI
 		ctx:       ctx,
 		transport: transport,
 		leaveRoom: nil,
+		features:  defaultFeatureFlags(),
+		isDealer:  false,
 		player: &protocol.Player{
-			ID:       playerID,
-			Name:     config.PlayerName(),
-			IsDealer: false,
+			ID:   playerID,
+			Name: config.PlayerName(),
 		},
 		playerVote: 0,
 		room:       nil,
@@ -55,7 +58,7 @@ func (g *Game) Start() {
 	go g.processIncomingMessages()
 	go g.publishOnlineState()
 
-	if g.player.IsDealer {
+	if g.isDealer {
 		go g.publishStatePeriodically()
 	}
 }
@@ -100,7 +103,7 @@ func (g *Game) processMessage(payload []byte) {
 
 	switch message.Type {
 	case protocol.MessageTypeState:
-		if g.player.IsDealer {
+		if g.isDealer {
 			return
 		}
 		if message.Timestamp < g.stateTimestamp {
@@ -124,19 +127,19 @@ func (g *Game) processMessage(payload []byte) {
 			return
 		}
 		g.logger.Info("player is online", zap.Any("player", playerOnline.Player))
-		if g.player.IsDealer {
-			if _, ok := g.state.Players[playerOnline.Player.ID]; !ok {
-				playerOnline.Player.Order = len(g.state.Players)
-				if g.state.Players == nil {
-					g.state.Players = make(map[protocol.PlayerID]protocol.Player)
-				}
-				g.state.Players[playerOnline.Player.ID] = playerOnline.Player
+		if g.isDealer {
+			// TODO: Store player pointers in a map
+			playerSaved := slices.ContainsFunc(g.state.Players, func(player protocol.Player) bool {
+				return player.ID == playerOnline.Player.ID
+			})
+			if !playerSaved {
+				g.state.Players = append(g.state.Players, playerOnline.Player)
 				g.notifyChangedState(true)
 			}
 		}
 
 	case protocol.MessageTypePlayerVote:
-		if !g.player.IsDealer {
+		if !g.isDealer {
 			return
 		}
 		var playerVote protocol.PlayerVoteMessage
@@ -160,11 +163,11 @@ func (g *Game) processMessage(payload []byte) {
 			return
 		}
 
-		if g.state.CurrentVoteItemID != playerVote.VoteFor {
+		if g.state.ActiveIssue != playerVote.VoteFor {
 			g.logger.Warn("player vote ignored as not for the current vote item",
 				zap.Any("playerID", playerVote.VoteBy),
 				zap.Any("voteFor", playerVote.VoteFor),
-				zap.Any("currentVoteItemID", g.state.CurrentVoteItemID),
+				zap.Any("currentVoteItemID", g.state.ActiveIssue),
 			)
 			return
 		}
@@ -174,15 +177,13 @@ func (g *Game) processMessage(payload []byte) {
 			zap.String("voteFor", string(playerVote.VoteFor)),
 			zap.Int("voteResult", int(playerVote.VoteResult)))
 
-		item, ok := g.state.VoteList[playerVote.VoteFor]
-		if !ok {
+		item := g.state.Issues.Get(playerVote.VoteFor)
+		if item == nil {
 			logger.Error("vote item not found", zap.Any("voteFor", playerVote.VoteFor))
 			return
 		}
 
 		item.Votes[playerVote.VoteBy] = &playerVote.VoteResult
-		g.state.TempVoteResult[playerVote.VoteBy] = &playerVote.VoteResult // keep legacy field for now
-
 		g.notifyChangedState(true)
 
 	default:
@@ -312,14 +313,14 @@ func (g *Game) PublishVote(vote protocol.VoteResult) error {
 			Timestamp: g.timestamp(),
 		},
 		VoteBy:     g.player.ID,
-		VoteFor:    g.state.VoteItem.ID,
+		VoteFor:    g.state.ActiveIssue,
 		VoteResult: vote,
 	})
 	return nil
 }
 
 func (g *Game) publishState(state *protocol.State) {
-	if !g.player.IsDealer {
+	if !g.isDealer {
 		g.logger.Warn("only dealer can publish state")
 		return
 	}
@@ -344,7 +345,7 @@ func (g *Game) timestamp() int64 {
 }
 
 func (g *Game) Deal(input string) (protocol.VoteItemID, error) {
-	if !g.player.IsDealer {
+	if !g.isDealer {
 		return "", errors.New("only dealer can deal")
 	}
 
@@ -357,25 +358,27 @@ func (g *Game) Deal(input string) (protocol.VoteItemID, error) {
 		return "", errors.New("failed to generate UUID")
 	}
 
-	item := protocol.VoteItem{
-		ID:     protocol.VoteItemID(itemUuid.String()),
-		Text:   input,
-		Votes:  make(map[protocol.PlayerID]*protocol.VoteResult),
-		Result: nil,
-		Order:  len(g.state.VoteList),
+	issueExist := slices.ContainsFunc(g.state.Issues, func(item *protocol.Issue) bool {
+		return item.TitleOrURL == input
+	})
+	if issueExist {
+		return "", errors.New("issue already exists")
 	}
 
-	// keep legacy fields for now
-	g.state.VoteItem = item
-	g.state.TempVoteResult = make(map[protocol.PlayerID]*protocol.VoteResult)
+	issue := protocol.Issue{
+		ID:         protocol.VoteItemID(itemUuid.String()),
+		TitleOrURL: input,
+		Votes:      make(map[protocol.PlayerID]*protocol.VoteResult),
+		Result:     nil,
+	}
 
-	g.state.VoteList[item.ID] = &item
-	g.state.CurrentVoteItemID = item.ID
+	g.state.Issues = append(g.state.Issues, &issue)
+	g.state.ActiveIssue = issue.ID
 	g.state.VoteState = protocol.VotingState
 
 	g.notifyChangedState(true)
 
-	return item.ID, nil
+	return issue.ID, nil
 }
 
 func (g *Game) CreateNewRoom() error {
@@ -392,18 +395,17 @@ func (g *Game) CreateNewRoom() error {
 	}
 
 	g.logger.Info("new room created", zap.String("roomID", roomID.String()))
-	g.player.IsDealer = true
+	g.isDealer = true
 	g.room = info
 	g.roomID = roomID
 
 	deck, _ := GetDeck(Fibonacci)
 	g.state = &protocol.State{
-		Players:           make(map[protocol.PlayerID]protocol.Player),
-		VoteState:         protocol.IdleState,
-		Deck:              deck,
-		TempVoteResult:    make(map[protocol.PlayerID]*protocol.VoteResult),
-		CurrentVoteItemID: "",
-		VoteList:          make(map[protocol.VoteItemID]*protocol.VoteItem),
+		Players:     []protocol.Player{*g.player},
+		VoteState:   protocol.IdleState,
+		Deck:        deck,
+		ActiveIssue: "",
+		Issues:      make([]*protocol.Issue, 0),
 	}
 	g.stateTimestamp = g.timestamp()
 
@@ -416,7 +418,7 @@ func (g *Game) JoinRoom(roomID string) error {
 		return errors.Wrap(err, "failed to parse room ID")
 	}
 
-	g.player.IsDealer = false
+	g.isDealer = false
 	g.room = info
 	g.roomID = protocol.NewRoomID(roomID)
 	g.state = nil
@@ -427,7 +429,7 @@ func (g *Game) JoinRoom(roomID string) error {
 }
 
 func (g *Game) IsDealer() bool {
-	return g.player.IsDealer
+	return g.isDealer
 }
 
 func (g *Game) Room() protocol.Room {
@@ -452,7 +454,7 @@ func (g *Game) RenamePlayer(name string) {
 }
 
 func (g *Game) Reveal() error {
-	if !g.player.IsDealer {
+	if !g.isDealer {
 		return errors.New("only dealer can reveal cards")
 	}
 
@@ -477,31 +479,28 @@ func (g *Game) hiddenCurrentState() *protocol.State {
 		return &hiddenState
 	}
 
-	// Manually copy the map, otherwise it's a modifiable reference
-	hiddenState.TempVoteResult = make(map[protocol.PlayerID]*protocol.VoteResult, len(g.state.TempVoteResult))
-	for playerID := range g.state.TempVoteResult {
-		hiddenState.TempVoteResult[playerID] = nil
-	}
-
-	hiddenState.VoteList = make(map[protocol.VoteItemID]*protocol.VoteItem, len(g.state.VoteList))
-	for itemID, item := range g.state.VoteList {
+	hiddenState.Issues = make([]*protocol.Issue, 0, len(g.state.Issues))
+	for _, item := range g.state.Issues {
 		copiedItem := *item
 		copiedItem.Votes = make(map[protocol.PlayerID]*protocol.VoteResult, len(item.Votes))
 		for playerID, vote := range item.Votes {
-			if itemID == g.state.CurrentVoteItemID {
+			if item.ID == g.state.ActiveIssue {
 				copiedItem.Votes[playerID] = nil
 			} else {
 				copiedItem.Votes[playerID] = vote
 			}
 		}
-		hiddenState.VoteList[itemID] = &copiedItem
+		hiddenState.Issues = append(hiddenState.Issues, &copiedItem)
 	}
 
 	return &hiddenState
 }
 
 func (g *Game) SetDeck(deck protocol.Deck) error {
-	if !g.player.IsDealer {
+	if !g.features.EnableDeckSelection {
+		return errors.New("deck selection is disabled")
+	}
+	if !g.isDealer {
 		return errors.New("only dealer can set deck")
 	}
 	if g.state.VoteState != protocol.IdleState && g.state.VoteState != protocol.FinishedState {
@@ -513,7 +512,7 @@ func (g *Game) SetDeck(deck protocol.Deck) error {
 }
 
 func (g *Game) Finish(result protocol.VoteResult) error {
-	if !g.player.IsDealer {
+	if !g.isDealer {
 		return errors.New("only dealer can finish")
 	}
 	if g.state.VoteState != protocol.RevealedState {
@@ -523,14 +522,13 @@ func (g *Game) Finish(result protocol.VoteResult) error {
 		return errors.New("result is not in the deck")
 	}
 
-	voteResult, ok := g.state.VoteList[g.state.VoteItem.ID]
-	if !ok {
+	item := g.state.Issues.Get(g.state.ActiveIssue)
+	if item == nil {
 		return errors.New("vote item not found in the vote list")
 	}
 
 	g.state.VoteState = protocol.FinishedState
-	g.state.VoteItem.Result = &result // support legacy field, can be removed later
-	voteResult.Result = &result
+	item.Result = &result
 
 	g.notifyChangedState(true)
 	return nil

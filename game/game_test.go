@@ -17,8 +17,8 @@ func TestStateSize(t *testing.T) {
 	const issuesCount = 30
 
 	state := protocol.State{
-		Players:  make(map[protocol.PlayerID]protocol.Player, playersCount),
-		VoteList: make(map[protocol.VoteItemID]*protocol.VoteItem, issuesCount),
+		Players: make([]protocol.Player, 0, playersCount),
+		Issues:  make(protocol.IssuesList, 0, issuesCount),
 	}
 
 	votes := make(map[protocol.PlayerID]*protocol.VoteResult, playersCount)
@@ -31,12 +31,10 @@ func TestStateSize(t *testing.T) {
 		playerID, err := config.GeneratePlayerID()
 		require.NoError(t, err)
 
-		state.Players[playerID] = protocol.Player{
-			ID:       playerID,
-			Name:     fmt.Sprintf("player-%d", i),
-			IsDealer: i == 0,
-			Order:    i,
-		}
+		state.Players = append(state.Players, protocol.Player{
+			ID:   playerID,
+			Name: fmt.Sprintf("player-%d", i),
+		})
 
 		result := protocol.VoteResult(i % len(deck))
 		votes[playerID] = &result
@@ -46,12 +44,12 @@ func TestStateSize(t *testing.T) {
 		voteItemID, err := config.GenerateVoteItemID()
 		require.NoError(t, err)
 
-		state.VoteList[voteItemID] = &protocol.VoteItem{
-			ID:     voteItemID,
-			Text:   fmt.Sprintf("https://github.com/six78/waku-poker-planing/issues/%d", i),
-			Votes:  votes, // same votes for each issue, whatever
-			Result: &deck[i%len(deck)],
-		}
+		state.Issues = append(state.Issues, &protocol.Issue{
+			ID:         voteItemID,
+			TitleOrURL: fmt.Sprintf("https://github.com/six78/waku-poker-planing/issues/%d", i),
+			Votes:      votes, // same votes for each issue, whatever
+			Result:     &deck[i%len(deck)],
+		})
 	}
 
 	stateMessage, err := json.Marshal(state)
@@ -86,12 +84,11 @@ func TestSimpleGame(t *testing.T) {
 
 	var fisrtVoteItemID protocol.VoteItemID
 
-	checkVoteItems := func(t *testing.T, voteList map[protocol.VoteItemID]*protocol.VoteItem) *protocol.VoteItem {
-		require.Len(t, voteList, 1)
-		item, ok := voteList[fisrtVoteItemID]
-		require.True(t, ok)
+	checkVoteItems := func(t *testing.T, issuesList protocol.IssuesList) *protocol.Issue {
+		require.Len(t, issuesList, 1)
+		item := issuesList.Get(fisrtVoteItemID)
 		require.NotNil(t, item)
-		require.Equal(t, firstItemText, item.Text)
+		require.Equal(t, firstItemText, item.TitleOrURL)
 		return item
 	}
 
@@ -100,15 +97,14 @@ func TestSimpleGame(t *testing.T) {
 		require.NoError(t, err)
 
 		state := expectState(t, sub, nil)
-		item := checkVoteItems(t, state.VoteList)
+		item := checkVoteItems(t, state.Issues)
 		require.Nil(t, item.Result)
 		require.Len(t, item.Votes, 0)
 	}
 
-	currentVoteItem, ok := game.CurrentState().VoteList[game.CurrentState().CurrentVoteItemID]
-	require.True(t, ok)
+	currentVoteItem := game.CurrentState().Issues.Get(game.CurrentState().ActiveIssue)
 	require.NotNil(t, currentVoteItem)
-	require.Equal(t, firstItemText, currentVoteItem.Text)
+	require.Equal(t, firstItemText, currentVoteItem.TitleOrURL)
 
 	{ // Publish dealer vote
 		err = game.PublishVote(dealerVote)
@@ -120,15 +116,15 @@ func TestSimpleGame(t *testing.T) {
 		require.Equal(t, dealerVote, playerVote.VoteResult)
 
 		state := expectState(t, sub, func(state *protocol.State) bool {
-			item, ok := state.VoteList[fisrtVoteItemID]
-			if !ok {
+			item := state.Issues.Get(fisrtVoteItemID)
+			if item == nil {
 				return false
 			}
-			_, ok = item.Votes[game.Player().ID]
+			_, ok := item.Votes[game.Player().ID]
 			return ok
 		})
 		// FIXME: check vote state
-		item := checkVoteItems(t, state.VoteList)
+		item := checkVoteItems(t, state.Issues)
 		require.Nil(t, item.Result)
 		require.Len(t, item.Votes, 1)
 
@@ -142,7 +138,7 @@ func TestSimpleGame(t *testing.T) {
 		require.NoError(t, err)
 
 		state := expectState(t, sub, nil)
-		item := checkVoteItems(t, state.VoteList)
+		item := checkVoteItems(t, state.Issues)
 		require.Nil(t, item.Result)
 		require.Len(t, item.Votes, 1)
 
@@ -159,7 +155,7 @@ func TestSimpleGame(t *testing.T) {
 		require.NoError(t, err)
 
 		state := expectState(t, sub, nil)
-		item := checkVoteItems(t, state.VoteList)
+		item := checkVoteItems(t, state.Issues)
 		require.NotNil(t, item.Result)
 		require.Equal(t, *item.Result, votingResult)
 		require.Len(t, item.Votes, 1)
@@ -172,18 +168,16 @@ func TestSimpleGame(t *testing.T) {
 	const secondItemText = "b"
 	var secondVoteItemID protocol.VoteItemID
 
-	checkVoteItems = func(t *testing.T, voteList map[protocol.VoteItemID]*protocol.VoteItem) *protocol.VoteItem {
+	checkVoteItems = func(t *testing.T, voteList protocol.IssuesList) *protocol.Issue {
 		require.Len(t, voteList, 2)
 
-		item, ok := voteList[fisrtVoteItemID]
-		require.True(t, ok)
+		item := voteList.Get(fisrtVoteItemID)
 		require.NotNil(t, item)
-		require.Equal(t, firstItemText, item.Text)
+		require.Equal(t, firstItemText, item.TitleOrURL)
 
-		item, ok = voteList[secondVoteItemID]
-		require.True(t, ok)
+		item = voteList.Get(secondVoteItemID)
 		require.NotNil(t, item)
-		require.Equal(t, secondItemText, item.Text)
+		require.Equal(t, secondItemText, item.TitleOrURL)
 
 		return item
 	}
@@ -193,7 +187,7 @@ func TestSimpleGame(t *testing.T) {
 		require.NoError(t, err)
 
 		state := expectState(t, sub, nil)
-		item := checkVoteItems(t, state.VoteList)
+		item := checkVoteItems(t, state.Issues)
 		require.Nil(t, item.Result)
 		require.Len(t, item.Votes, 0)
 	}
