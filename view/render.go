@@ -156,7 +156,7 @@ var MediumVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ffd787"
 var DangerVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ff005f"))
 
 func voteStyle(vote protocol.VoteResult) lipgloss.Style {
-	voteNumber, err := strconv.Atoi(string(vote))
+	voteNumber, err := strconv.Atoi(string(vote.Value))
 	if err != nil {
 		return CommonVoteStyle
 	}
@@ -190,20 +190,16 @@ func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
 		playerVote := m.app.Game.PlayerVote()
 		vote = playerVote
 	}
-	if vote == "" {
+	if vote.Value == "" {
 		return "✓", ReadyVoteStyle
 	}
-	return string(vote), voteStyle(vote)
+	return string(vote.Value), voteStyle(vote)
 }
 
 func renderLogPath() string {
 	//path := config.LogFilePath
 	path := strings.Replace(config.LogFilePath, " ", "%20", -1)
 	return fmt.Sprintf("LOG FILE: file:///%s", path)
-}
-
-func renderRoom(roomID string) string {
-	return fmt.Sprintf("ROOM ID: %s", roomID)
 }
 
 func renderDeck(deck protocol.Deck) string {
@@ -228,8 +224,8 @@ func renderVoteList(voteList protocol.IssuesList) string {
 		var votes []string
 		for _, vote := range item.Votes {
 			voteString := "nil"
-			if vote != "" {
-				voteString = string(vote)
+			if vote.Value != "" {
+				voteString = string(vote.Value)
 			}
 			votes = append(votes, voteString)
 		}

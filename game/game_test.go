@@ -37,7 +37,7 @@ func TestStateSize(t *testing.T) {
 		})
 
 		vote := fmt.Sprintf("%d", i%len(deck))
-		votes[playerID] = protocol.VoteResult(vote)
+		votes[playerID] = *protocol.NewVoteResult(protocol.VoteValue(vote))
 	}
 
 	for i := 0; i < issuesCount; i++ {
@@ -80,7 +80,7 @@ func TestSimpleGame(t *testing.T) {
 	game.Start()
 
 	const firstItemText = "a"
-	const dealerVote = protocol.VoteResult("1")
+	const dealerVote = protocol.VoteValue("1")
 
 	var firstVoteItemID protocol.VoteItemID
 
@@ -113,7 +113,8 @@ func TestSimpleGame(t *testing.T) {
 		playerVote := expectPlayerVote(t, sub)
 		require.Equal(t, game.Player().ID, playerVote.VoteBy)
 		require.Equal(t, currentVoteItem.ID, playerVote.VoteFor)
-		require.Equal(t, dealerVote, playerVote.VoteResult)
+		require.Equal(t, dealerVote, playerVote.VoteResult.Value)
+		require.Greater(t, playerVote.VoteResult.Timestamp, int64(0))
 
 		state := expectState(t, sub, func(state *protocol.State) bool {
 			item := state.Issues.Get(firstVoteItemID)
@@ -130,7 +131,8 @@ func TestSimpleGame(t *testing.T) {
 
 		vote, ok := item.Votes[game.Player().ID]
 		require.True(t, ok)
-		require.Empty(t, vote)
+		require.Empty(t, vote.Value)
+		require.Greater(t, vote.Timestamp, int64(0))
 	}
 
 	{ // Reveal votes
@@ -145,10 +147,11 @@ func TestSimpleGame(t *testing.T) {
 		vote, ok := item.Votes[game.Player().ID]
 		require.True(t, ok)
 		require.NotNil(t, vote)
-		require.Equal(t, dealerVote, vote)
+		require.Equal(t, dealerVote, vote.Value)
+		require.Greater(t, vote.Timestamp, int64(0))
 	}
 
-	const votingResult = protocol.VoteResult("1")
+	const votingResult = protocol.VoteValue("1")
 
 	{ // Finish voting
 		err = game.Finish(votingResult)
@@ -162,7 +165,8 @@ func TestSimpleGame(t *testing.T) {
 
 		vote, ok := item.Votes[game.Player().ID]
 		require.True(t, ok)
-		require.Equal(t, dealerVote, vote)
+		require.Equal(t, dealerVote, vote.Value)
+		require.Greater(t, vote.Timestamp, int64(0))
 	}
 
 	const secondItemText = "b"

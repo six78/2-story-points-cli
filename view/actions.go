@@ -67,8 +67,8 @@ func runRenameAction(m *model, args []string) (tea.Cmd, error) {
 	return cmd, nil
 }
 
-func parseVote(input string) (protocol.VoteResult, error) {
-	return protocol.VoteResult(input), nil
+func parseVote(input string) (protocol.VoteValue, error) {
+	return protocol.VoteValue(input), nil
 }
 
 func runVoteAction(m *model, args []string) (tea.Cmd, error) {
@@ -173,7 +173,7 @@ func parseDeck(args []string) (protocol.Deck, error) {
 			return nil, fmt.Errorf("duplicate card: '%s'", card)
 		}
 		cards[card] = struct{}{}
-		deck = append(deck, protocol.VoteResult(card))
+		deck = append(deck, protocol.VoteValue(card))
 	}
 
 	return deck, nil

@@ -44,8 +44,11 @@ func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerI
 			ID:   playerID,
 			Name: config.PlayerName(),
 		},
-		playerVote: "",
-		room:       nil,
+		playerVote: protocol.VoteResult{
+			Value:     "",
+			Timestamp: 0,
+		},
+		room: nil,
 	}
 }
 
@@ -129,15 +132,9 @@ func (g *Game) processMessage(payload []byte) {
 		}
 		var playerVote protocol.PlayerVoteMessage
 		err := json.Unmarshal(payload, &playerVote)
+
 		if err != nil {
 			logger.Error("failed to unmarshal message", zap.Error(err))
-			return
-		}
-		if !slices.Contains(g.state.Deck, playerVote.VoteResult) {
-			logger.Warn("player vote ignored as not found in deck",
-				zap.Any("playerID", playerVote.VoteBy),
-				zap.Any("vote", playerVote.VoteResult),
-				zap.Any("deck", g.state.Deck))
 			return
 		}
 
@@ -145,6 +142,14 @@ func (g *Game) processMessage(payload []byte) {
 			g.logger.Warn("player vote ignored as not in voting state",
 				zap.Any("playerID", playerVote.VoteBy),
 			)
+			return
+		}
+
+		if !slices.Contains(g.state.Deck, playerVote.VoteResult.Value) {
+			logger.Warn("player vote ignored as not found in deck",
+				zap.Any("playerID", playerVote.VoteBy),
+				zap.Any("vote", playerVote.VoteResult),
+				zap.Any("deck", g.state.Deck))
 			return
 		}
 
@@ -157,17 +162,28 @@ func (g *Game) processMessage(payload []byte) {
 			return
 		}
 
-		g.logger.Info("player vote accepted",
-			zap.String("name", string(playerVote.VoteBy)),
-			zap.String("voteFor", string(playerVote.VoteFor)),
-			zap.String("voteResult", string(playerVote.VoteResult)),
-		)
-
 		item := g.state.Issues.Get(playerVote.VoteFor)
 		if item == nil {
 			logger.Error("vote item not found", zap.Any("voteFor", playerVote.VoteFor))
 			return
 		}
+
+		currentVote, voteExist := item.Votes[playerVote.VoteBy]
+		if voteExist && currentVote.Timestamp >= playerVote.Timestamp {
+			logger.Warn("player vote ignored as outdated",
+				zap.Any("playerID", playerVote.VoteBy),
+				zap.Any("currentVote", currentVote),
+				zap.Any("receivedVote", playerVote.VoteResult),
+			)
+			return
+		}
+
+		g.logger.Info("player vote accepted",
+			zap.String("name", string(playerVote.VoteBy)),
+			zap.String("voteFor", string(playerVote.VoteFor)),
+			zap.String("voteResult", string(playerVote.VoteResult.Value)),
+			zap.Any("timestamp", playerVote.Timestamp),
+		)
 
 		item.Votes[playerVote.VoteBy] = playerVote.VoteResult
 		g.notifyChangedState(true)
@@ -284,7 +300,7 @@ func (g *Game) PublishUserOnline(player *protocol.Player) {
 	})
 }
 
-func (g *Game) PublishVote(vote protocol.VoteResult) error {
+func (g *Game) PublishVote(vote protocol.VoteValue) error {
 	if g.state.VoteState != protocol.VotingState {
 		return errors.New("no voting in progress")
 	}
@@ -292,7 +308,7 @@ func (g *Game) PublishVote(vote protocol.VoteResult) error {
 		return fmt.Errorf("invalid vote")
 	}
 	g.logger.Debug("publishing vote", zap.Any("vote", vote))
-	g.playerVote = vote
+	g.playerVote = *protocol.NewVoteResult(vote)
 	g.publishMessage(protocol.PlayerVoteMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypePlayerVote,
@@ -300,7 +316,7 @@ func (g *Game) PublishVote(vote protocol.VoteResult) error {
 		},
 		VoteBy:     g.player.ID,
 		VoteFor:    g.state.ActiveIssue,
-		VoteResult: vote,
+		VoteResult: g.playerVote,
 	})
 	return nil
 }
@@ -470,7 +486,7 @@ func (g *Game) hiddenCurrentState() *protocol.State {
 		copiedItem.Votes = make(map[protocol.PlayerID]protocol.VoteResult, len(item.Votes))
 		for playerID, vote := range item.Votes {
 			if item.ID == g.state.ActiveIssue {
-				copiedItem.Votes[playerID] = ""
+				copiedItem.Votes[playerID] = vote.Hidden()
 			} else {
 				copiedItem.Votes[playerID] = vote
 			}
@@ -496,7 +512,7 @@ func (g *Game) SetDeck(deck protocol.Deck) error {
 	return nil
 }
 
-func (g *Game) Finish(result protocol.VoteResult) error {
+func (g *Game) Finish(result protocol.VoteValue) error {
 	if !g.isDealer {
 		return errors.New("only dealer can finish")
 	}

@@ -4,7 +4,6 @@ const Version byte = 1
 
 type PlayerID string
 type VoteItemID string
-type VoteResult string
 
 type Player struct {
 	ID   PlayerID `json:"id"`
@@ -15,7 +14,7 @@ type Issue struct {
 	ID         VoteItemID              `json:"id"`
 	TitleOrURL string                  `json:"titleOrUrl"`
 	Votes      map[PlayerID]VoteResult `json:"votes"`
-	Result     *VoteResult             `json:"result"` // NOTE: keep pointer. Because "empty string means vote is not revealed"
+	Result     *VoteValue              `json:"result"` // NOTE: keep pointer. Because "empty string means vote is not revealed"
 }
 
 type VoteState string
@@ -75,4 +74,4 @@ type PlayerVoteMessage struct {
 	VoteResult VoteResult `json:"voteResult"` // TODO: rename to `voteValue`
 }
 
-type Deck []VoteResult
+type Deck []VoteValue
