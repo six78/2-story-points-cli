@@ -117,7 +117,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		case CreatingRoom, JoiningRoom:
 			m.state = UserAction
-			m.roomID = m.app.GameRoomID()
+			m.roomID = m.app.Game.RoomID()
 			m.gameState = m.app.GameState()
 			commands = append(commands, waitForGameState(m.app))
 		}

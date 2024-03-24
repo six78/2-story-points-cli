@@ -202,6 +202,10 @@ func renderLogPath() string {
 	return fmt.Sprintf("LOG FILE: file:///%s", path)
 }
 
+func renderRoom(roomID string) string {
+	return fmt.Sprintf("ROOM ID: %s", roomID)
+}
+
 func renderDeck(deck protocol.Deck) string {
 	votes := make([]string, 0, len(deck))
 	for _, vote := range deck {

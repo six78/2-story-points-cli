@@ -3,15 +3,12 @@ package config
 import (
 	"flag"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
 	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-	"waku-poker-planning/protocol"
 )
 
 const OnlineMessagePeriod = 5 * time.Second
@@ -110,20 +107,4 @@ func Debug() bool {
 
 func Anonymous() bool {
 	return anonymous
-}
-
-func GeneratePlayerID() (protocol.PlayerID, error) {
-	playerUUID, err := uuid.NewUUID()
-	if err != nil {
-		return "", errors.Wrap(err, "failed to generate player UUID")
-	}
-	return protocol.PlayerID(playerUUID.String()), nil
-}
-
-func GenerateVoteItemID() (protocol.VoteItemID, error) {
-	itemUUID, err := uuid.NewUUID()
-	if err != nil {
-		return "", errors.New("failed to generate vote item UUID")
-	}
-	return protocol.VoteItemID(itemUUID.String()), nil
 }

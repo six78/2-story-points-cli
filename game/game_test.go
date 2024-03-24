@@ -28,7 +28,7 @@ func TestStateSize(t *testing.T) {
 	state.Deck = deck
 
 	for i := 0; i < playersCount; i++ {
-		playerID, err := config.GeneratePlayerID()
+		playerID, err := GeneratePlayerID()
 		require.NoError(t, err)
 
 		state.Players = append(state.Players, protocol.Player{
@@ -41,7 +41,7 @@ func TestStateSize(t *testing.T) {
 	}
 
 	for i := 0; i < issuesCount; i++ {
-		voteItemID, err := config.GenerateVoteItemID()
+		voteItemID, err := GenerateVoteItemID()
 		require.NoError(t, err)
 
 		state.Issues = append(state.Issues, &protocol.Issue{

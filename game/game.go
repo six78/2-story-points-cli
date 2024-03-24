@@ -2,12 +2,9 @@ package game
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	wp "github.com/waku-org/go-waku/waku/v2/payload"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"time"
@@ -76,18 +73,6 @@ func (g *Game) Stop() {
 	g.stateSubscribers = nil
 	g.LeaveRoom()
 	// WARNING: wait for all routines to finish
-}
-
-func (g *Game) generateSymmetricKey() (*wp.KeyInfo, error) {
-	key := make([]byte, config.SymmetricKeyLength)
-	_, err := rand.Read(key)
-	if err != nil {
-		return nil, err
-	}
-	return &wp.KeyInfo{
-		Kind:   wp.Symmetric,
-		SymKey: key,
-	}, nil
 }
 
 func (g *Game) processMessage(payload []byte) {
@@ -354,7 +339,7 @@ func (g *Game) Deal(input string) (protocol.VoteItemID, error) {
 		return "", errors.New("cannot deal when voting is in progress")
 	}
 
-	itemUuid, err := uuid.NewUUID()
+	itemID, err := GenerateVoteItemID()
 	if err != nil {
 		return "", errors.New("failed to generate UUID")
 	}
@@ -367,7 +352,7 @@ func (g *Game) Deal(input string) (protocol.VoteItemID, error) {
 	}
 
 	issue := protocol.Issue{
-		ID:         protocol.VoteItemID(itemUuid.String()),
+		ID:         itemID,
 		TitleOrURL: input,
 		Votes:      make(map[protocol.PlayerID]protocol.VoteResult),
 		Result:     nil,
@@ -383,12 +368,11 @@ func (g *Game) Deal(input string) (protocol.VoteItemID, error) {
 }
 
 func (g *Game) CreateNewRoom() error {
-	keyInfo, err := g.generateSymmetricKey()
+	info, err := protocol.NewRoom()
 	if err != nil {
-		return errors.Wrap(err, "failed to generate symmetric key")
+		return errors.Wrap(err, "failed to create a new room")
 	}
 
-	info := protocol.BuildRoom(keyInfo.SymKey)
 	roomID, err := info.ToRoomID()
 
 	if err != nil {

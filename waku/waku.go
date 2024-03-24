@@ -33,7 +33,7 @@ type Node struct {
 
 	wakuConnectionStatus chan node.ConnStatus
 
-	roomCache RoomCache
+	roomCache ContentTopicCache
 }
 
 func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
@@ -70,7 +70,7 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 		logger:               logger.Named("waku"),
 		pubsubTopic:          relay.DefaultWakuTopic,
 		wakuConnectionStatus: wakuConnectionStatus,
-		roomCache:            NewRoomCache(),
+		roomCache:            NewRoomCache(logger),
 	}, nil
 }
 

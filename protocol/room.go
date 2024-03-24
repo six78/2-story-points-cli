@@ -1,8 +1,10 @@
 package protocol
 
 import (
+	"crypto/rand"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"waku-poker-planning/config"
 )
 
 type Room struct {
@@ -27,10 +29,15 @@ func (id RoomID) String() string {
 // - byte 1..end: symmetric key
 // Total expected length: 17 bytes
 
-func (info *Room) ToRoomID() (RoomID, error) {
-	bytes := make([]byte, 0, 1+len(info.SymmetricKey))
-	bytes = append(bytes, info.Version)
-	bytes = append(bytes, info.SymmetricKey...)
+func (room *Room) Bytes() []byte {
+	bytes := make([]byte, 0, 1+len(room.SymmetricKey))
+	bytes = append(bytes, room.Version)
+	bytes = append(bytes, room.SymmetricKey...)
+	return bytes
+}
+
+func (room *Room) ToRoomID() (RoomID, error) {
+	bytes := room.Bytes()
 	roomID := base58.Encode(bytes)
 	return NewRoomID(roomID), nil
 }
@@ -57,9 +64,22 @@ func ParseRoomID(roomID string) (*Room, error) {
 	}, nil
 }
 
-func BuildRoom(symmetricKey []byte) *Room {
+func NewRoom() (*Room, error) {
+	symmetricKey, err := generateSymmetricKey()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate symmetric key")
+	}
 	return &Room{
 		Version:      Version,
 		SymmetricKey: symmetricKey,
+	}, nil
+}
+
+func generateSymmetricKey() ([]byte, error) {
+	key := make([]byte, config.SymmetricKeyLength)
+	_, err := rand.Read(key)
+	if err != nil {
+		return nil, err
 	}
+	return key, nil
 }

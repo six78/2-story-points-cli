@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 	"sync"
 	"waku-poker-planning/config"
+	"waku-poker-planning/game"
 	"waku-poker-planning/protocol"
 
 	"github.com/shibukawa/configdir"
@@ -61,7 +62,7 @@ func (s *Storage) readPlayerID() (protocol.PlayerID, error) {
 }
 
 func (s *Storage) createPlayerID() (protocol.PlayerID, error) {
-	playerUUID, err := config.GeneratePlayerID()
+	playerUUID, err := game.GeneratePlayerID()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to generate player UUID")
 	}

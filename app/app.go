@@ -19,7 +19,6 @@ type App struct {
 	quit context.CancelFunc
 
 	gameStateSubscription game.StateSubscription
-	playerID              protocol.PlayerID
 }
 
 func NewApp() *App {
@@ -66,7 +65,7 @@ func (a *App) Initialize() error {
 
 	playerID := a.storage.PlayerID()
 	if config.Anonymous() {
-		playerID, err = config.GeneratePlayerID()
+		playerID, err = game.GeneratePlayerID()
 		if err != nil {
 			return errors.Wrap(err, "failed to generate player ID")
 		}
