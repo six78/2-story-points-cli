@@ -14,7 +14,8 @@ import (
 const OnlineMessagePeriod = 5 * time.Second
 const StateMessagePeriod = 10 * time.Second
 const logsDirectory = "logs"
-const SymmetricKeyLength = 16
+const SymmetricKeyLength = 32
+const EnableSymmetricEncryption = false
 
 const VendorName = "six78"
 const ApplicationName = "waku-poker-planning"

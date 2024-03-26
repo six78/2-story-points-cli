@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
+	wp "github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
@@ -121,15 +122,39 @@ func (n *Node) discoverNodes() error {
 }
 
 func (n *Node) PublishUnencryptedMessage(room *pp.Room, payload []byte) error {
-	message := &pb.WakuMessage{
-		Payload: payload,
+	message, err := n.buildWakuMessage(room, payload)
+	if err != nil {
+		return errors.Wrap(err, "failed to build waku message")
 	}
 	return n.publishWakuMessage(room, message)
 }
 
+/*
+	NOTE: Waku built-in encryption was a simple start, but it has a few disadvantages:
+		1. It's fixed to 32-bytes key size
+		   This makes RoomID too big even with a single SymmetricKey: "NrhbXYhn49Zo7LeKLQGQVRSjoBSLhLD6zSXKwqb3Podf"
+		2. Because of this we have to pass pp.Room to this waku package.
+		   I'm not sure if this is a good architecture decision.
+*/
+
 func (n *Node) PublishPublicMessage(room *pp.Room, payload []byte) error {
-	n.logger.Error("PublishPublicMessage not implemented")
-	return errors.New("PublishPublicMessage not implemented")
+	message, err := n.buildWakuMessage(room, payload)
+	if err != nil {
+		return errors.Wrap(err, "failed to build waku message")
+	}
+
+	keyInfo := &wp.KeyInfo{
+		Kind:   wp.Symmetric,
+		SymKey: room.SymmetricKey,
+		// PrivKey: Set a privkey if the message requires a signature
+	}
+
+	err = wp.EncodeWakuMessage(message, keyInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to encode waku message")
+	}
+
+	return n.publishWakuMessage(room, message)
 }
 
 func (n *Node) PublishPrivateMessage(room *pp.Room, payload []byte) error {
@@ -137,18 +162,26 @@ func (n *Node) PublishPrivateMessage(room *pp.Room, payload []byte) error {
 	return errors.New("PublishPrivateMessage not implemented")
 }
 
-func (n *Node) publishWakuMessage(room *pp.Room, message *pb.WakuMessage) error {
-	contentTopic, err := n.roomCache.Get(room)
-	if err != nil {
-		return errors.Wrap(err, "failed to build content topic")
+func (n *Node) buildWakuMessage(room *pp.Room, payload []byte) (*pb.WakuMessage, error) {
+	version := uint32(0)
+	if config.EnableSymmetricEncryption {
+		version = 1
 	}
 
-	version := uint32(0)
+	contentTopic, err := n.roomCache.Get(room)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build content topic")
+	}
 
-	message.Version = &version
-	message.ContentTopic = contentTopic
-	message.Timestamp = utils.GetUnixEpoch()
+	return &pb.WakuMessage{
+		Payload:      payload,
+		Version:      &version,
+		ContentTopic: contentTopic,
+		Timestamp:    utils.GetUnixEpoch(),
+	}, nil
+}
 
+func (n *Node) publishWakuMessage(room *pp.Room, message *pb.WakuMessage) error {
 	publishOptions := []relay.PublishOption{
 		relay.WithPubSubTopic(n.pubsubTopic),
 	}
@@ -224,9 +257,32 @@ func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
 			n.logger.Info("waku message received",
 				zap.String("payload", string(value.Message().Payload)),
 			)
-			out <- value.Message().Payload
+			payload, err := decryptMessage(room, value.Message())
+			if err != nil {
+				n.logger.Warn("failed to decrypt message payload")
+			}
+			out <- payload
 		}
 	}()
 
 	return out, nil
+}
+
+func decryptMessage(room *pp.Room, message *pb.WakuMessage) ([]byte, error) {
+	// NOTE: waku automatically decide to decrypt or not based on message.Version (0/1)
+	//if !config.EnableSymmetricEncryption {
+	//	return payload, nil
+	//}
+
+	keyInfo := &wp.KeyInfo{
+		Kind:   wp.Symmetric,
+		SymKey: room.SymmetricKey,
+	}
+
+	err := wp.DecodeWakuMessage(message, keyInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode waku message")
+	}
+
+	return message.Payload, nil
 }

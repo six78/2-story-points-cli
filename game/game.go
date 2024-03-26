@@ -277,12 +277,19 @@ func (g *Game) publishMessage(message any) {
 		return
 
 	}
+
 	payload, err := json.Marshal(message)
 	if err != nil {
 		g.logger.Error("failed to marshal message", zap.Error(err))
 		return
 	}
-	err = g.transport.PublishUnencryptedMessage(g.room, payload)
+
+	if config.EnableSymmetricEncryption {
+		err = g.transport.PublishPublicMessage(g.room, payload)
+	} else {
+		err = g.transport.PublishUnencryptedMessage(g.room, payload)
+	}
+
 	if err != nil {
 		g.logger.Error("failed to publish message", zap.Error(err))
 		return
