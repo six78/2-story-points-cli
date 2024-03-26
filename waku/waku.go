@@ -137,21 +137,25 @@ func (n *Node) PublishUnencryptedMessage(room *pp.Room, payload []byte) error {
 		   I'm not sure if this is a good architecture decision.
 */
 
-func (n *Node) PublishPublicMessage(room *pp.Room, payload []byte) error {
-	message, err := n.buildWakuMessage(room, payload)
-	if err != nil {
-		return errors.Wrap(err, "failed to build waku message")
-	}
-
+func (n *Node) encryptPublicPayload(room *pp.Room, message *pb.WakuMessage) error {
 	keyInfo := &wp.KeyInfo{
 		Kind:   wp.Symmetric,
 		SymKey: room.SymmetricKey,
 		// PrivKey: Set a privkey if the message requires a signature
 	}
 
-	err = wp.EncodeWakuMessage(message, keyInfo)
+	return wp.EncodeWakuMessage(message, keyInfo)
+}
+
+func (n *Node) PublishPublicMessage(room *pp.Room, payload []byte) error {
+	message, err := n.buildWakuMessage(room, payload)
 	if err != nil {
-		return errors.Wrap(err, "failed to encode waku message")
+		return errors.Wrap(err, "failed to build waku message")
+	}
+
+	err = n.encryptPublicPayload(room, message)
+	if err != nil {
+		return errors.Wrap(err, "failed to encrypt message")
 	}
 
 	return n.publishWakuMessage(room, message)

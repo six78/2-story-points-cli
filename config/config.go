@@ -14,7 +14,7 @@ import (
 const OnlineMessagePeriod = 5 * time.Second
 const StateMessagePeriod = 10 * time.Second
 const logsDirectory = "logs"
-const SymmetricKeyLength = 32
+const SymmetricKeyLength = 16
 const EnableSymmetricEncryption = false
 
 const VendorName = "six78"
@@ -76,7 +76,7 @@ func ParseArguments() {
 
 	flag.StringVar(&playerName, "name", "", "Player name")
 	flag.BoolVar(&debug, "debug", false, "Show debug info")
-	flag.BoolVar(&anonymous, "anonymous", false, "Anonymouse mode")
+	flag.BoolVar(&anonymous, "anonymous", false, "Anonymous mode")
 	flag.Parse()
 
 	initialAction = strings.Join(flag.Args(), " ")
