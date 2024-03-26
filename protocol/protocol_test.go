@@ -7,8 +7,8 @@ import (
 )
 
 func TestRoomID(t *testing.T) {
-	key := []byte{1, 2, 3, 4}
-	sent := NewRoom(key)
+	sent, err := NewRoom()
+	require.NoError(t, err)
 
 	roomID, err := sent.ToRoomID()
 	require.NoError(t, err)
