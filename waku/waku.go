@@ -141,7 +141,17 @@ func (n *Node) encryptPublicPayload(room *pp.Room, message *pb.WakuMessage) erro
 	keyInfo := &wp.KeyInfo{
 		Kind:   wp.Symmetric,
 		SymKey: room.SymmetricKey,
-		// PrivKey: Set a privkey if the message requires a signature
+		//PrivKey: room.DealerPrivateKey, // TODO: Implement dealer signature support
+	}
+
+	return wp.EncodeWakuMessage(message, keyInfo)
+}
+
+func (n *Node) encryptPrivatePayload(room *pp.Room, message *pb.WakuMessage) error {
+	keyInfo := &wp.KeyInfo{
+		Kind:   wp.Asymmetric,
+		PubKey: room.DealerPublicKey,
+		SymKey: room.SymmetricKey,
 	}
 
 	return wp.EncodeWakuMessage(message, keyInfo)
