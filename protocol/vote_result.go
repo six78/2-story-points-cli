@@ -5,8 +5,8 @@ import "time"
 type VoteValue string
 
 type VoteResult struct {
-	Value     VoteValue
-	Timestamp int64
+	Value     VoteValue `json:"estimation"` // TODO:  Vote -> Estimate ?
+	Timestamp int64     `json:"timestamp"`
 }
 
 func NewVoteResult(value VoteValue) *VoteResult {

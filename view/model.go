@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"go.uber.org/zap"
+	"math"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
@@ -32,6 +33,10 @@ type model struct {
 	gameState        *protocol.State
 	roomID           string
 
+	// UI components state
+	interactiveMode bool
+	deckCursor      int
+
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
 	input   textinput.Model
@@ -45,6 +50,9 @@ func initialModel(a *app.App) model {
 		state:     Initializing,
 		gameState: nil,
 		roomID:    "",
+		// UI components state
+		interactiveMode: !a.IsDealer(),
+		deckCursor:      0,
 		// View components
 		input:   createTextInput(),
 		spinner: createSpinner(),
@@ -81,6 +89,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	previousState := m.state
 
+	m.interactiveMode = !m.app.IsDealer()
 	m.input, inputCommand = m.input.Update(msg)
 	m.spinner, spinnerCommand = m.spinner.Update(msg)
 
@@ -131,9 +140,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		case tea.KeyEnter:
-			cmd := processUserInput(&m)
+			var cmd tea.Cmd
+			if m.interactiveMode {
+				cmd = VoteOnCursor(&m)
+			} else {
+				cmd = processUserInput(&m)
+			}
 			if cmd != nil {
 				commands = append(commands, cmd)
+			}
+		case tea.KeyLeft:
+			if m.interactiveMode {
+				MoveCursorLeft(&m)
+			}
+		case tea.KeyRight:
+			if m.interactiveMode {
+				MoveCursorRight(&m)
 			}
 		}
 	}
@@ -156,8 +178,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	//config.Logger.Debug("model view")
-
 	var view string
 	if m.fatalError != nil {
 		view = fmt.Sprintf(" ☠️ FATAL ERROR: %s", m.fatalError)
@@ -165,7 +185,20 @@ func (m model) View() string {
 		view = m.renderAppState()
 	}
 
-	return fmt.Sprintf("%s\n\n%s", renderLogPath(), view)
+	return fmt.Sprintf("%s\n%s", renderLogPath(), view)
+}
+
+func VoteOnCursor(m *model) tea.Cmd {
+	// TODO: Instead of imitating action, return a ready-to-go tea.Cmd
+	return processAction(m, fmt.Sprintf("vote %s", m.gameState.Deck[m.deckCursor]))
+}
+
+func MoveCursorLeft(m *model) {
+	m.deckCursor = int(math.Max(float64(m.deckCursor-1), 0))
+}
+
+func MoveCursorRight(m *model) {
+	m.deckCursor = int(math.Min(float64(m.deckCursor+1), float64(len(m.gameState.Deck)-1)))
 }
 
 // Ensure that model fulfils the tea.Model interface at compile time.

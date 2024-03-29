@@ -10,7 +10,7 @@ func GeneratePlayerID() (protocol.PlayerID, error) {
 	return protocol.PlayerID(playerUUID.String()), nil
 }
 
-func GenerateVoteItemID() (protocol.VoteItemID, error) {
+func GenerateVoteItemID() (protocol.IssueID, error) {
 	itemUUID := uuid.New()
-	return protocol.VoteItemID(itemUUID.String()), nil
+	return protocol.IssueID(itemUUID.String()), nil
 }

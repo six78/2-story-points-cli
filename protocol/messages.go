@@ -1,9 +1,11 @@
 package protocol
 
+import "waku-poker-planning/config"
+
 const Version byte = 1
 
 type PlayerID string
-type VoteItemID string
+type IssueID string
 
 type Player struct {
 	ID   PlayerID `json:"id"`
@@ -11,7 +13,7 @@ type Player struct {
 }
 
 type Issue struct {
-	ID         VoteItemID              `json:"id"`
+	ID         IssueID                 `json:"id"`
 	TitleOrURL string                  `json:"titleOrUrl"`
 	Votes      map[PlayerID]VoteResult `json:"votes"`
 	Result     *VoteValue              `json:"result"` // NOTE: keep pointer. Because "empty string means vote is not revealed"
@@ -20,28 +22,38 @@ type Issue struct {
 type VoteState string
 
 const (
-	IdleState     VoteState = "idle"
-	VotingState   VoteState = "voting"
-	RevealedState VoteState = "revealed"
-	FinishedState VoteState = "finished"
+	IdleState     VoteState = "idle"     // ActiveIssue == ""
+	VotingState   VoteState = "voting"   // ActiveIssue != "", Revealed == false
+	RevealedState VoteState = "revealed" // ActiveIssue != "", Revealed == true, Issues[ActiveIssue].Result == nil
+	FinishedState VoteState = "finished" // ActiveIssue != "", Revealed == true, Issues[ActiveIssue].Result != nil
 )
 
-//type VoteStateDidukh struct {
-//	Issue          Issue
-//	Revealed       bool
-//	TempVoteResult map[PlayerID]*VoteResult
-//}
-
-// TODO:  Vote -> Estimate ?
-
 type State struct {
-	Players   []Player  `json:"players"`
-	VoteState VoteState `json:"voteState"`
-
-	ActiveIssue VoteItemID `json:"activeIssue"`
+	Players     []Player   `json:"players"`
 	Issues      IssuesList `json:"issues"`
+	ActiveIssue IssueID    `json:"activeIssue"`
+	Deck        Deck       `json:"-"`
 
-	Deck Deck `json:"deck"`
+	//VoteState VoteState `json:"voteState"` // FIXME: bool revealResults
+	VotesRevealed bool `json:"votesRevealed"`
+}
+
+func (s *State) VoteState() VoteState {
+	if s.ActiveIssue == "" {
+		return IdleState
+	}
+	if !s.VotesRevealed {
+		return VotingState
+	}
+	issue := s.Issues.Get(s.ActiveIssue)
+	if issue == nil {
+		config.Logger.Error("active issue not found when calculating vote state")
+		return IdleState
+	}
+	if issue.Result == nil {
+		return RevealedState
+	}
+	return FinishedState
 }
 
 type MessageType string
@@ -54,7 +66,7 @@ const (
 
 type Message struct {
 	Type      MessageType `json:"type"`
-	Timestamp int64       `json:"timestamp"`
+	Timestamp int64       `json:"updatedAt"` // WARNING: rename to Timestamp
 }
 
 type GameStateMessage struct {
@@ -64,14 +76,14 @@ type GameStateMessage struct {
 
 type PlayerOnlineMessage struct {
 	Message
-	Player Player `json:"name,omitempty"`
+	Player Player `json:"player,omitempty"`
 }
 
 type PlayerVoteMessage struct {
 	Message
-	VoteBy     PlayerID   `json:"voteBy"`
-	VoteFor    VoteItemID `json:"voteFor"`
-	VoteResult VoteResult `json:"voteResult"` // TODO: rename to `voteValue`
+	PlayerID   PlayerID   `json:"playerId"`
+	Issue      IssueID    `json:"issue"`
+	VoteResult VoteResult `json:"vote"`
 }
 
 type Deck []VoteValue

@@ -47,7 +47,6 @@ func (m model) renderGame() string {
 
 	return fmt.Sprintf(`
 ROOM ID:      %s
-DECK:         %s
 ISSUE:        %s
 
 VOTE LIST:
@@ -58,11 +57,10 @@ VOTE LIST:
 %s
 `,
 		m.roomID,
-		renderDeck(m.gameState.Deck),
 		renderIssue(m.gameState.Issues.Get(m.gameState.ActiveIssue)),
 		renderVoteList(m.gameState.Issues),
 		m.renderPlayers(),
-		m.renderActionInput(),
+		m.renderUserArea(),
 	)
 }
 
@@ -70,6 +68,22 @@ type PlayerVoteResult struct {
 	Player protocol.Player
 	Vote   string
 	Style  lipgloss.Style
+}
+
+func (m model) renderUserArea() string {
+	deckString := renderDeck(m.gameState.Deck, m.deckCursor, m.interactiveMode)
+	secondString := ""
+
+	if m.interactiveMode {
+		secondString = m.renderActionError()
+	} else {
+		secondString = m.renderActionInput()
+	}
+
+	return fmt.Sprintf("%s\n%s",
+		deckString,
+		secondString,
+	)
 }
 
 func (m model) renderActionInput() string {
@@ -155,8 +169,8 @@ var LightVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#00d7ff")
 var MediumVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ffd787"))
 var DangerVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ff005f"))
 
-func voteStyle(vote protocol.VoteResult) lipgloss.Style {
-	voteNumber, err := strconv.Atoi(string(vote.Value))
+func voteStyle(vote protocol.VoteValue) lipgloss.Style {
+	voteNumber, err := strconv.Atoi(string(vote))
 	if err != nil {
 		return CommonVoteStyle
 	}
@@ -170,7 +184,7 @@ func voteStyle(vote protocol.VoteResult) lipgloss.Style {
 }
 
 func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
-	if m.gameState.VoteState == protocol.IdleState {
+	if m.gameState.VoteState() == protocol.IdleState {
 		return "", CommonVoteStyle
 	}
 	issue := m.gameState.Issues.Get(m.gameState.ActiveIssue)
@@ -180,8 +194,8 @@ func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
 	}
 	vote, ok := issue.Votes[playerID]
 	if !ok {
-		if m.gameState.VoteState == protocol.RevealedState ||
-			m.gameState.VoteState == protocol.FinishedState {
+		if m.gameState.VoteState() == protocol.RevealedState ||
+			m.gameState.VoteState() == protocol.FinishedState {
 			return "X", NoVoteStyle
 		}
 		return m.spinner.View(), CommonVoteStyle
@@ -193,7 +207,7 @@ func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
 	if vote.Value == "" {
 		return "✓", ReadyVoteStyle
 	}
-	return string(vote.Value), voteStyle(vote)
+	return string(vote.Value), voteStyle(vote.Value)
 }
 
 func renderLogPath() string {
@@ -202,12 +216,25 @@ func renderLogPath() string {
 	return fmt.Sprintf("LOG FILE: file:///%s", path)
 }
 
-func renderDeck(deck protocol.Deck) string {
-	votes := make([]string, 0, len(deck))
-	for _, vote := range deck {
-		votes = append(votes, string(vote))
+func renderDeck(deck protocol.Deck, cursor int, renderCursor bool) string {
+	var cards []string
+
+	for i, card := range deck {
+		cell := table.New().
+			Border(lipgloss.RoundedBorder()).
+			BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))).
+			StyleFunc(func(row, col int) lipgloss.Style {
+				return CommonVoteStyle
+			}).
+			Rows([]string{string(card)}).
+			String()
+		if renderCursor && i == cursor {
+			cell = lipgloss.JoinVertical(lipgloss.Top, []string{cell, "  ^"}...)
+		}
+		cards = append(cards, cell)
 	}
-	return strings.Join(votes, ", ")
+
+	return lipgloss.JoinHorizontal(lipgloss.Left, cards...)
 }
 
 func renderIssue(item *protocol.Issue) string {

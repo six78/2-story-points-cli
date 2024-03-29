@@ -82,7 +82,7 @@ func TestSimpleGame(t *testing.T) {
 	const firstItemText = "a"
 	const dealerVote = protocol.VoteValue("1")
 
-	var firstVoteItemID protocol.VoteItemID
+	var firstVoteItemID protocol.IssueID
 
 	checkVoteItems := func(t *testing.T, issuesList protocol.IssuesList) *protocol.Issue {
 		require.Len(t, issuesList, 1)
@@ -111,8 +111,8 @@ func TestSimpleGame(t *testing.T) {
 		require.NoError(t, err)
 
 		playerVote := expectPlayerVote(t, sub)
-		require.Equal(t, game.Player().ID, playerVote.VoteBy)
-		require.Equal(t, currentVoteItem.ID, playerVote.VoteFor)
+		require.Equal(t, game.Player().ID, playerVote.PlayerID)
+		require.Equal(t, currentVoteItem.ID, playerVote.Issue)
 		require.Equal(t, dealerVote, playerVote.VoteResult.Value)
 		require.Greater(t, playerVote.VoteResult.Timestamp, int64(0))
 
@@ -170,7 +170,7 @@ func TestSimpleGame(t *testing.T) {
 	}
 
 	const secondItemText = "b"
-	var secondVoteItemID protocol.VoteItemID
+	var secondVoteItemID protocol.IssueID
 
 	checkVoteItems = func(t *testing.T, voteList protocol.IssuesList) *protocol.Issue {
 		require.Len(t, voteList, 2)

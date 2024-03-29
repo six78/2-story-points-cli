@@ -48,10 +48,18 @@ func (r *ContentTopicCache) roomContentTopic(room *pp.Room) (string, error) {
 	contentTopicName := hexutil.Encode(hash[:4])[2:]
 	contentTopic, err := protocol.NewContentTopic("six78", version, contentTopicName, "json") // WARNING: "six78" is not the name of the app
 
+	var bytesArray []string
+
+	for _, b := range hash {
+		bytesArray = append(bytesArray, strconv.Itoa(int(b)))
+	}
+
 	r.logger.Debug("content topic details",
 		zap.String("version", version),
 		zap.String("roomID", roomID.String()),
-		zap.String("hash", hexutil.Encode(hash)),
+		zap.String("symmetricKey", hexutil.Encode(room.SymmetricKey)),
+		zap.String("hashHexEncoded", hexutil.Encode(hash)),
+		zap.Any("hashArray", bytesArray),
 		zap.String("contentTopicName", contentTopicName),
 		zap.String("contentTopic", contentTopic.String()),
 	)

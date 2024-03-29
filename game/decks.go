@@ -5,9 +5,7 @@ import (
 	"waku-poker-planning/protocol"
 )
 
-var fibonacciDeck = []protocol.VoteValue{
-	"1", "2", "3", "5", "8", "13", "21", "34", "55", "89",
-}
+var fibonacciDeck = protocol.Deck{"1", "2", "3", "5", "8", "13", "21", "34", "55", "89"}
 
 const Fibonacci = "fibonacci"
 
@@ -15,11 +13,11 @@ const Fibonacci = "fibonacci"
 //	"XS", "S", "M", "L", "XL", "XXL",
 //}
 
-var decks = map[string][]protocol.VoteValue{
+var decks = map[string]protocol.Deck{
 	Fibonacci: fibonacciDeck,
 }
 
-func GetDeck(deckName string) ([]protocol.VoteValue, bool) {
+func GetDeck(deckName string) (protocol.Deck, bool) {
 	deck, ok := decks[deckName]
 	return deck, ok
 }

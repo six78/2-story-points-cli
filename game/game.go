@@ -48,7 +48,8 @@ func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerI
 			Value:     "",
 			Timestamp: 0,
 		},
-		room: nil,
+		room:           nil,
+		stateTimestamp: 0,
 	}
 }
 
@@ -94,6 +95,10 @@ func (g *Game) processMessage(payload []byte) {
 		if g.isDealer {
 			return
 		}
+		g.logger.Debug("<<< state message received",
+			zap.Int64("timestamp", message.Timestamp),
+			zap.Int64("localTimestamp", g.stateTimestamp),
+		)
 		if message.Timestamp < g.stateTimestamp {
 			logger.Warn("ignoring outdated state message")
 			return
@@ -105,6 +110,7 @@ func (g *Game) processMessage(payload []byte) {
 			return
 		}
 		g.state = &stateMessage.State
+		g.state.Deck, _ = GetDeck(Fibonacci) // FIXME: remove hardcoded deck
 		g.notifyChangedState(false)
 
 	case protocol.MessageTypePlayerOnline:
@@ -138,40 +144,40 @@ func (g *Game) processMessage(payload []byte) {
 			return
 		}
 
-		if g.state.VoteState != protocol.VotingState {
+		if g.state.VoteState() != protocol.VotingState {
 			g.logger.Warn("player vote ignored as not in voting state",
-				zap.Any("playerID", playerVote.VoteBy),
+				zap.Any("playerID", playerVote.PlayerID),
 			)
 			return
 		}
 
 		if !slices.Contains(g.state.Deck, playerVote.VoteResult.Value) {
 			logger.Warn("player vote ignored as not found in deck",
-				zap.Any("playerID", playerVote.VoteBy),
+				zap.Any("playerID", playerVote.PlayerID),
 				zap.Any("vote", playerVote.VoteResult),
 				zap.Any("deck", g.state.Deck))
 			return
 		}
 
-		if g.state.ActiveIssue != playerVote.VoteFor {
+		if g.state.ActiveIssue != playerVote.Issue {
 			g.logger.Warn("player vote ignored as not for the current vote item",
-				zap.Any("playerID", playerVote.VoteBy),
-				zap.Any("voteFor", playerVote.VoteFor),
+				zap.Any("playerID", playerVote.PlayerID),
+				zap.Any("voteFor", playerVote.Issue),
 				zap.Any("currentVoteItemID", g.state.ActiveIssue),
 			)
 			return
 		}
 
-		item := g.state.Issues.Get(playerVote.VoteFor)
+		item := g.state.Issues.Get(playerVote.Issue)
 		if item == nil {
-			logger.Error("vote item not found", zap.Any("voteFor", playerVote.VoteFor))
+			logger.Error("vote item not found", zap.Any("voteFor", playerVote.Issue))
 			return
 		}
 
-		currentVote, voteExist := item.Votes[playerVote.VoteBy]
+		currentVote, voteExist := item.Votes[playerVote.PlayerID]
 		if voteExist && currentVote.Timestamp >= playerVote.Timestamp {
 			logger.Warn("player vote ignored as outdated",
-				zap.Any("playerID", playerVote.VoteBy),
+				zap.Any("playerID", playerVote.PlayerID),
 				zap.Any("currentVote", currentVote),
 				zap.Any("receivedVote", playerVote.VoteResult),
 			)
@@ -179,13 +185,13 @@ func (g *Game) processMessage(payload []byte) {
 		}
 
 		g.logger.Info("player vote accepted",
-			zap.String("name", string(playerVote.VoteBy)),
-			zap.String("voteFor", string(playerVote.VoteFor)),
+			zap.String("name", string(playerVote.PlayerID)),
+			zap.String("voteFor", string(playerVote.Issue)),
 			zap.String("voteResult", string(playerVote.VoteResult.Value)),
 			zap.Any("timestamp", playerVote.Timestamp),
 		)
 
-		item.Votes[playerVote.VoteBy] = playerVote.VoteResult
+		item.Votes[playerVote.PlayerID] = playerVote.VoteResult
 		g.notifyChangedState(true)
 
 	default:
@@ -308,7 +314,7 @@ func (g *Game) PublishUserOnline(player *protocol.Player) {
 }
 
 func (g *Game) PublishVote(vote protocol.VoteValue) error {
-	if g.state.VoteState != protocol.VotingState {
+	if g.state.VoteState() != protocol.VotingState {
 		return errors.New("no voting in progress")
 	}
 	if !slices.Contains(g.state.Deck, vote) {
@@ -321,8 +327,8 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 			Type:      protocol.MessageTypePlayerVote,
 			Timestamp: g.timestamp(),
 		},
-		VoteBy:     g.player.ID,
-		VoteFor:    g.state.ActiveIssue,
+		PlayerID:   g.player.ID,
+		Issue:      g.state.ActiveIssue,
 		VoteResult: g.playerVote,
 	})
 	return nil
@@ -353,12 +359,12 @@ func (g *Game) timestamp() int64 {
 	return time.Now().UnixMilli()
 }
 
-func (g *Game) Deal(input string) (protocol.VoteItemID, error) {
+func (g *Game) Deal(input string) (protocol.IssueID, error) {
 	if !g.isDealer {
 		return "", errors.New("only dealer can deal")
 	}
 
-	if g.state.VoteState != protocol.IdleState && g.state.VoteState != protocol.FinishedState {
+	if g.state.VoteState() != protocol.IdleState && g.state.VoteState() != protocol.FinishedState {
 		return "", errors.New("cannot deal when voting is in progress")
 	}
 
@@ -383,7 +389,6 @@ func (g *Game) Deal(input string) (protocol.VoteItemID, error) {
 
 	g.state.Issues = append(g.state.Issues, &issue)
 	g.state.ActiveIssue = issue.ID
-	g.state.VoteState = protocol.VotingState
 
 	g.notifyChangedState(true)
 
@@ -410,7 +415,6 @@ func (g *Game) CreateNewRoom() error {
 	deck, _ := GetDeck(Fibonacci)
 	g.state = &protocol.State{
 		Players:     []protocol.Player{*g.player},
-		VoteState:   protocol.IdleState,
 		Deck:        deck,
 		ActiveIssue: "",
 		Issues:      make([]*protocol.Issue, 0),
@@ -430,7 +434,7 @@ func (g *Game) JoinRoom(roomID string) error {
 	g.room = info
 	g.roomID = protocol.NewRoomID(roomID)
 	g.state = nil
-	g.stateTimestamp = g.timestamp()
+	g.stateTimestamp = 0
 	g.logger.Info("joined room", zap.String("roomID", roomID))
 
 	return nil
@@ -466,11 +470,11 @@ func (g *Game) Reveal() error {
 		return errors.New("only dealer can reveal cards")
 	}
 
-	if g.state.VoteState != protocol.VotingState {
+	if g.state.VoteState() != protocol.VotingState {
 		return errors.New("cannot reveal when voting is not in progress")
 	}
 
-	g.state.VoteState = protocol.RevealedState
+	g.state.VotesRevealed = true
 	g.notifyChangedState(true)
 	return nil
 }
@@ -483,7 +487,7 @@ func (g *Game) hiddenCurrentState() *protocol.State {
 	// Create a deep copy of the state
 	hiddenState := *g.state
 
-	if hiddenState.VoteState != protocol.VotingState {
+	if hiddenState.VoteState() != protocol.VotingState {
 		return &hiddenState
 	}
 
@@ -511,7 +515,7 @@ func (g *Game) SetDeck(deck protocol.Deck) error {
 	if !g.isDealer {
 		return errors.New("only dealer can set deck")
 	}
-	if g.state.VoteState != protocol.IdleState && g.state.VoteState != protocol.FinishedState {
+	if g.state.VoteState() != protocol.IdleState && g.state.VoteState() != protocol.FinishedState {
 		return errors.New("cannot set deck when voting is in progress")
 	}
 	g.state.Deck = deck
@@ -523,7 +527,7 @@ func (g *Game) Finish(result protocol.VoteValue) error {
 	if !g.isDealer {
 		return errors.New("only dealer can finish")
 	}
-	if g.state.VoteState != protocol.RevealedState {
+	if g.state.VoteState() != protocol.RevealedState {
 		return errors.New("cannot finish when voting is not revealed")
 	}
 	if !slices.Contains(g.state.Deck, result) {
@@ -535,8 +539,9 @@ func (g *Game) Finish(result protocol.VoteValue) error {
 		return errors.New("vote item not found in the vote list")
 	}
 
-	g.state.VoteState = protocol.FinishedState
 	item.Result = &result
+	g.state.ActiveIssue = ""
+	g.state.VotesRevealed = false
 
 	g.notifyChangedState(true)
 	return nil
