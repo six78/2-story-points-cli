@@ -26,6 +26,7 @@ var playerName string
 var initialAction string
 var debug bool
 var anonymous bool
+var staticWakuNode string
 
 var Logger *zap.Logger
 var LogFilePath string
@@ -77,6 +78,7 @@ func ParseArguments() {
 	flag.StringVar(&playerName, "name", "", "Player name")
 	flag.BoolVar(&debug, "debug", false, "Show debug info")
 	flag.BoolVar(&anonymous, "anonymous", false, "Anonymous mode")
+	flag.StringVar(&staticWakuNode, "static", "", "Static Waku node address")
 	flag.Parse()
 
 	initialAction = strings.Join(flag.Args(), " ")
@@ -108,4 +110,8 @@ func Debug() bool {
 
 func Anonymous() bool {
 	return anonymous
+}
+
+func StaticWakuNode() string {
+	return staticWakuNode
 }

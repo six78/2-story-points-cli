@@ -25,3 +25,11 @@ func GetDeck(deckName string) (protocol.Deck, bool) {
 func AvailableDecks() []string {
 	return maps.Keys(decks)
 }
+
+func CreateDeck(votes []string) protocol.Deck {
+	result := protocol.Deck{}
+	for _, value := range votes {
+		result = append(result, protocol.VoteValue(value))
+	}
+	return result
+}

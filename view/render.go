@@ -71,7 +71,12 @@ type PlayerVoteResult struct {
 }
 
 func (m model) renderUserArea() string {
-	deckString := renderDeck(m.gameState.Deck, m.deckCursor, m.interactiveMode)
+	myVote := protocol.VoteValue("")
+	activeIssue := m.gameState.Issues.Get(m.gameState.ActiveIssue)
+	if activeIssue != nil {
+		myVote = activeIssue.Votes[m.app.Game.Player().ID].Value
+	}
+	deckString := renderDeck(m.gameState.Deck, m.deckCursor, m.interactiveMode, myVote)
 	secondString := ""
 
 	if m.interactiveMode {
@@ -213,28 +218,36 @@ func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
 func renderLogPath() string {
 	//path := config.LogFilePath
 	path := strings.Replace(config.LogFilePath, " ", "%20", -1)
-	return fmt.Sprintf("LOG FILE: file:///%s", path)
+	return fmt.Sprintf("LOG: file:///%s", path)
 }
 
-func renderDeck(deck protocol.Deck, cursor int, renderCursor bool) string {
-	var cards []string
+func renderDeck(deck protocol.Deck, cursor int, renderCursor bool, vote protocol.VoteValue) string {
+	cards := make([]string, 0, len(deck)*2)
 
-	for i, card := range deck {
-		cell := table.New().
-			Border(lipgloss.RoundedBorder()).
-			BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))).
-			StyleFunc(func(row, col int) lipgloss.Style {
-				return CommonVoteStyle
-			}).
-			Rows([]string{string(card)}).
-			String()
-		if renderCursor && i == cursor {
-			cell = lipgloss.JoinVertical(lipgloss.Top, []string{cell, "  ^"}...)
-		}
-		cards = append(cards, cell)
+	for i, value := range deck {
+		card := renderCard(value, renderCursor && i == cursor, value == vote)
+		cards = append(cards, card, " ") // Add a space between cards
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Left, cards...)
+}
+
+func renderCard(value protocol.VoteValue, cursor bool, voted bool) string {
+	card := table.New().
+		Border(lipgloss.RoundedBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			return CommonVoteStyle
+		}).
+		Rows([]string{string(value)}).
+		String()
+	if !voted {
+		card = lipgloss.JoinVertical(lipgloss.Top, []string{"", card}...)
+	}
+	if cursor {
+		card = lipgloss.JoinVertical(lipgloss.Top, []string{card, "  ^"}...)
+	}
+	return card
 }
 
 func renderIssue(item *protocol.Issue) string {

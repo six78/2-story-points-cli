@@ -6,7 +6,6 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"go.uber.org/zap"
 	"math"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
@@ -79,9 +78,6 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	config.Logger.Debug("model update",
-		zap.Any("msg", msg),
-	)
 	var (
 		inputCommand   tea.Cmd
 		spinnerCommand tea.Cmd
@@ -168,11 +164,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.input.Placeholder = "Type your name..."
 		}
 	}
-
-	config.Logger.Debug("model updated",
-		zap.Any("state", m.state),
-		zap.Any("previousState", previousState),
-	)
 
 	return m, tea.Batch(commands...)
 }

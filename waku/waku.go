@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
@@ -104,6 +105,30 @@ func (n *Node) discoverNodes() error {
 		return errors.Errorf("unknown fleet %s", config.Fleet())
 	}
 
+	staticNode := config.StaticWakuNode()
+
+	if staticNode != "" {
+		n.logger.Info("connecting to a static store node",
+			zap.String("address", staticNode),
+		)
+		addr, err := multiaddr.NewMultiaddr(staticNode)
+		if err != nil {
+			return errors.Wrap(err, "failed to parse multiaddr")
+		}
+
+		err = n.DialPeer(addr)
+		if err != nil {
+			return errors.Wrap(err, "failed to dial static peer")
+		}
+
+		//_, err = n.waku.AddPeer(addr, peerstore.Static, []string{relay.DefaultWakuTopic})
+		//if err != nil {
+		//	return errors.Wrap(err, "failed to add static peer")
+		//}
+		return nil
+	}
+
+	// Otherwise run discovery
 	var options []dnsdisc.DNSDiscoveryOption
 	if nameserver := config.Nameserver(); nameserver != "" {
 		options = append(options, dnsdisc.WithNameserver(nameserver))
@@ -119,6 +144,15 @@ func (n *Node) discoverNodes() error {
 	}
 
 	return nil
+}
+
+func (n *Node) DialPeer(address multiaddr.Multiaddr) error {
+	const dialTimeout = 10 * time.Second
+
+	ctx, cancel := context.WithTimeout(n.ctx, dialTimeout)
+	defer cancel()
+
+	return n.waku.DialPeerWithMultiAddress(ctx, address)
 }
 
 func (n *Node) PublishUnencryptedMessage(room *pp.Room, payload []byte) error {
