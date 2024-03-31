@@ -84,9 +84,16 @@ func (n *Node) Start() error {
 
 	n.logger.Info("waku started", zap.String("peerID", n.waku.ID()))
 
-	err = n.discoverNodes()
-	if err != nil {
-		return errors.Wrap(err, "failed to discover nodes")
+	if staticNodes := config.WakuStaticNodes(); len(staticNodes) != 0 {
+		err = n.addStaticNodes(staticNodes)
+		if err != nil {
+			return errors.Wrap(err, "failed to add static nodes")
+		}
+	} else {
+		err = n.discoverNodes()
+		if err != nil {
+			return errors.Wrap(err, "failed to discover nodes")
+		}
 	}
 
 	//go n.watchConnectionStatus()
@@ -105,29 +112,6 @@ func (n *Node) discoverNodes() error {
 		return errors.Errorf("unknown fleet %s", config.Fleet())
 	}
 
-	staticNode := config.StaticWakuNode()
-
-	if staticNode != "" {
-		n.logger.Info("connecting to a static store node",
-			zap.String("address", staticNode),
-		)
-		addr, err := multiaddr.NewMultiaddr(staticNode)
-		if err != nil {
-			return errors.Wrap(err, "failed to parse multiaddr")
-		}
-
-		err = n.DialPeer(addr)
-		if err != nil {
-			return errors.Wrap(err, "failed to dial static peer")
-		}
-
-		//_, err = n.waku.AddPeer(addr, peerstore.Static, []string{relay.DefaultWakuTopic})
-		//if err != nil {
-		//	return errors.Wrap(err, "failed to add static peer")
-		//}
-		return nil
-	}
-
 	// Otherwise run discovery
 	var options []dnsdisc.DNSDiscoveryOption
 	if nameserver := config.Nameserver(); nameserver != "" {
@@ -141,6 +125,25 @@ func (n *Node) discoverNodes() error {
 
 	for _, d := range discoveredNodes {
 		n.waku.AddDiscoveredPeer(d.PeerID, d.PeerInfo.Addrs, peerstore.DNSDiscovery, nil, true)
+	}
+
+	return nil
+}
+
+func (n *Node) addStaticNodes(staticNodes []string) error {
+	for _, staticNode := range staticNodes {
+		n.logger.Info("connecting to a static store node",
+			zap.String("address", staticNode),
+		)
+		addr, err := multiaddr.NewMultiaddr(staticNode)
+		if err != nil {
+			return errors.Wrap(err, "failed to parse multiaddr")
+		}
+
+		err = n.DialPeer(addr)
+		if err != nil {
+			return errors.Wrap(err, "failed to dial static peer")
+		}
 	}
 
 	return nil

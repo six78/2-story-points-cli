@@ -26,10 +26,21 @@ var playerName string
 var initialAction string
 var debug bool
 var anonymous bool
-var staticWakuNode string
+var wakuStaticNodes StaticWakuNodes
 
 var Logger *zap.Logger
 var LogFilePath string
+
+type StaticWakuNodes []string
+
+func (n *StaticWakuNodes) String() string {
+	return strings.Join(*n, ",")
+}
+
+func (n *StaticWakuNodes) Set(value string) error {
+	*n = append(*n, value)
+	return nil
+}
 
 func SetupLogger() {
 	LogFilePath = createLogFile()
@@ -74,11 +85,10 @@ func createLogFile() string {
 func ParseArguments() {
 	flag.StringVar(&fleet, "fleet", "wakuv2.prod", "Waku fleet name")
 	flag.StringVar(&nameserver, "nameserver", "", "Waku nameserver")
-
 	flag.StringVar(&playerName, "name", "", "Player name")
 	flag.BoolVar(&debug, "debug", false, "Show debug info")
 	flag.BoolVar(&anonymous, "anonymous", false, "Anonymous mode")
-	flag.StringVar(&staticWakuNode, "static", "", "Static Waku node address")
+	flag.Var(&wakuStaticNodes, "staticnode", "Waku static node multiaddress")
 	flag.Parse()
 
 	initialAction = strings.Join(flag.Args(), " ")
@@ -112,6 +122,6 @@ func Anonymous() bool {
 	return anonymous
 }
 
-func StaticWakuNode() string {
-	return staticWakuNode
+func WakuStaticNodes() []string {
+	return wakuStaticNodes
 }
