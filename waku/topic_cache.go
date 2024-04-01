@@ -59,7 +59,6 @@ func (r *ContentTopicCache) roomContentTopic(room *pp.Room) (string, error) {
 		zap.String("roomID", roomID.String()),
 		zap.String("symmetricKey", hexutil.Encode(room.SymmetricKey)),
 		zap.String("hashHexEncoded", hexutil.Encode(hash)),
-		zap.Any("hashArray", bytesArray),
 		zap.String("contentTopicName", contentTopicName),
 		zap.String("contentTopic", contentTopic.String()),
 	)

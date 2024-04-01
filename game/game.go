@@ -53,21 +53,18 @@ func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerI
 	}
 }
 
-func (g *Game) Start() {
-	g.leaveRoom = make(chan struct{})
-
-	go g.processIncomingMessages()
-	go g.publishOnlineState()
-
-	if g.isDealer {
-		go g.publishStatePeriodically()
-	}
-}
-
 func (g *Game) LeaveRoom() {
 	if g.leaveRoom != nil {
 		close(g.leaveRoom)
 	}
+
+	g.logger.Info("left room", zap.String("roomID", g.roomID.String()))
+
+	g.isDealer = false
+	g.room = nil
+	g.roomID = protocol.NewRoomID("")
+	g.state = nil
+	g.stateTimestamp = 0
 }
 
 func (g *Game) Stop() {
@@ -95,7 +92,7 @@ func (g *Game) processMessage(payload []byte) {
 		if g.isDealer {
 			return
 		}
-		g.logger.Debug("<<< state message received",
+		g.logger.Debug("state message received",
 			zap.Int64("timestamp", message.Timestamp),
 			zap.Int64("localTimestamp", g.stateTimestamp),
 		)
@@ -253,15 +250,8 @@ func (g *Game) publishStatePeriodically() {
 	}
 }
 
-func (g *Game) processIncomingMessages() {
-	sub, err := g.transport.SubscribeToMessages(g.room)
+func (g *Game) processIncomingMessages(sub chan []byte) {
 	// FIXME: defer unsubscribe
-
-	if err != nil {
-		g.logger.Error("failed to subscribe to messages", zap.Error(err))
-		return
-	}
-
 	for {
 		select {
 		case payload, more := <-sub:
@@ -281,7 +271,6 @@ func (g *Game) publishMessage(message any) {
 	if g.room == nil {
 		g.logger.Warn("no room to publish message")
 		return
-
 	}
 
 	payload, err := json.Marshal(message)
@@ -396,23 +385,33 @@ func (g *Game) Deal(input string) (protocol.IssueID, error) {
 }
 
 func (g *Game) CreateNewRoom() error {
-	info, err := protocol.NewRoom()
+	g.LeaveRoom()
+
+	room, err := protocol.NewRoom()
 	if err != nil {
 		return errors.Wrap(err, "failed to create a new room")
 	}
 
-	roomID, err := info.ToRoomID()
-
+	roomID, err := room.ToRoomID()
 	if err != nil {
-		return errors.Wrap(err, "failed to marshal room info")
+		return errors.Wrap(err, "failed to marshal room room")
 	}
 
-	g.logger.Info("new room created", zap.String("roomID", roomID.String()))
+	sub, err := g.transport.SubscribeToMessages(room)
+	if err != nil {
+		return errors.Wrap(err, "failed to subscribe to messages")
+	}
+
 	g.isDealer = true
-	g.room = info
+	g.room = room
 	g.roomID = roomID
 
-	deck, _ := GetDeck(Fibonacci)
+	deckName := Fibonacci
+	deck, deckFound := GetDeck(deckName)
+	if !deckFound {
+		return errors.Wrap(err, fmt.Sprintf("unknown deck '%s'", deckName))
+	}
+
 	g.state = &protocol.State{
 		Players:     []protocol.Player{*g.player},
 		Deck:        deck,
@@ -421,20 +420,43 @@ func (g *Game) CreateNewRoom() error {
 	}
 	g.stateTimestamp = g.timestamp()
 
+	go g.processIncomingMessages(sub)
+	go g.publishOnlineState()
+	go g.publishStatePeriodically()
+
+	g.logger.Info("new room created", zap.String("roomID", roomID.String()))
+
 	return nil
 }
 
 func (g *Game) JoinRoom(roomID string) error {
-	info, err := protocol.ParseRoomID(roomID)
+	if g.RoomID() == roomID {
+		return errors.New("already in this room")
+	}
+
+	g.LeaveRoom()
+
+	room, err := protocol.ParseRoomID(roomID)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse room ID")
 	}
 
+	g.leaveRoom = make(chan struct{})
+
+	sub, err := g.transport.SubscribeToMessages(room)
+	if err != nil {
+		return errors.Wrap(err, "failed to subscribe to messages")
+	}
+
 	g.isDealer = false
-	g.room = info
+	g.room = room
 	g.roomID = protocol.NewRoomID(roomID)
 	g.state = nil
 	g.stateTimestamp = 0
+
+	go g.processIncomingMessages(sub)
+	go g.publishOnlineState()
+
 	g.logger.Info("joined room", zap.String("roomID", roomID))
 
 	return nil

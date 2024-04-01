@@ -3,7 +3,6 @@ package waku
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
@@ -11,8 +10,10 @@ import (
 	wp "github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
+	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 	"net"
@@ -31,11 +32,11 @@ type Node struct {
 	ctx    context.Context
 	logger *zap.Logger
 
-	pubsubTopic string
-
+	pubsubTopic          string
 	wakuConnectionStatus chan node.ConnStatus
-
-	roomCache ContentTopicCache
+	roomCache            ContentTopicCache
+	stats                *Stats
+	lightMode            bool
 }
 
 func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
@@ -48,14 +49,23 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 	wakuConnectionStatus := make(chan node.ConnStatus)
 
 	options := []node.WakuNodeOption{
-		node.WithWakuRelay(),
-		node.WithLightPush(),
 		node.WithLogger(logger.Named("waku")),
 		//node.WithDNS4Domain(),
 		//node.WithLogLevel(zap.DebugLevel),
 		node.WithHostAddress(hostAddr),
 		//node.WithDiscoveryV5(60000, nodes, true),
 		node.WithConnectionStatusChannel(wakuConnectionStatus),
+	}
+
+	if config.WakuLightMode() {
+		options = append(options,
+			node.WithLightPush(),
+			node.WithWakuFilterLightNode(),
+		)
+	} else {
+		options = append(options,
+			node.WithWakuRelay(),
+		)
 	}
 
 	options = append(options, node.DefaultWakuNodeOptions...)
@@ -73,6 +83,8 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 		pubsubTopic:          relay.DefaultWakuTopic,
 		wakuConnectionStatus: wakuConnectionStatus,
 		roomCache:            NewRoomCache(logger),
+		stats:                NewStats(),
+		lightMode:            config.WakuLightMode(),
 	}, nil
 }
 
@@ -163,7 +175,7 @@ func (n *Node) PublishUnencryptedMessage(room *pp.Room, payload []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to build waku message")
 	}
-	return n.publishWakuMessage(room, message)
+	return n.publishWakuMessage(message)
 }
 
 /*
@@ -195,7 +207,7 @@ func (n *Node) PublishPublicMessage(room *pp.Room, payload []byte) error {
 		return errors.Wrap(err, "failed to encrypt message")
 	}
 
-	return n.publishWakuMessage(room, message)
+	return n.publishWakuMessage(message)
 }
 
 func (n *Node) PublishPrivateMessage(room *pp.Room, payload []byte) error {
@@ -222,19 +234,32 @@ func (n *Node) buildWakuMessage(room *pp.Room, payload []byte) (*pb.WakuMessage,
 	}, nil
 }
 
-func (n *Node) publishWakuMessage(room *pp.Room, message *pb.WakuMessage) error {
-	publishOptions := []relay.PublishOption{
-		relay.WithPubSubTopic(n.pubsubTopic),
-	}
+func (n *Node) publishWakuMessage(message *pb.WakuMessage) error {
+	var err error
+	var messageID []byte
 
-	messageID, err := n.waku.Relay().Publish(n.ctx, message, publishOptions...)
+	if n.lightMode {
+		publishOptions := []lightpush.Option{
+			lightpush.WithPubSubTopic(n.pubsubTopic),
+		}
+		messageID, err = n.waku.Lightpush().Publish(n.ctx, message, publishOptions...)
+	} else {
+		publishOptions := []relay.PublishOption{
+			relay.WithPubSubTopic(n.pubsubTopic),
+		}
+		messageID, err = n.waku.Relay().Publish(n.ctx, message, publishOptions...)
+	}
 
 	if err != nil {
 		n.logger.Error("failed to publish message", zap.Error(err))
 		return errors.Wrap(err, "failed to publish message")
 	}
 
-	n.logger.Info("message sent", zap.String("messageID", hex.EncodeToString(messageID)))
+	n.stats.IncrementSentMessages()
+
+	n.logger.Info("message sent",
+		zap.String("messageID", hex.EncodeToString(messageID)))
+
 	return nil
 }
 
@@ -249,7 +274,7 @@ func (n *Node) WaitForPeersConnected() bool {
 		case <-ctx.Done():
 			return false
 		case connStatus, more := <-n.wakuConnectionStatus:
-			n.logger.Debug("<<< waku connection status",
+			n.logger.Debug("waku connection status",
 				zap.Any("connStatus", connStatus),
 				zap.Bool("more", more),
 			)
@@ -268,26 +293,57 @@ func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build content topic")
 	}
+
 	contentFilter := protocol.NewContentFilter(relay.DefaultWakuTopic, contentTopic)
-	subs, err := n.waku.Relay().Subscribe(n.ctx, contentFilter)
-	unsubscribe := func() {
-		err := n.waku.Relay().Unsubscribe(n.ctx, contentFilter)
-		if err != nil {
-			n.logger.Warn("failed to unsubscribe from relay", zap.Error(err))
+
+	var in chan *protocol.Envelope
+	var unsubscribe func()
+
+	if n.lightMode {
+		var subs []*subscription.SubscriptionDetails
+		subs, err = n.waku.FilterLightnode().Subscribe(n.ctx, contentFilter)
+
+		unsubscribe = func() {
+			response, err := n.waku.FilterLightnode().Unsubscribe(n.ctx, contentFilter)
+			if err != nil {
+				n.logger.Warn("failed to unsubscribe from lightnode", zap.Error(err))
+			}
+			for _, err := range response.Errors() {
+				n.logger.Warn("lightnode unsubscribe response error", zap.Error(err.Err))
+			}
 		}
+
+		if len(subs) != 1 {
+			unsubscribe()
+			return nil, errors.Errorf("unexpected number of subscriptions: %d", len(subs))
+		}
+
+		in = subs[0].C
+
+	} else {
+		var subs []*relay.Subscription
+		subs, err = n.waku.Relay().Subscribe(n.ctx, contentFilter)
+
+		unsubscribe = func() {
+			err := n.waku.Relay().Unsubscribe(n.ctx, contentFilter)
+			if err != nil {
+				n.logger.Warn("failed to unsubscribe from relay", zap.Error(err))
+			}
+		}
+
+		if len(subs) != 1 {
+			unsubscribe()
+			return nil, errors.Errorf("unexpected number of subscriptions: %d", len(subs))
+		}
+
+		in = subs[0].Ch
 	}
 
 	if err != nil {
-		fmt.Println(err)
-		return nil, errors.Wrap(err, "failed to subscribe to relay")
+		n.logger.Error("failed to subscribe to content topic", zap.Bool("lightMode", n.lightMode))
+		return nil, errors.Wrap(err, "failed to subscribe to content topic")
 	}
 
-	if len(subs) != 1 {
-		unsubscribe()
-		return nil, errors.Errorf("unexpected number of subscriptions: %d", len(subs))
-	}
-
-	in := subs[0].Ch
 	out := make(chan []byte, 10)
 
 	go func() {
@@ -295,13 +351,15 @@ func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
 		defer unsubscribe()
 
 		for value := range in {
-			n.logger.Info("waku message received",
+			n.logger.Info("waku message received (relay)",
 				zap.String("payload", string(value.Message().Payload)),
 			)
 			payload, err := decryptMessage(room, value.Message())
 			if err != nil {
 				n.logger.Warn("failed to decrypt message payload")
 			}
+
+			n.stats.IncrementReceivedMessages()
 			out <- payload
 		}
 	}()
@@ -326,4 +384,8 @@ func decryptMessage(room *pp.Room, message *pb.WakuMessage) ([]byte, error) {
 	}
 
 	return message.Payload, nil
+}
+
+func (n *Node) Stats() Stats {
+	return *n.stats
 }

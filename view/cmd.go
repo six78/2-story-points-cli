@@ -38,21 +38,25 @@ func waitForWakuPeers(a *app.App) tea.Cmd {
 
 func createNewRoom(a *app.App) tea.Cmd {
 	return func() tea.Msg {
-		err := a.CreateNewRoom()
-		if err != nil {
-			return ActionErrorMessage{err}
+		err := a.Game.CreateNewRoom()
+		return AppStateMessage{
+			finishedState: CreatingRoom,
+			ActionErrorMessage: ActionErrorMessage{
+				err: err,
+			},
 		}
-		return AppStateMessage{finishedState: CreatingRoom}
 	}
 }
 
 func joinRoom(roomID string, a *app.App) tea.Cmd {
 	return func() tea.Msg {
-		err := a.JoinRoom(roomID)
-		if err != nil {
-			return ActionErrorMessage{err}
+		err := a.Game.JoinRoom(roomID)
+		return AppStateMessage{
+			finishedState: JoiningRoom,
+			ActionErrorMessage: ActionErrorMessage{
+				err: err,
+			},
 		}
-		return AppStateMessage{finishedState: JoiningRoom}
 	}
 }
 

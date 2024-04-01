@@ -27,6 +27,7 @@ var initialAction string
 var debug bool
 var anonymous bool
 var wakuStaticNodes StaticWakuNodes
+var wakuLightMode bool
 
 var Logger *zap.Logger
 var LogFilePath string
@@ -62,8 +63,8 @@ func createLogFile() string {
 
 	//s.configDirs.QueryFolderContainsFile(playerFileName).Path)
 
-	name := fmt.Sprintf("waku-pp-%s.log", time.Now().Format(time.RFC3339))
-	//path := filepath.Join(executableDir, logsDirectory, name)
+	name := fmt.Sprintf("waku-pp-%s.log", time.Now().UTC().Format(time.RFC3339))
+	name = strings.Replace(name, ":", "-", -1)
 	//executableDir := filepath.Dir(executableFilePath)
 
 	configDirs := configdir.New(VendorName, ApplicationName)
@@ -88,7 +89,8 @@ func ParseArguments() {
 	flag.StringVar(&playerName, "name", "", "Player name")
 	flag.BoolVar(&debug, "debug", false, "Show debug info")
 	flag.BoolVar(&anonymous, "anonymous", false, "Anonymous mode")
-	flag.Var(&wakuStaticNodes, "staticnode", "Waku static node multiaddress")
+	flag.Var(&wakuStaticNodes, "waku.staticnode", "Waku static node multiaddress")
+	flag.BoolVar(&wakuLightMode, "waku.lightmode", false, "Waku lightpush/filter mode")
 	flag.Parse()
 
 	initialAction = strings.Join(flag.Args(), " ")
@@ -124,4 +126,8 @@ func Anonymous() bool {
 
 func WakuStaticNodes() []string {
 	return wakuStaticNodes
+}
+
+func WakuLightMode() bool {
+	return wakuLightMode
 }

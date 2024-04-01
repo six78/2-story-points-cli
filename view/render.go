@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"go.uber.org/zap"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,24 +20,27 @@ func (m model) renderAppState() string {
 	case InputPlayerName:
 		return m.renderPlayerNameInput()
 	case WaitingForPeers:
-		return m.spinner.View() + " Connecting to Waku peers ..."
+		return m.spinner.View() + " Connecting to Waku peers..."
 	case UserAction:
 		return m.renderGame()
+	case CreatingRoom:
+		return m.spinner.View() + " Creating room..."
+	case JoiningRoom:
+		return m.spinner.View() + " Joining room..."
 	}
 
 	return "unknown app state"
 }
 
 func (m model) renderPlayerNameInput() string {
-	return fmt.Sprintf(" \n\n%s\n%s", m.input.View(), m.lastCommandError)
+	return fmt.Sprintf(" \n\n%s\n%s", m.input.View(), m.renderActionError())
 }
 
 func (m model) renderGame() string {
 	if m.roomID == "" {
 		return fmt.Sprintf(
-			" Join a room or create a new one ...\n\n%s%s",
-			m.input.View(),
-			m.lastCommandError,
+			" Join a room or create a new one ...\n%s",
+			m.renderActionInput(),
 		)
 	}
 
@@ -220,11 +222,6 @@ func renderLogPath() string {
 func renderDeck(deck protocol.Deck, cursor int, renderCursor bool, vote protocol.VoteValue) string {
 	cards := make([]string, 0, len(deck)*2)
 
-	config.Logger.Debug("<<< renderDeck",
-		zap.Any("cursor", cursor),
-		zap.Any("vote", vote),
-	)
-
 	for i, value := range deck {
 		card := renderCard(value, renderCursor && i == cursor, value == vote)
 		cards = append(cards, card, " ") // Add a space between cards
@@ -268,7 +265,6 @@ func renderCard(value protocol.VoteValue, cursor bool, voted bool) string {
 		//card = lipgloss.JoinVertical(lipgloss.Top, []string{card, "  ^"}...)
 	}
 
-	config.Logger.Debug("<<< renderCard", zap.Any("column", column))
 	return lipgloss.JoinVertical(lipgloss.Top, column...)
 }
 

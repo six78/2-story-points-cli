@@ -111,42 +111,6 @@ func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 	return state, more, nil
 }
 
-func (a *App) CreateNewRoom() error {
-	if a.Game == nil {
-		return errors.New("Game not created")
-	}
-
-	a.Game.LeaveRoom()
-
-	err := a.Game.CreateNewRoom()
-	if err != nil {
-		return errors.Wrap(err, "failed to create new room")
-	}
-
-	a.Game.Start()
-	return nil
-}
-
-func (a *App) JoinRoom(roomID string) error {
-	if a.Game == nil {
-		return errors.New("Game not created")
-	}
-
-	if a.Game.RoomID() == roomID {
-		return errors.New("already in this room")
-	}
-
-	a.Game.LeaveRoom()
-
-	err := a.Game.JoinRoom(roomID)
-	if err != nil {
-		return errors.Wrap(err, "failed to join room")
-	}
-
-	a.Game.Start()
-	return nil
-}
-
 func (a *App) IsDealer() bool {
 	return a.Game != nil && a.Game.IsDealer()
 }

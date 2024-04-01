@@ -9,6 +9,7 @@ type FatalErrorMessage struct {
 }
 
 type AppStateMessage struct {
+	ActionErrorMessage
 	finishedState State
 }
 

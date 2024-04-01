@@ -77,8 +77,6 @@ func TestSimpleGame(t *testing.T) {
 	sub, err := transport.SubscribeToMessages(&room)
 	require.NoError(t, err)
 
-	game.Start()
-
 	const firstItemText = "a"
 	const dealerVote = protocol.VoteValue("1")
 

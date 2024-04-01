@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"go.uber.org/zap"
 	"math"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
@@ -62,7 +63,6 @@ func createTextInput() textinput.Model {
 	input := textinput.New()
 	input.Placeholder = "Type a command..."
 	input.Prompt = "┃ "
-	input.Focus()
 	return input
 }
 
@@ -84,6 +84,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 
 	previousState := m.state
+
+	if !m.interactiveMode || m.roomID == "" || m.state == InputPlayerName {
+		m.input.Focus()
+	} else {
+		m.input.Blur()
+	}
 
 	m.interactiveMode = !m.app.IsDealer()
 	m.input, inputCommand = m.input.Update(msg)
@@ -124,7 +130,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = UserAction
 			m.roomID = m.app.Game.RoomID()
 			m.gameState = m.app.GameState()
-			commands = append(commands, waitForGameState(m.app))
+
+			if msg.err != nil {
+				m.lastCommandError = msg.err.Error()
+			} else {
+				m.lastCommandError = ""
+			}
+
+			config.Logger.Debug("room created or joined",
+				zap.String("roomID", m.roomID),
+				zap.Error(msg.err),
+			)
+
+			if m.roomID != "" {
+				commands = append(commands, waitForGameState(m.app))
+			}
 		}
 
 	case GameStateMessage:
@@ -137,10 +157,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case tea.KeyEnter:
 			var cmd tea.Cmd
-			if m.interactiveMode {
-				cmd = VoteOnCursor(&m)
-			} else {
+			if m.input.Focused() {
 				cmd = processUserInput(&m)
+			} else {
+				cmd = VoteOnCursor(&m)
 			}
 			if cmd != nil {
 				commands = append(commands, cmd)
