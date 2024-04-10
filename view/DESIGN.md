@@ -2,31 +2,52 @@ package view
 
 # Full example
 
+## Room view
+
 ```shell
 
-  Log:    file:////Users/igorsirotin/Library/Application%20Support/six78/waku-poker-planning/logs/waku-pp-2024-03-28T09:01:16Z.log
-  Room:   238mvM91TbC9UJdUqKwtWFb
-  Issue:  https://github.com/six78/waku-poker-planning-go/issues/42
+  Room:   238mvM91TbC9UJdUqKwtWFb  
+  
+  Issue:  https://github.com/golang/go/issues/19412              
   Title:  Implement room encryption
-
-  ┌───────┬─────┬─────────┬────────┬─────────┐ ┌────────┐
-  │ Alice │ Bob │ Charlie │ Didukh │ Sirotin │ │ Result │
-  ├───────┼─────┼─────────┼────────┼─────────┤ ├────────┤
-  │   1   │  3  │    8    │   13   │    3    │ │   13   │
-  └───────┴─────┴─────────┴────────┴─────────┘ └────────┘
-  Your vote:
-              ┌───┐
-  ╭───╮ ┌───┐ │ 3 │ ┌───┐ ┌───┐ ┌────┐ ┌────┐ ┌────┐
-  │ 1 │ │ 2 │ └───┘ │ 5 │ │ 8 │ │ 13 │ │ 21 │ │ 34 │
-  ╰───╯ └───┘       └───┘ └───┘ └────┘ └────┘ └────┘
+                                                    
+  ╭───────┬─────┬─────────┬────────┬─────────╮                                       
+  │ Alice │ Bob │ Charlie │ Didukh │ Sirotin │                           
+  ├───────┼─────┼─────────┼────────┼─────────┤           
+  │   1   │  3  │    8    │   13   │    3    │                                         
+  ╰───────┴─────┴─────────┴────────┴─────────╯    
+                      
+  Your vote:                                                      
+              ╭───╮                                                       
+  ╭───╮ ╭───╮ │ 3 │ ╭───╮ ╭───╮ ╭────╮ ╭────╮ ╭────╮                                    
+  │ 1 │ │ 2 │ ╰───╯ │ 5 │ │ 8 │ │ 13 │ │ 21 │ │ 34 │                                    
+  ╰───╯ ╰───╯       ╰───╯ ╰───╯ ╰────╯ ╰────╯ ╰────╯                                    
                 ^
                 
  Use [←] and [→] arrows to select a card and press [Enter]
- [V] See the vote list
- [C] Switch to command mode  [L] Leave room  [E] Exit  [H] Help
+ [Tab] To switch to issues list view
+ [C] Switch to command mode  [Q] Leave room  [E] Exit  [H] Help
 
 ```
 
+## Issues list view
+
+```shell
+
+  Room:   238mvM91TbC9UJdUqKwtWFb
+
+  Issues:  
+    13  https://github.com/six78/waku-poker-planning/issues/1                                
+  > -   https://github.com/golang/go/issues/19412                                                          
+    -   https://github.com/protocolbuffers/protobuf/issues/2224                                
+    -   https://github.com/vim/vim/issues/2034                                
+    ... 7 more issues     
+        
+ Use [↓] and [↑] arrows to select issue to deal and press [Enter]
+ [Tab] To switch to room view
+ [C] Switch to command mode  [Q] Leave room  [E] Exit  [H] Help
+
+```
 # Components
 
 ## Header info
@@ -34,6 +55,7 @@ package view
 ```shell
   Log:	  file:////Users/igorsirotin/Library/Application%20Support/six78/waku-poker-planning/logs/waku-pp-2024-03-28T09:01:16Z.log
   Room:   238mvM91TbC9UJdUqKwtWFb
+  
   Issue:  https://github.com/six78/waku-poker-planning-go/issues/42
   Title:  Implement room encryption
 ```
@@ -41,7 +63,7 @@ package view
 ### Log file path
 
 Log filepath is only shown in `--debug` mode. \
-What else you want to know? 
+What else you want to know?
 
 ### Room
 
@@ -76,11 +98,11 @@ Note that an empty string is kept even when `Title` field is empty. This is to p
 ## Players
 
 ```shell
-  ┌───────┬─────┬─────────┬────────┬─────────┐ ┌────────┐
-  │ Alice │ Bob │ Charlie │ Didukh │ Sirotin │ │ Result │
-  ├───────┼─────┼─────────┼────────┼─────────┤ ├────────┤
-  │   X   │  ✓  │    8    │   13   │<spinner>│ │   13   │
-  └───────┴─────┴─────────┴────────┴─────────┘ └────────┘
+  ╭───────┬─────┬─────────┬────────┬─────────╮
+  │ Alice │ Bob │ Charlie │ Didukh │ Sirotin │
+  ├───────┼─────┼─────────┼────────┼─────────┤
+  │   X   │  ✓  │    8    │   13   │<spinner>│
+  ╰───────┴─────┴─────────┴────────┴─────────╯
 ```
 
 ### Players
@@ -132,9 +154,9 @@ Therefore the card can be in one of these 4 states:
 
 ```shell
 
-┌───┐
+╭───╮
 │ 4 │
-└───┘
+╰───╯
 
 ```
 </td>
@@ -142,18 +164,18 @@ Therefore the card can be in one of these 4 states:
 
 ```shell
 
-┌───┐
+╭───╮
 │ 4 │
-└───┘
+╰───╯
   ^
 ```
 </td>
 <td>
 
 ```shell
-┌───┐
+╭───╮
 │ 4 │
-└───┘
+╰───╯
 
 
 ```
@@ -161,9 +183,9 @@ Therefore the card can be in one of these 4 states:
 <td>
 
 ```shell
-┌───┐
+╭───╮
 │ 4 │
-└───┘
+╰───╯
 
   ^
 ```
@@ -175,16 +197,16 @@ For example for a Fibbonacci deck
 
 ```shell
   Your vote:
-              ┌───┐
-  ┌───┐ ┌───┐ │ 3 │ ┌───┐ ┌───┐ ┌────┐ ┌────┐ ┌────┐
-  │ 1 │ │ 2 │ └───┘ │ 5 │ │ 8 │ │ 13 │ │ 21 │ │ 34 │
-  └───┘ └───┘       └───┘ └───┘ └────┘ └────┘ └────┘
+              ╭───╮
+  ╭───╮ ╭───╮ │ 3 │ ╭───╮ ╭───╮ ╭────╮ ╭────╮ ╭────╮
+  │ 1 │ │ 2 │ ╰───╯ │ 5 │ │ 8 │ │ 13 │ │ 21 │ │ 34 │
+  ╰───╯ ╰───╯       ╰───╯ ╰───╯ ╰────╯ ╰────╯ ╰────╯
                       ^ 
 ```
 
 ## Actions
 
-### CLI mode 
+### Command mode 
 
 ```shell
 
@@ -196,20 +218,28 @@ For example for a Fibbonacci deck
 
 ```shell
  To vote se [←] and [→] arrows to select a card and press [Enter]
- [V] See the vote list
- [C] Switch to manual mode  [L] Leave room  [E] Exit
+ [Tab] To switch to issues list view
+ [C] Switch to manual mode  [Q] Leave room  [E] Exit
 <last-command-error>
 ```
-`
+
 ### Dealer interactive mode
 
 ```shell
  To vote se [←] and [→] arrows to select a card and press [Enter]
+ [Tab] To switch to issues list view
  [R] Reveal  [F] Reveal  [D] Deal next issue  [A] Add issue
- [C] Switch to manual mode  [L] Leave room  [E] Exit
+ [C] Switch to manual mode  [Q] Leave room  [E] Exit
 <last-command-error>
 ```
 
-## Issues list
+## Issues list view
 
-// TBD
+```shell
+  1. https://github.com/six78/waku-poker-planning-go/issues/42  |  13
+  2. https://github.com/six78/waku-poker-planning-go/issues/19  |  3 
+> 3. https://github.com/six78/waku-poker-planning-go/issues/12  |  - 
+  4. https://github.com/six78/waku-poker-planning-go/issues/1   |  - 
+  5. https://github.com/six78/waku-poker-planning-go/issues/34  |  - 
+  ... 7 more issues
+```

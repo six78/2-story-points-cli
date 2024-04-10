@@ -29,13 +29,11 @@ const (
 )
 
 type State struct {
-	Players     []Player   `json:"players"`
-	Issues      IssuesList `json:"issues"`
-	ActiveIssue IssueID    `json:"activeIssue"`
-	Deck        Deck       `json:"-"`
-
-	//VoteState VoteState `json:"voteState"` // FIXME: bool revealResults
-	VotesRevealed bool `json:"votesRevealed"`
+	Players       []Player   `json:"players"`
+	Issues        IssuesList `json:"issues"`
+	ActiveIssue   IssueID    `json:"activeIssue"`
+	VotesRevealed bool       `json:"votesRevealed"`
+	Deck          Deck       `json:"-"`
 }
 
 func (s *State) VoteState() VoteState {
