@@ -37,6 +37,23 @@ func (m model) renderPlayerNameInput() string {
 }
 
 func (m model) renderGame() string {
+	room := fmt.Sprintf("Room: %s\n", m.roomID)
+	view := m.renderCurrentView()
+	return fmt.Sprintf("%s\n%s", room, view)
+}
+
+func (m model) renderCurrentView() string {
+	switch m.currentView {
+	case RoomView:
+		return m.renderRoom()
+	case IssuesListView:
+		return renderIssuesList(m.gameState.Issues)
+	default:
+		return fmt.Sprintf("unknown view: %d", m.currentView)
+	}
+}
+
+func (m model) renderRoom() string {
 	if m.roomID == "" {
 		return fmt.Sprintf(
 			" Join a room or create a new one ...\n%s",
@@ -48,18 +65,12 @@ func (m model) renderGame() string {
 		return m.spinner.View() + " Waiting for initial game state ..."
 	}
 
-	return fmt.Sprintf(`Room:   %s
-Issue:  %s
-
-Issues:
-%s
+	return fmt.Sprintf(`Issue:  %s
 
 %s
 %s
 `,
-		m.roomID,
 		renderIssue(m.gameState.Issues.Get(m.gameState.ActiveIssue)),
-		renderVoteList(m.gameState.Issues),
 		m.renderPlayers(),
 		m.renderUserArea(),
 	)
@@ -269,7 +280,7 @@ func renderIssue(item *protocol.Issue) string {
 	return item.TitleOrURL
 }
 
-func renderVoteList(voteList protocol.IssuesList) string {
+func renderIssuesList(voteList protocol.IssuesList) string {
 	var itemStrings []string
 
 	for i, item := range voteList {
@@ -296,5 +307,6 @@ func renderVoteList(voteList protocol.IssuesList) string {
 		)
 		itemStrings = append(itemStrings, itemString)
 	}
-	return strings.Join(itemStrings, "\n")
+	itemsList := strings.Join(itemStrings, "\n")
+	return fmt.Sprintf("Issues:\n%s", itemsList)
 }

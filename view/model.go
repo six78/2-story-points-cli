@@ -37,6 +37,7 @@ type model struct {
 	// UI components state
 	interactiveMode bool
 	deckCursor      int
+	currentView     ViewType
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -174,6 +175,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.interactiveMode {
 				MoveCursorRight(&m)
 			}
+		case tea.KeyTab:
+			if m.interactiveMode {
+				toggleCurrentView(&m)
+			}
 		}
 	}
 
@@ -213,6 +218,15 @@ func MoveCursorLeft(m *model) {
 
 func MoveCursorRight(m *model) {
 	m.deckCursor = int(math.Min(float64(m.deckCursor+1), float64(len(m.gameState.Deck)-1)))
+}
+
+func toggleCurrentView(m *model) {
+	switch m.currentView {
+	case RoomView:
+		m.currentView = IssuesListView
+	case IssuesListView:
+		m.currentView = RoomView
+	}
 }
 
 // Ensure that model fulfils the tea.Model interface at compile time.
