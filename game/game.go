@@ -21,9 +21,9 @@ type Game struct {
 	leaveRoom chan struct{}
 	features  FeatureFlags
 
-	isDealer   bool
-	player     *protocol.Player
-	playerVote protocol.VoteResult
+	isDealer bool
+	player   *protocol.Player
+	ourVote  protocol.VoteResult // We save our vote to show it in UI
 
 	room             *protocol.Room
 	roomID           protocol.RoomID
@@ -44,7 +44,7 @@ func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerI
 			ID:   playerID,
 			Name: config.PlayerName(),
 		},
-		playerVote: protocol.VoteResult{
+		ourVote: protocol.VoteResult{
 			Value:     "",
 			Timestamp: 0,
 		},
@@ -105,6 +105,10 @@ func (g *Game) processMessage(payload []byte) {
 		if err != nil {
 			logger.Error("failed to unmarshal message", zap.Error(err))
 			return
+		}
+		if g.state != nil && stateMessage.State.ActiveIssue != g.state.ActiveIssue {
+			// Voting finished or new issue dealt. Reset our vote.
+			g.resetOurVote()
 		}
 		g.state = &stateMessage.State
 		g.state.Deck, _ = GetDeck(Fibonacci) // FIXME: remove hardcoded deck
@@ -310,7 +314,7 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 		return fmt.Errorf("invalid vote")
 	}
 	g.logger.Debug("publishing vote", zap.Any("vote", vote))
-	g.playerVote = *protocol.NewVoteResult(vote)
+	g.ourVote = *protocol.NewVoteResult(vote)
 	g.publishMessage(protocol.PlayerVoteMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypePlayerVote,
@@ -318,7 +322,7 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 		},
 		PlayerID:   g.player.ID,
 		Issue:      g.state.ActiveIssue,
-		VoteResult: g.playerVote,
+		VoteResult: g.ourVote,
 	})
 	return nil
 }
@@ -419,6 +423,7 @@ func (g *Game) CreateNewRoom() error {
 		Issues:      make([]*protocol.Issue, 0),
 	}
 	g.stateTimestamp = g.timestamp()
+	g.resetOurVote()
 
 	go g.processIncomingMessages(sub)
 	go g.publishOnlineState()
@@ -478,8 +483,8 @@ func (g *Game) Player() protocol.Player {
 	return *g.player
 }
 
-func (g *Game) PlayerVote() protocol.VoteResult {
-	return g.playerVote
+func (g *Game) OurVote() protocol.VoteResult {
+	return g.ourVote
 }
 
 func (g *Game) RenamePlayer(name string) {
@@ -564,9 +569,17 @@ func (g *Game) Finish(result protocol.VoteValue) error {
 	item.Result = &result
 	g.state.ActiveIssue = ""
 	g.state.VotesRevealed = false
+	g.resetOurVote()
 
 	g.notifyChangedState(true)
 	return nil
+}
+
+func (g *Game) resetOurVote() {
+	g.ourVote = protocol.VoteResult{
+		Value:     "",
+		Timestamp: 0,
+	}
 }
 
 func (g *Game) Next() error {

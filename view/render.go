@@ -48,15 +48,13 @@ func (m model) renderGame() string {
 		return m.spinner.View() + " Waiting for initial game state ..."
 	}
 
-	return fmt.Sprintf(`
-ROOM ID:      %s
-ISSUE:        %s
+	return fmt.Sprintf(`Room:   %s
+Issue:  %s
 
-VOTE LIST:
+Issues:
 %s
 
 %s
-
 %s
 `,
 		m.roomID,
@@ -74,7 +72,7 @@ type PlayerVoteResult struct {
 }
 
 func (m model) renderUserArea() string {
-	deckString := renderDeck(m.gameState.Deck, m.deckCursor, m.interactiveMode, m.app.Game.PlayerVote().Value)
+	deckString := renderDeck(m.gameState.Deck, m.deckCursor, m.interactiveMode, m.app.Game.OurVote().Value)
 	secondString := ""
 
 	if m.interactiveMode {
@@ -141,7 +139,7 @@ func (m model) renderPlayers() string {
 	}
 
 	t := table.New().
-		Border(lipgloss.NormalBorder()).
+		Border(lipgloss.RoundedBorder()).
 		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))).
 		StyleFunc(func(row, col int) lipgloss.Style {
 			switch {
@@ -203,10 +201,6 @@ func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
 		}
 		return m.spinner.View(), CommonVoteStyle
 	}
-	if playerID == m.app.Game.Player().ID {
-		playerVote := m.app.Game.PlayerVote()
-		vote = playerVote
-	}
 	if vote.Value == "" {
 		return "✓", ReadyVoteStyle
 	}
@@ -216,7 +210,7 @@ func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
 func renderLogPath() string {
 	//path := config.LogFilePath
 	path := strings.Replace(config.LogFilePath, " ", "%20", -1)
-	return fmt.Sprintf("LOG: file:///%s", path)
+	return fmt.Sprintf("Log: file:///%s", path)
 }
 
 func renderDeck(deck protocol.Deck, cursor int, renderCursor bool, vote protocol.VoteValue) string {
@@ -270,15 +264,15 @@ func renderCard(value protocol.VoteValue, cursor bool, voted bool) string {
 
 func renderIssue(item *protocol.Issue) string {
 	if item == nil {
-		return "nil"
+		return "-"
 	}
-	return fmt.Sprintf("%s [%s]", item.TitleOrURL, item.ID)
+	return item.TitleOrURL
 }
 
 func renderVoteList(voteList protocol.IssuesList) string {
 	var itemStrings []string
 
-	for _, item := range voteList {
+	for i, item := range voteList {
 		var votes []string
 		for _, vote := range item.Votes {
 			voteString := "nil"
@@ -294,7 +288,8 @@ func renderVoteList(voteList protocol.IssuesList) string {
 		if item.Result != nil {
 			resultString = string(*item.Result)
 		}
-		itemString := fmt.Sprintf("%s - result: %s, votes: [%s]",
+		itemString := fmt.Sprintf("%d. %s - result: %s, votes: [%s]",
+			i+1,
 			item.TitleOrURL,
 			resultString,
 			strings.Join(votes, ","),

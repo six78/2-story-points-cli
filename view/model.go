@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"go.uber.org/zap"
 	"math"
 	"waku-poker-planning/app"
@@ -189,14 +190,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	var view string
 	if m.fatalError != nil {
-		view = fmt.Sprintf(" ☠️ FATAL ERROR: %s", m.fatalError)
-	} else {
-		view = m.renderAppState()
+		return fmt.Sprintf(" ☠️ fatal error: %s\n%s", m.fatalError, renderLogPath())
 	}
 
-	return fmt.Sprintf("%s\n%s", renderLogPath(), view)
+	view := "\n"
+	if config.Debug() {
+		view += fmt.Sprintf("%s\n", renderLogPath())
+	}
+	view += m.renderAppState()
+	return lipgloss.JoinHorizontal(lipgloss.Left, "  ", view)
 }
 
 func VoteOnCursor(m *model) tea.Cmd {
