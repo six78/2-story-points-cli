@@ -3,6 +3,7 @@ package waku
 import (
 	"context"
 	"encoding/hex"
+	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
@@ -10,6 +11,7 @@ import (
 	wp "github.com/waku-org/go-waku/waku/v2/payload"
 	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
+	wakuenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
 	"github.com/waku-org/go-waku/waku/v2/protocol/pb"
 	"github.com/waku-org/go-waku/waku/v2/protocol/relay"
@@ -17,14 +19,16 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
 	"net"
+	"strings"
 	"time"
 	"waku-poker-planning/config"
 	pp "waku-poker-planning/protocol"
 )
 
 var fleets = map[string]string{
-	"wakuv2.prod": "enrtree://ANEDLO25QVUGJOUTQFRYKWX6P4Z4GKVESBMHML7DZ6YK4LGS5FC5O@prod.wakuv2.nodes.status.im",
-	"wakuv2.test": "enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im",
+	"wakuv2.prod":  "enrtree://ANEDLO25QVUGJOUTQFRYKWX6P4Z4GKVESBMHML7DZ6YK4LGS5FC5O@prod.wakuv2.nodes.status.im",
+	"wakuv2.test":  "enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im",
+	"waku.sandbox": "enrtree://AIRVQ5DDA4FFWLRBCHJWUWOO6X6S4ZTZ5B667LQ6AJU6PEYDLRD5O@sandbox.waku.nodes.status.im",
 }
 
 type Node struct {
@@ -118,6 +122,23 @@ func (n *Node) Stop() {
 	n.waku.Stop()
 }
 
+func parseEnrProtocols(v wakuenr.WakuEnrBitfield) string {
+	var out []string
+	if v&(1<<3) == 8 {
+		out = append(out, "lightpush")
+	}
+	if v&(1<<2) == 4 {
+		out = append(out, "filter")
+	}
+	if v&(1<<1) == 2 {
+		out = append(out, "store")
+	}
+	if v&(1<<0) == 1 {
+		out = append(out, "relay")
+	}
+	return strings.Join(out, ",")
+}
+
 func (n *Node) discoverNodes() error {
 	enrTree, ok := fleets[config.Fleet()]
 	if !ok {
@@ -133,6 +154,21 @@ func (n *Node) discoverNodes() error {
 	discoveredNodes, err := dnsdisc.RetrieveNodes(n.ctx, enrTree, options...)
 	if err != nil {
 		return err
+	}
+
+	n.logger.Debug("discovered nodes", zap.String("entree", enrTree))
+
+	for _, d := range discoveredNodes {
+		enrField := new(wakuenr.WakuEnrBitfield)
+		err = d.ENR.Record().Load(enr.WithEntry(wakuenr.WakuENRField, &enrField))
+		if err != nil {
+			return errors.Wrap(err, "failed to load waku enr field")
+		}
+		n.logger.Debug("discover node",
+			zap.String("peerID", d.PeerID.String()),
+			zap.Any("peerInfo", d.PeerInfo),
+			zap.Any("protocols", parseEnrProtocols(*enrField)),
+		)
 	}
 
 	for _, d := range discoveredNodes {
