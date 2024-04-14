@@ -7,7 +7,7 @@ const (
 	Initializing
 	InputPlayerName
 	WaitingForPeers
-	UserAction
 	CreatingRoom
 	JoiningRoom
+	InsideRoom
 )

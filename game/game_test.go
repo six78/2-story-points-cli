@@ -41,7 +41,7 @@ func TestStateSize(t *testing.T) {
 	}
 
 	for i := 0; i < issuesCount; i++ {
-		voteItemID, err := GenerateVoteItemID()
+		voteItemID, err := GenerateIssueID()
 		require.NoError(t, err)
 
 		state.Issues = append(state.Issues, &protocol.Issue{

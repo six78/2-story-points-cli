@@ -23,7 +23,7 @@ type Game struct {
 
 	isDealer bool
 	player   *protocol.Player
-	ourVote  protocol.VoteResult // We save our vote to show it in UI
+	myVote   protocol.VoteResult // We save our vote to show it in UI
 
 	room             *protocol.Room
 	roomID           protocol.RoomID
@@ -44,7 +44,7 @@ func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerI
 			ID:   playerID,
 			Name: config.PlayerName(),
 		},
-		ourVote: protocol.VoteResult{
+		myVote: protocol.VoteResult{
 			Value:     "",
 			Timestamp: 0,
 		},
@@ -314,7 +314,7 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 		return fmt.Errorf("invalid vote")
 	}
 	g.logger.Debug("publishing vote", zap.Any("vote", vote))
-	g.ourVote = *protocol.NewVoteResult(vote)
+	g.myVote = *protocol.NewVoteResult(vote)
 	g.publishMessage(protocol.PlayerVoteMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypePlayerVote,
@@ -322,7 +322,7 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 		},
 		PlayerID:   g.player.ID,
 		Issue:      g.state.ActiveIssue,
-		VoteResult: g.ourVote,
+		VoteResult: g.myVote,
 	})
 	return nil
 }
@@ -361,31 +361,14 @@ func (g *Game) Deal(input string) (protocol.IssueID, error) {
 		return "", errors.New("cannot deal when voting is in progress")
 	}
 
-	itemID, err := GenerateVoteItemID()
+	issueID, err := g.addIssue(input)
 	if err != nil {
-		return "", errors.New("failed to generate UUID")
+		return "", errors.Wrap(err, "failed to add issue")
 	}
 
-	issueExist := slices.ContainsFunc(g.state.Issues, func(item *protocol.Issue) bool {
-		return item.TitleOrURL == input
-	})
-	if issueExist {
-		return "", errors.New("issue already exists")
-	}
+	err = g.SelectIssue(len(g.state.Issues) - 1)
 
-	issue := protocol.Issue{
-		ID:         itemID,
-		TitleOrURL: input,
-		Votes:      make(map[protocol.PlayerID]protocol.VoteResult),
-		Result:     nil,
-	}
-
-	g.state.Issues = append(g.state.Issues, &issue)
-	g.state.ActiveIssue = issue.ID
-
-	g.notifyChangedState(true)
-
-	return issue.ID, nil
+	return issueID, err
 }
 
 func (g *Game) CreateNewRoom() error {
@@ -483,8 +466,8 @@ func (g *Game) Player() protocol.Player {
 	return *g.player
 }
 
-func (g *Game) OurVote() protocol.VoteResult {
-	return g.ourVote
+func (g *Game) MyVote() protocol.VoteResult {
+	return g.myVote
 }
 
 func (g *Game) RenamePlayer(name string) {
@@ -576,14 +559,68 @@ func (g *Game) Finish(result protocol.VoteValue) error {
 }
 
 func (g *Game) resetOurVote() {
-	g.ourVote = protocol.VoteResult{
+	g.myVote = protocol.VoteResult{
 		Value:     "",
 		Timestamp: 0,
 	}
 }
 
-func (g *Game) Next() error {
-	// NOTE: only dealer, only in finished state
-	// TODO: switch to next vote item from the vote list
-	return errors.New("not implemented")
+func (g *Game) AddIssue(titleOrURL string) (protocol.IssueID, error) {
+	if !g.isDealer {
+		return "", errors.New("only dealer can deal")
+	}
+
+	if g.state.VoteState() != protocol.IdleState && g.state.VoteState() != protocol.FinishedState {
+		return "", errors.New("cannot deal when voting is in progress")
+	}
+
+	issueID, err := g.addIssue(titleOrURL)
+	if err != nil {
+		return "", err
+	}
+	g.notifyChangedState(true)
+	return issueID, nil
+}
+
+func (g *Game) addIssue(titleOrURL string) (protocol.IssueID, error) {
+	issueID, err := GenerateIssueID()
+	if err != nil {
+		return "", errors.New("failed to generate UUID")
+	}
+
+	issueExist := slices.ContainsFunc(g.state.Issues, func(item *protocol.Issue) bool {
+		return item.TitleOrURL == titleOrURL
+	})
+	if issueExist {
+		return "", errors.New("issue already exists")
+	}
+
+	issue := protocol.Issue{
+		ID:         issueID,
+		TitleOrURL: titleOrURL,
+		Votes:      make(map[protocol.PlayerID]protocol.VoteResult),
+		Result:     nil,
+	}
+
+	g.state.Issues = append(g.state.Issues, &issue)
+	return issue.ID, nil
+}
+
+func (g *Game) SelectIssue(index int) error {
+	if !g.isDealer {
+		return errors.New("only dealer can deal")
+	}
+
+	if g.state.VoteState() != protocol.IdleState && g.state.VoteState() != protocol.FinishedState {
+		return errors.New("cannot deal when voting is in progress")
+	}
+
+	if index < 0 || index >= len(g.state.Issues) {
+		return errors.New("invalid issue index")
+	}
+
+	g.state.ActiveIssue = g.state.Issues[index].ID
+	g.notifyChangedState(true)
+
+	return nil
 }

@@ -35,9 +35,10 @@ type model struct {
 	roomID           string
 
 	// UI components state
-	interactiveMode bool
-	deckCursor      int
-	currentView     ViewType
+	commandMode bool
+	deckCursor  int
+	roomView    RoomView
+	issueCursor int
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -53,8 +54,10 @@ func initialModel(a *app.App) model {
 		gameState: nil,
 		roomID:    "",
 		// UI components state
-		interactiveMode: !a.IsDealer(),
-		deckCursor:      0,
+		commandMode: a.IsDealer(),
+		deckCursor:  0,
+		roomView:    CurrentIssueView,
+		issueCursor: 0,
 		// View components
 		input:   createTextInput(),
 		spinner: createSpinner(),
@@ -87,13 +90,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	previousState := m.state
 
-	if !m.interactiveMode || m.roomID == "" || m.state == InputPlayerName {
+	if m.commandMode || m.roomID == "" || m.state == InputPlayerName {
 		m.input.Focus()
 	} else {
 		m.input.Blur()
 	}
 
-	m.interactiveMode = !m.app.IsDealer()
+	m.commandMode = m.app.IsDealer()
 	m.input, inputCommand = m.input.Update(msg)
 	m.spinner, spinnerCommand = m.spinner.Update(msg)
 
@@ -120,16 +123,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = WaitingForPeers
 			commands = append(commands, waitForWakuPeers(m.app))
 		case WaitingForPeers:
-			m.state = UserAction
+			m.state = InsideRoom
 			if config.InitialAction() != "" {
 				m.input.SetValue(config.InitialAction())
 				cmd := processInput(&m)
 				commands = append(commands, cmd)
 			}
-		case UserAction:
+		case InsideRoom:
 			break
 		case CreatingRoom, JoiningRoom:
-			m.state = UserAction
+			m.state = InsideRoom
 			m.roomID = m.app.Game.RoomID()
 			m.gameState = m.app.GameState()
 
@@ -162,29 +165,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.input.Focused() {
 				cmd = processUserInput(&m)
 			} else {
-				cmd = VoteOnCursor(&m)
+				switch m.roomView {
+				case CurrentIssueView:
+					cmd = VoteOnCursor(&m)
+				case IssuesListView:
+					cmd = DealOnCursor(&m)
+				}
 			}
 			if cmd != nil {
 				commands = append(commands, cmd)
 			}
 		case tea.KeyLeft:
-			if m.interactiveMode {
+			if !m.commandMode && m.roomView == CurrentIssueView {
 				MoveCursorLeft(&m)
 			}
 		case tea.KeyRight:
-			if m.interactiveMode {
+			if !m.commandMode && m.roomView == CurrentIssueView {
 				MoveCursorRight(&m)
 			}
-		case tea.KeyTab:
-			if m.interactiveMode {
-				toggleCurrentView(&m)
+		case tea.KeyUp:
+			if !m.commandMode && m.roomView == IssuesListView {
+				MoveIssueCursorUp(&m)
 			}
+		case tea.KeyDown:
+			if !m.commandMode && m.roomView == IssuesListView {
+				MoveIssueCursorDown(&m)
+			}
+		case tea.KeyTab:
+			toggleCurrentView(&m)
 		}
 	}
 
 	if m.state != previousState {
 		switch m.state {
-		case UserAction:
+		case InsideRoom:
 			m.input.Placeholder = "Type a command..."
 		case InputPlayerName:
 			m.input.Placeholder = "Type your name..."
@@ -212,6 +226,11 @@ func VoteOnCursor(m *model) tea.Cmd {
 	return processAction(m, fmt.Sprintf("vote %s", m.gameState.Deck[m.deckCursor]))
 }
 
+func DealOnCursor(m *model) tea.Cmd {
+	// TODO: Instead of imitating action, return a ready-to-go tea.Cmd
+	return processAction(m, fmt.Sprintf("select %d", m.issueCursor))
+}
+
 func MoveCursorLeft(m *model) {
 	m.deckCursor = int(math.Max(float64(m.deckCursor-1), 0))
 }
@@ -220,12 +239,20 @@ func MoveCursorRight(m *model) {
 	m.deckCursor = int(math.Min(float64(m.deckCursor+1), float64(len(m.gameState.Deck)-1)))
 }
 
+func MoveIssueCursorUp(m *model) {
+	m.issueCursor = int(math.Max(float64(m.issueCursor-1), 0))
+}
+
+func MoveIssueCursorDown(m *model) {
+	m.issueCursor = int(math.Min(float64(m.issueCursor+1), float64(len(m.gameState.Issues)-1)))
+}
+
 func toggleCurrentView(m *model) {
-	switch m.currentView {
-	case RoomView:
-		m.currentView = IssuesListView
+	switch m.roomView {
+	case CurrentIssueView:
+		m.roomView = IssuesListView
 	case IssuesListView:
-		m.currentView = RoomView
+		m.roomView = CurrentIssueView
 	}
 }
 

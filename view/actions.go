@@ -5,8 +5,8 @@ import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"golang.org/x/exp/slices"
+	"strconv"
 	"strings"
-	"time"
 	"waku-poker-planning/game"
 	"waku-poker-planning/protocol"
 )
@@ -19,34 +19,28 @@ const (
 	Join   Action = "join"
 	Vote   Action = "vote"
 	Deal   Action = "deal"
+	Add    Action = "add"
 	Reveal Action = "reveal"
 	Finish Action = "finish"
 	Deck   Action = "deck"
-	Sleep  Action = "sleep"
+	Select Action = "select"
 )
 
 var actions = map[Action]func(m *model, args []string) (tea.Cmd, error){
 	Rename: runRenameAction,
 	Vote:   runVoteAction,
 	Deal:   runDealAction,
+	Add:    runAddAction,
 	New:    runNewAction,
 	Join:   runJoinAction,
 	Reveal: runRevealAction,
 	Finish: runFinishAction,
 	Deck:   runDeckAction,
-	Sleep:  processSleep,
+	Select: runSelectAction,
 }
 
 // FIXME: actions should be fully in tea.Cmd.
 // 		  No error can be returned from here.
-
-func processSleep(m *model, args []string) (tea.Cmd, error) {
-	cmd := func() tea.Msg {
-		time.Sleep(5 * time.Second)
-		return nil
-	}
-	return cmd, nil
-}
 
 func processPlayerNameInput(m *model, playerName string) (tea.Cmd, error) {
 	cmd := func() tea.Msg {
@@ -95,6 +89,20 @@ func runDealAction(m *model, args []string) (tea.Cmd, error) {
 	}
 	cmd := func() tea.Msg {
 		_, err := m.app.Game.Deal(args[0])
+		if err != nil {
+			return ActionErrorMessage{err}
+		}
+		return nil
+	}
+	return cmd, nil
+}
+
+func runAddAction(m *model, args []string) (tea.Cmd, error) {
+	cmd := func() tea.Msg {
+		if len(args) == 0 {
+			return ActionErrorMessage{err: errors.New("empty issue")}
+		}
+		_, err := m.app.Game.AddIssue(args[0])
 		if err != nil {
 			return ActionErrorMessage{err}
 		}
@@ -190,6 +198,27 @@ func runDeckAction(m *model, args []string) (tea.Cmd, error) {
 		if err != nil {
 			return ActionErrorMessage{err}
 		}
+		return nil
+	}
+	return cmd, nil
+}
+
+func runSelectAction(m *model, args []string) (tea.Cmd, error) {
+	cmd := func() tea.Msg {
+		if len(args) == 0 {
+			return ActionErrorMessage{err: errors.New("no issue index given")}
+		}
+
+		index, err := strconv.Atoi(args[0])
+		if err != nil {
+			return ActionErrorMessage{err: fmt.Errorf("invalid issue index: %s", args[0])}
+		}
+
+		err = m.app.Game.SelectIssue(index)
+		if err != nil {
+			return ActionErrorMessage{err}
+		}
+
 		return nil
 	}
 	return cmd, nil

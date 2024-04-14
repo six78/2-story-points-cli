@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"sort"
 	"strconv"
 	"strings"
 	"waku-poker-planning/config"
@@ -21,7 +20,7 @@ func (m model) renderAppState() string {
 		return m.renderPlayerNameInput()
 	case WaitingForPeers:
 		return m.spinner.View() + " Connecting to Waku peers..."
-	case UserAction:
+	case InsideRoom:
 		return m.renderGame()
 	case CreatingRoom:
 		return m.spinner.View() + " Creating room..."
@@ -37,28 +36,32 @@ func (m model) renderPlayerNameInput() string {
 }
 
 func (m model) renderGame() string {
-	room := fmt.Sprintf("Room: %s\n", m.roomID)
-	view := m.renderCurrentView()
-	return fmt.Sprintf("%s\n%s", room, view)
-}
-
-func (m model) renderCurrentView() string {
-	switch m.currentView {
-	case RoomView:
-		return m.renderRoom()
-	case IssuesListView:
-		return renderIssuesList(m.gameState.Issues)
-	default:
-		return fmt.Sprintf("unknown view: %d", m.currentView)
-	}
+	return fmt.Sprintf("%s\n%s\n%s",
+		m.renderRoom(),
+		m.renderActionInput(),
+		m.renderActionError())
 }
 
 func (m model) renderRoom() string {
+	return fmt.Sprintf("%s\n%s",
+		fmt.Sprintf("Room: %s", m.roomID),
+		m.renderRoomView())
+}
+
+func (m model) renderRoomView() string {
+	switch m.roomView {
+	case CurrentIssueView:
+		return m.renderRoomCurrentIssueView()
+	case IssuesListView:
+		return renderIssuesListView(&m)
+	default:
+		return fmt.Sprintf("unknown view: %d", m.roomView)
+	}
+}
+
+func (m model) renderRoomCurrentIssueView() string {
 	if m.roomID == "" {
-		return fmt.Sprintf(
-			" Join a room or create a new one ...\n%s",
-			m.renderActionInput(),
-		)
+		return " Join a room or create a new one ..."
 	}
 
 	if m.gameState == nil {
@@ -68,11 +71,10 @@ func (m model) renderRoom() string {
 	return fmt.Sprintf(`Issue:  %s
 
 %s
-%s
-`,
+%s`,
 		renderIssue(m.gameState.Issues.Get(m.gameState.ActiveIssue)),
 		m.renderPlayers(),
-		m.renderUserArea(),
+		m.renderDeck(),
 	)
 }
 
@@ -82,27 +84,11 @@ type PlayerVoteResult struct {
 	Style  lipgloss.Style
 }
 
-func (m model) renderUserArea() string {
-	deckString := renderDeck(m.gameState.Deck, m.deckCursor, m.interactiveMode, m.app.Game.OurVote().Value)
-	secondString := ""
-
-	if m.interactiveMode {
-		secondString = m.renderActionError()
-	} else {
-		secondString = m.renderActionInput()
-	}
-
-	return fmt.Sprintf("%s\n%s",
-		deckString,
-		secondString,
-	)
-}
-
 func (m model) renderActionInput() string {
-	return fmt.Sprintf("%s\n%s",
-		m.input.View(),
-		m.renderActionError(),
-	)
+	if m.commandMode {
+		return m.input.View()
+	}
+	return "TBD: key shortcuts"
 }
 
 func (m model) renderActionError() string {
@@ -224,11 +210,19 @@ func renderLogPath() string {
 	return fmt.Sprintf("Log: file:///%s", path)
 }
 
-func renderDeck(deck protocol.Deck, cursor int, renderCursor bool, vote protocol.VoteValue) string {
+func (m model) renderDeck() string {
+	if m.gameState == nil {
+		return ""
+	}
+
+	deck := m.gameState.Deck
+	renderCursor := !m.commandMode
+	myVote := m.app.Game.MyVote().Value
+
 	cards := make([]string, 0, len(deck)*2)
 
 	for i, value := range deck {
-		card := renderCard(value, renderCursor && i == cursor, value == vote)
+		card := renderCard(value, renderCursor && i == m.deckCursor, value == myVote)
 		cards = append(cards, card, " ") // Add a space between cards
 	}
 
@@ -280,33 +274,38 @@ func renderIssue(item *protocol.Issue) string {
 	return item.TitleOrURL
 }
 
-func renderIssuesList(voteList protocol.IssuesList) string {
-	var itemStrings []string
-
-	for i, item := range voteList {
-		var votes []string
-		for _, vote := range item.Votes {
-			voteString := "nil"
-			if vote.Value != "" {
-				voteString = string(vote.Value)
-			}
-			votes = append(votes, voteString)
-		}
-		sort.Slice(votes[:], func(i, j int) bool {
-			return votes[i] < votes[j]
-		})
-		resultString := "nil"
-		if item.Result != nil {
-			resultString = string(*item.Result)
-		}
-		itemString := fmt.Sprintf("%d. %s - result: %s, votes: [%s]",
-			i+1,
-			item.TitleOrURL,
-			resultString,
-			strings.Join(votes, ","),
-		)
-		itemStrings = append(itemStrings, itemString)
+func renderIssuesListView(m *model) string {
+	if m.gameState == nil {
+		return ""
 	}
-	itemsList := strings.Join(itemStrings, "\n")
-	return fmt.Sprintf("Issues:\n%s", itemsList)
+
+	showSelector := !m.commandMode && m.app.IsDealer()
+	issues := m.gameState.Issues
+	activeIssue := m.gameState.ActiveIssue
+
+	var items []string
+
+	for i, issue := range issues {
+		result := "-"
+		if issue.Result != nil {
+			result = string(*issue.Result)
+		} else if issue.ID == activeIssue {
+			result = m.spinner.View()
+		}
+
+		var item string
+		var style lipgloss.Style
+		if showSelector && i == m.issueCursor {
+			item += "> "
+			style = lipgloss.NewStyle().Foreground(lipgloss.Color("#7D56F4"))
+		} else {
+			item += "  "
+		}
+
+		item += fmt.Sprintf("%s  %s", result, issue.TitleOrURL)
+		items = append(items, style.Render(item))
+	}
+
+	fullBlock := lipgloss.JoinVertical(lipgloss.Top, items...)
+	return fmt.Sprintf("Issues:\n%s", fullBlock)
 }

@@ -85,7 +85,7 @@ func processInput(m *model) tea.Cmd {
 		return cmd
 	}
 
-	if m.state == UserAction {
+	if m.state == InsideRoom {
 		defer m.input.Reset()
 		return processAction(m, m.input.Value())
 	}

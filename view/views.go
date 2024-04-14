@@ -1,8 +1,8 @@
 package view
 
-type ViewType int
+type RoomView int
 
 const (
-	RoomView ViewType = iota
+	CurrentIssueView RoomView = iota
 	IssuesListView
 )

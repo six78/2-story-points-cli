@@ -236,10 +236,10 @@ For example for a Fibbonacci deck
 ## Issues list view
 
 ```shell
-  1. https://github.com/six78/waku-poker-planning-go/issues/42  |  13
-  2. https://github.com/six78/waku-poker-planning-go/issues/19  |  3 
-> 3. https://github.com/six78/waku-poker-planning-go/issues/12  |  - 
-  4. https://github.com/six78/waku-poker-planning-go/issues/1   |  - 
-  5. https://github.com/six78/waku-poker-planning-go/issues/34  |  - 
+  13  https://github.com/six78/waku-poker-planning-go/issues/42
+  3   https://github.com/six78/waku-poker-planning-go/issues/19
+> -   https://github.com/six78/waku-poker-planning-go/issues/12
+  -   https://github.com/six78/waku-poker-planning-go/issues/1 
+  -   https://github.com/six78/waku-poker-planning-go/issues/34
   ... 7 more issues
 ```
