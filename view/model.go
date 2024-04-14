@@ -12,6 +12,9 @@ import (
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
+	"waku-poker-planning/view/components/errorview"
+	"waku-poker-planning/view/messages"
+	"waku-poker-planning/view/states"
 )
 
 type model struct {
@@ -28,17 +31,17 @@ type model struct {
 
 	// Actual nextState that will be rendered in components.
 	// This is filled from app during Update stage.
-	state            State
-	fatalError       error
-	lastCommandError string
-	gameState        *protocol.State
-	roomID           string
+	state      states.AppState
+	fatalError error
+	gameState  *protocol.State
+	roomID     string
 
 	// UI components state
 	commandMode bool
 	deckCursor  int
 	roomView    RoomView
 	issueCursor int
+	errorView   errorview.Model
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -50,7 +53,7 @@ func initialModel(a *app.App) model {
 	return model{
 		app: a,
 		// Initial model values
-		state:     Initializing,
+		state:     states.Initializing,
 		gameState: nil,
 		roomID:    "",
 		// UI components state
@@ -59,8 +62,9 @@ func initialModel(a *app.App) model {
 		roomView:    CurrentIssueView,
 		issueCursor: 0,
 		// View components
-		input:   createTextInput(),
-		spinner: createSpinner(),
+		input:     createTextInput(),
+		spinner:   createSpinner(),
+		errorView: errorview.New(),
 	}
 }
 
@@ -79,7 +83,12 @@ func createSpinner() spinner.Model {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(textarea.Blink, m.spinner.Tick, initializeApp(m.app))
+	return tea.Batch(
+		textarea.Blink,
+		m.spinner.Tick,
+		m.errorView.Init(),
+		initializeApp(m.app),
+	)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -90,7 +99,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	previousState := m.state
 
-	if m.commandMode || m.roomID == "" || m.state == InputPlayerName {
+	if m.commandMode || m.roomID == "" || m.state == states.InputPlayerName {
 		m.input.Focus()
 	} else {
 		m.input.Blur()
@@ -99,52 +108,50 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.commandMode = m.app.IsDealer()
 	m.input, inputCommand = m.input.Update(msg)
 	m.spinner, spinnerCommand = m.spinner.Update(msg)
+	m.errorView = m.errorView.Update(msg)
 
 	commands := []tea.Cmd{inputCommand, spinnerCommand}
 
 	switch msg := msg.(type) {
 
-	case FatalErrorMessage:
-		m.fatalError = msg.err
+	case messages.FatalErrorMessage:
+		m.fatalError = msg.Err
 
-	case ActionErrorMessage:
-		m.lastCommandError = msg.err.Error()
-
-	case AppStateMessage:
-		switch msg.finishedState {
-		case Initializing:
+	case messages.AppStateMessage:
+		switch msg.FinishedState {
+		case states.Initializing:
 			if m.app.Game.Player().Name == "" {
-				m.state = InputPlayerName
+				m.state = states.InputPlayerName
 			} else {
-				m.state = WaitingForPeers
+				m.state = states.WaitingForPeers
 				commands = append(commands, waitForWakuPeers(m.app))
 			}
-		case InputPlayerName:
-			m.state = WaitingForPeers
+		case states.InputPlayerName:
+			m.state = states.WaitingForPeers
 			commands = append(commands, waitForWakuPeers(m.app))
-		case WaitingForPeers:
-			m.state = InsideRoom
+		case states.WaitingForPeers:
+			m.state = states.InsideRoom
 			if config.InitialAction() != "" {
 				m.input.SetValue(config.InitialAction())
 				cmd := processInput(&m)
 				commands = append(commands, cmd)
 			}
-		case InsideRoom:
+		case states.InsideRoom:
 			break
-		case CreatingRoom, JoiningRoom:
-			m.state = InsideRoom
+		case states.CreatingRoom, states.JoiningRoom:
+			m.state = states.InsideRoom
 			m.roomID = m.app.Game.RoomID()
 			m.gameState = m.app.GameState()
 
-			if msg.err != nil {
-				m.lastCommandError = msg.err.Error()
-			} else {
-				m.lastCommandError = ""
-			}
+			//if msg.Err != nil {
+			//	m.lastCommandError = msg.Err.Error()
+			//} else {
+			//	m.lastCommandError = ""
+			//}
 
 			config.Logger.Debug("room created or joined",
 				zap.String("roomID", m.roomID),
-				zap.Error(msg.err),
+				zap.Error(msg.Err),
 			)
 
 			if m.roomID != "" {
@@ -152,8 +159,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-	case GameStateMessage:
-		m.gameState = msg.state
+	case messages.GameStateMessage:
+		m.gameState = msg.State
 		commands = append(commands, waitForGameState(m.app))
 
 	case tea.KeyMsg:
@@ -198,9 +205,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.state != previousState {
 		switch m.state {
-		case InsideRoom:
+		case states.InsideRoom:
 			m.input.Placeholder = "Type a command..."
-		case InputPlayerName:
+		case states.InputPlayerName:
 			m.input.Placeholder = "Type your name..."
 		}
 	}

@@ -424,6 +424,10 @@ func (g *Game) JoinRoom(roomID string) error {
 
 	g.LeaveRoom()
 
+	if roomID == "" {
+		return errors.New("empty room ID")
+	}
+
 	room, err := protocol.ParseRoomID(roomID)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse room ID")

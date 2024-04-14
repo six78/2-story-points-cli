@@ -1,9 +1,9 @@
-package view
+package states
 
-type State int
+type AppState int
 
 const (
-	Idle State = iota
+	Idle AppState = iota
 	Initializing
 	InputPlayerName
 	WaitingForPeers

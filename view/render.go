@@ -8,23 +8,31 @@ import (
 	"strings"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
+	"waku-poker-planning/view/states"
 )
+
+/*
+	TODO: Refactor this.
+		I don't like that on each method we're copying the model, this is bad.
+		Probably a good idea would be to have a separate Model (with Init/Update/View methods)
+		for each component. This would be a proper way of using bubbletea!
+*/
 
 func (m model) renderAppState() string {
 	switch m.state {
-	case Idle:
+	case states.Idle:
 		return "nothing is happening. boring life."
-	case Initializing:
+	case states.Initializing:
 		return m.spinner.View() + " Starting Waku..."
-	case InputPlayerName:
+	case states.InputPlayerName:
 		return m.renderPlayerNameInput()
-	case WaitingForPeers:
+	case states.WaitingForPeers:
 		return m.spinner.View() + " Connecting to Waku peers..."
-	case InsideRoom:
+	case states.InsideRoom:
 		return m.renderGame()
-	case CreatingRoom:
+	case states.CreatingRoom:
 		return m.spinner.View() + " Creating room..."
-	case JoiningRoom:
+	case states.JoiningRoom:
 		return m.spinner.View() + " Joining room..."
 	}
 
@@ -32,14 +40,16 @@ func (m model) renderAppState() string {
 }
 
 func (m model) renderPlayerNameInput() string {
-	return fmt.Sprintf(" \n\n%s\n%s", m.input.View(), m.renderActionError())
+	return fmt.Sprintf(" \n\n%s\n%s",
+		m.input.View(),
+		m.errorView.View())
 }
 
 func (m model) renderGame() string {
-	return fmt.Sprintf("%s\n%s\n%s",
+	return lipgloss.JoinVertical(lipgloss.Top,
 		m.renderRoom(),
 		m.renderActionInput(),
-		m.renderActionError())
+		m.errorView.View())
 }
 
 func (m model) renderRoom() string {
@@ -88,13 +98,18 @@ func (m model) renderActionInput() string {
 	if m.commandMode {
 		return m.input.View()
 	}
-	return "TBD: key shortcuts"
-}
 
-func (m model) renderActionError() string {
-	style := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#d78700"))
-	return style.Render(m.lastCommandError)
+	//  current issue view:
+	//Use [←] and [→] arrows to select a card and press [Enter]
+	//[Tab] To switch to issues list view
+	//[C] Switch to command mode  [Q] Leave room  [E] Exit  [H] Help
+
+	//  issues list:
+	//Use [↓] and [↑] arrows to select issue to deal and press [Enter]
+	//[Tab] To switch to room view
+	//[C] Switch to command mode  [Q] Leave room  [E] Exit  [H] Help
+
+	return "TBD: key shortcuts"
 }
 
 func (m model) renderPlayers() string {

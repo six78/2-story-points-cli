@@ -8,6 +8,8 @@ import (
 	"strings"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
+	"waku-poker-planning/view/messages"
+	"waku-poker-planning/view/states"
 )
 
 // Any command here must:
@@ -18,9 +20,9 @@ func initializeApp(a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		err := a.Initialize()
 		if err != nil {
-			return FatalErrorMessage{err}
+			return messages.FatalErrorMessage{Err: err}
 		}
-		return AppStateMessage{finishedState: Initializing}
+		return messages.AppStateMessage{FinishedState: states.Initializing}
 	}
 }
 
@@ -28,21 +30,21 @@ func waitForWakuPeers(a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		ok := a.WaitForPeersConnected()
 		if !ok {
-			return FatalErrorMessage{
-				err: errors.New("failed to connect to peers"),
+			return messages.FatalErrorMessage{
+				Err: errors.New("failed to connect to peers"),
 			}
 		}
-		return AppStateMessage{finishedState: WaitingForPeers}
+		return messages.AppStateMessage{FinishedState: states.WaitingForPeers}
 	}
 }
 
 func createNewRoom(a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		err := a.Game.CreateNewRoom()
-		return AppStateMessage{
-			finishedState: CreatingRoom,
-			ActionErrorMessage: ActionErrorMessage{
-				err: err,
+		return messages.AppStateMessage{
+			FinishedState: states.CreatingRoom,
+			ErrorMessage: messages.ErrorMessage{
+				Err: err,
 			},
 		}
 	}
@@ -51,10 +53,10 @@ func createNewRoom(a *app.App) tea.Cmd {
 func joinRoom(roomID string, a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		err := a.Game.JoinRoom(roomID)
-		return AppStateMessage{
-			finishedState: JoiningRoom,
-			ActionErrorMessage: ActionErrorMessage{
-				err: err,
+		return messages.AppStateMessage{
+			FinishedState: states.JoiningRoom,
+			ErrorMessage: messages.ErrorMessage{
+				Err: err,
 			},
 		}
 	}
@@ -64,12 +66,12 @@ func waitForGameState(app *app.App) tea.Cmd {
 	return func() tea.Msg {
 		state, more, err := app.WaitForGameState()
 		if err != nil {
-			return FatalErrorMessage{err}
+			return messages.FatalErrorMessage{err}
 		}
 		if !more {
 			return nil
 		}
-		return GameStateMessage{state: state}
+		return messages.GameStateMessage{State: state}
 	}
 }
 
@@ -79,13 +81,12 @@ func processUserInput(m *model) tea.Cmd {
 }
 
 func processInput(m *model) tea.Cmd {
-	if m.state == InputPlayerName {
+	if m.state == states.InputPlayerName {
 		defer m.input.Reset()
-		cmd, _ := processPlayerNameInput(m, m.input.Value())
-		return cmd
+		return processPlayerNameInput(m, m.input.Value())
 	}
 
-	if m.state == InsideRoom {
+	if m.state == states.InsideRoom {
 		defer m.input.Reset()
 		return processAction(m, m.input.Value())
 	}
@@ -94,34 +95,26 @@ func processInput(m *model) tea.Cmd {
 }
 
 func processAction(m *model, action string) tea.Cmd {
-	var err error
 	defer func() {
 		config.Logger.Debug("user action processed",
-			zap.Error(err),
 			zap.Any("state", m.state),
 		)
-
-		if err != nil {
-			m.lastCommandError = err.Error()
-		} else {
-			m.lastCommandError = ""
-		}
 	}()
 
 	args := strings.Fields(action)
 	if len(args) == 0 {
-		err = errors.New("empty action")
 		return nil
 	}
 
 	commandRoot := Action(args[0])
 	commandFn, ok := actions[commandRoot]
+
 	if !ok {
-		err = fmt.Errorf("unknown action: %s", commandRoot)
-		return nil
+		return func() tea.Msg {
+			err := fmt.Errorf("unknown action: %s", commandRoot)
+			return messages.NewErrorMessage(err)
+		}
 	}
 
-	cmd, err := commandFn(m, args[1:])
-
-	return cmd
+	return commandFn(m, args[1:])
 }
