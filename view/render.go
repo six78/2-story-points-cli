@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"strconv"
 	"strings"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
+	"waku-poker-planning/view/components/playervoteview"
 	"waku-poker-planning/view/states"
 )
 
@@ -83,15 +83,9 @@ func (m model) renderRoomCurrentIssueView() string {
 %s
 %s`,
 		renderIssue(m.gameState.Issues.Get(m.gameState.ActiveIssue)),
-		m.renderPlayers(),
+		m.playersView.View(),
 		m.renderDeck(),
 	)
-}
-
-type PlayerVoteResult struct {
-	Player protocol.Player
-	Vote   string
-	Style  lipgloss.Style
 }
 
 func (m model) renderActionInput() string {
@@ -110,113 +104,6 @@ func (m model) renderActionInput() string {
 	//[C] Switch to command mode  [Q] Leave room  [E] Exit  [H] Help
 
 	return "TBD: key shortcuts"
-}
-
-func (m model) renderPlayers() string {
-	players := make([]PlayerVoteResult, 0, len(m.gameState.Players))
-
-	for _, player := range m.gameState.Players {
-		vote, style := renderVote(&m, player.ID)
-		players = append(players, PlayerVoteResult{
-			Player: player,
-			Vote:   vote,
-			Style:  style,
-		})
-	}
-
-	var votes []string
-	var playerNames []string
-	playerColumn := -1
-
-	for i, player := range players {
-		votes = append(votes, player.Vote)
-		playerNames = append(playerNames, player.Player.Name)
-		if player.Player.ID == m.app.Game.Player().ID {
-			playerColumn = i
-		}
-	}
-
-	var CommonStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FAFAFA")).
-		//Background(lipgloss.Color("#7D56F4")).
-		//PaddingTop(2).
-		PaddingLeft(1).
-		PaddingRight(1).
-		Align(lipgloss.Center)
-
-	var HeaderStyle = CommonStyle.Copy().Bold(true)
-
-	rows := [][]string{
-		votes,
-	}
-
-	t := table.New().
-		Border(lipgloss.RoundedBorder()).
-		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))).
-		StyleFunc(func(row, col int) lipgloss.Style {
-			switch {
-			case row == 0:
-				if col == playerColumn {
-					return HeaderStyle
-				} else {
-					return CommonStyle
-				}
-			default:
-				return players[col].Style
-			}
-		}).
-		Headers(playerNames...).
-		Rows(rows...)
-
-	return t.String()
-}
-
-var CommonVoteStyle = lipgloss.NewStyle().
-	PaddingLeft(1).
-	PaddingRight(1).
-	Align(lipgloss.Center)
-
-var NoVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#444444"))
-var ReadyVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#5fd700"))
-var LightVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#00d7ff"))
-var MediumVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ffd787"))
-var DangerVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ff005f"))
-
-func voteStyle(vote protocol.VoteValue) lipgloss.Style {
-	voteNumber, err := strconv.Atoi(string(vote))
-	if err != nil {
-		return CommonVoteStyle
-	}
-	if voteNumber >= 13 {
-		return DangerVoteStyle
-	}
-	if voteNumber >= 5 {
-		return MediumVoteStyle
-	}
-	return LightVoteStyle
-}
-
-func renderVote(m *model, playerID protocol.PlayerID) (string, lipgloss.Style) {
-	if m.gameState.VoteState() == protocol.IdleState {
-		return "", CommonVoteStyle
-	}
-	issue := m.gameState.Issues.Get(m.gameState.ActiveIssue)
-	if issue == nil {
-		config.Logger.Error("active issue not found")
-		return "nil", CommonVoteStyle
-	}
-	vote, ok := issue.Votes[playerID]
-	if !ok {
-		if m.gameState.VoteState() == protocol.RevealedState ||
-			m.gameState.VoteState() == protocol.FinishedState {
-			return "X", NoVoteStyle
-		}
-		return m.spinner.View(), CommonVoteStyle
-	}
-	if vote.Value == "" {
-		return "✓", ReadyVoteStyle
-	}
-	return string(vote.Value), voteStyle(vote.Value)
 }
 
 func renderLogPath() string {
@@ -256,7 +143,7 @@ func renderCard(value protocol.VoteValue, cursor bool, voted bool) string {
 		Border(lipgloss.RoundedBorder()).
 		BorderStyle(borderStyle).
 		StyleFunc(func(row, col int) lipgloss.Style {
-			return voteStyle(value)
+			return playervoteview.VoteStyle(value)
 		}).
 		Rows([]string{string(value)}).
 		String()

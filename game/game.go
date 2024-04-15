@@ -65,6 +65,7 @@ func (g *Game) LeaveRoom() {
 	g.roomID = protocol.NewRoomID("")
 	g.state = nil
 	g.stateTimestamp = 0
+	g.notifyChangedState(false)
 }
 
 func (g *Game) Stop() {
@@ -242,13 +243,16 @@ func (g *Game) publishOnlineState() {
 }
 
 func (g *Game) publishStatePeriodically() {
+	g.logger.Debug("state publish loop started")
 	for {
 		select {
 		case <-time.After(config.StateMessagePeriod):
-			g.publishState(g.hiddenCurrentState())
+			g.notifyChangedState(true)
 		case <-g.leaveRoom:
+			g.logger.Debug("state publish loop finished: room left")
 			return
 		case <-g.ctx.Done():
+			g.logger.Debug("state publish loop finished: ctx done")
 			return
 		}
 	}
@@ -408,9 +412,10 @@ func (g *Game) CreateNewRoom() error {
 	g.stateTimestamp = g.timestamp()
 	g.resetOurVote()
 
+	g.notifyChangedState(true)
 	go g.processIncomingMessages(sub)
 	go g.publishOnlineState()
-	go g.publishStatePeriodically()
+	//go g.publishStatePeriodically()
 
 	g.logger.Info("new room created", zap.String("roomID", roomID.String()))
 
@@ -448,6 +453,7 @@ func (g *Game) JoinRoom(roomID string) error {
 
 	go g.processIncomingMessages(sub)
 	go g.publishOnlineState()
+	g.notifyChangedState(false)
 
 	g.logger.Info("joined room", zap.String("roomID", roomID))
 

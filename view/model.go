@@ -13,6 +13,7 @@ import (
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
 	"waku-poker-planning/view/components/errorview"
+	"waku-poker-planning/view/components/playersview"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
 )
@@ -42,6 +43,7 @@ type model struct {
 	roomView    RoomView
 	issueCursor int
 	errorView   errorview.Model
+	playersView playersview.Model
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -62,9 +64,10 @@ func initialModel(a *app.App) model {
 		roomView:    CurrentIssueView,
 		issueCursor: 0,
 		// View components
-		input:     createTextInput(),
-		spinner:   createSpinner(),
-		errorView: errorview.New(),
+		input:       createTextInput(),
+		spinner:     createSpinner(),
+		errorView:   errorview.New(),
+		playersView: playersview.New(),
 	}
 }
 
@@ -78,7 +81,6 @@ func createTextInput() textinput.Model {
 func createSpinner() spinner.Model {
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
-	//s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	return s
 }
 
@@ -87,6 +89,7 @@ func (m model) Init() tea.Cmd {
 		textarea.Blink,
 		m.spinner.Tick,
 		m.errorView.Init(),
+		m.playersView.Init(),
 		initializeApp(m.app),
 	)
 }
@@ -95,6 +98,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		inputCommand   tea.Cmd
 		spinnerCommand tea.Cmd
+		playersCommand tea.Cmd
 	)
 
 	previousState := m.state
@@ -109,8 +113,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.input, inputCommand = m.input.Update(msg)
 	m.spinner, spinnerCommand = m.spinner.Update(msg)
 	m.errorView = m.errorView.Update(msg)
+	m.playersView, playersCommand = m.playersView.Update(msg)
 
-	commands := []tea.Cmd{inputCommand, spinnerCommand}
+	commands := []tea.Cmd{
+		inputCommand,
+		spinnerCommand,
+		playersCommand,
+	}
+
+	appendCommand := func(command tea.Cmd) {
+		commands = append(commands, command)
+	}
+
+	appendMessage := func(injectedMessage tea.Msg) {
+		commands = append(commands, func() tea.Msg {
+			return injectedMessage
+		})
+	}
 
 	switch msg := msg.(type) {
 
@@ -120,21 +139,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.AppStateMessage:
 		switch msg.FinishedState {
 		case states.Initializing:
+			// Notify PlayerID generated
+			appendMessage(messages.PlayerIDMessage{
+				PlayerID: m.app.Game.Player().ID,
+			})
+			// Determine next state
 			if m.app.Game.Player().Name == "" {
 				m.state = states.InputPlayerName
 			} else {
 				m.state = states.WaitingForPeers
-				commands = append(commands, waitForWakuPeers(m.app))
+				appendCommand(waitForWakuPeers(m.app))
 			}
 		case states.InputPlayerName:
 			m.state = states.WaitingForPeers
-			commands = append(commands, waitForWakuPeers(m.app))
+			appendCommand(waitForWakuPeers(m.app))
 		case states.WaitingForPeers:
 			m.state = states.InsideRoom
 			if config.InitialAction() != "" {
 				m.input.SetValue(config.InitialAction())
 				cmd := processInput(&m)
-				commands = append(commands, cmd)
+				appendCommand(cmd)
 			}
 		case states.InsideRoom:
 			break
@@ -143,25 +167,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.roomID = m.app.Game.RoomID()
 			m.gameState = m.app.GameState()
 
-			//if msg.Err != nil {
-			//	m.lastCommandError = msg.Err.Error()
-			//} else {
-			//	m.lastCommandError = ""
-			//}
+			appendMessage(messages.ErrorMessage{
+				Err: msg.Err,
+			})
+
+			if m.roomID != "" {
+				appendCommand(waitForGameState(m.app))
+			}
 
 			config.Logger.Debug("room created or joined",
 				zap.String("roomID", m.roomID),
 				zap.Error(msg.Err),
 			)
-
-			if m.roomID != "" {
-				commands = append(commands, waitForGameState(m.app))
-			}
 		}
 
 	case messages.GameStateMessage:
 		m.gameState = msg.State
-		commands = append(commands, waitForGameState(m.app))
+		appendCommand(waitForGameState(m.app))
 
 	case tea.KeyMsg:
 		switch msg.Type {
@@ -180,7 +202,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			if cmd != nil {
-				commands = append(commands, cmd)
+				appendCommand(cmd)
 			}
 		case tea.KeyLeft:
 			if !m.commandMode && m.roomView == CurrentIssueView {

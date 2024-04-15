@@ -25,3 +25,7 @@ type ErrorMessage struct {
 func NewErrorMessage(err error) ErrorMessage {
 	return ErrorMessage{Err: err}
 }
+
+type PlayerIDMessage struct {
+	PlayerID protocol.PlayerID
+}
