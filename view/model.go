@@ -12,8 +12,10 @@ import (
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
+	"waku-poker-planning/view/commands"
 	"waku-poker-planning/view/components/errorview"
 	"waku-poker-planning/view/components/playersview"
+	"waku-poker-planning/view/components/shortcutsview"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
 )
@@ -38,12 +40,13 @@ type model struct {
 	roomID     string
 
 	// UI components state
-	commandMode bool
-	deckCursor  int
-	roomView    RoomView
-	issueCursor int
-	errorView   errorview.Model
-	playersView playersview.Model
+	commandMode   bool
+	deckCursor    int
+	roomView      states.RoomView
+	issueCursor   int
+	errorView     errorview.Model
+	playersView   playersview.Model
+	shortcutsView shortcutsview.Model
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -61,13 +64,14 @@ func initialModel(a *app.App) model {
 		// UI components state
 		commandMode: a.IsDealer(),
 		deckCursor:  0,
-		roomView:    CurrentIssueView,
+		roomView:    states.ActiveIssueView,
 		issueCursor: 0,
 		// View components
-		input:       createTextInput(),
-		spinner:     createSpinner(),
-		errorView:   errorview.New(),
-		playersView: playersview.New(),
+		input:         createTextInput(),
+		spinner:       createSpinner(),
+		errorView:     errorview.New(),
+		playersView:   playersview.New(),
+		shortcutsView: shortcutsview.New(),
 	}
 }
 
@@ -90,7 +94,8 @@ func (m model) Init() tea.Cmd {
 		m.spinner.Tick,
 		m.errorView.Init(),
 		m.playersView.Init(),
-		initializeApp(m.app),
+		m.shortcutsView.Init(),
+		commands.InitializeApp(m.app),
 	)
 }
 
@@ -109,24 +114,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.input.Blur()
 	}
 
+	// TODO: Rendering could be cached inside components in most cases.
+	//		 This will require to only call Update when needed (because the object is copied).
+	//		 On Update() we would set `cache.valid = false`
+	//		 and then in View() the string could be cached and set `cache.valid = true`.
+	//		 Look shortcutsview for example.
 	m.commandMode = m.app.IsDealer()
 	m.input, inputCommand = m.input.Update(msg)
 	m.spinner, spinnerCommand = m.spinner.Update(msg)
 	m.errorView = m.errorView.Update(msg)
 	m.playersView, playersCommand = m.playersView.Update(msg)
+	m.shortcutsView = m.shortcutsView.Update(m.roomView, m.commandMode)
 
-	commands := []tea.Cmd{
+	cmds := []tea.Cmd{
 		inputCommand,
 		spinnerCommand,
 		playersCommand,
 	}
 
 	appendCommand := func(command tea.Cmd) {
-		commands = append(commands, command)
+		cmds = append(cmds, command)
 	}
 
 	appendMessage := func(injectedMessage tea.Msg) {
-		commands = append(commands, func() tea.Msg {
+		cmds = append(cmds, func() tea.Msg {
 			return injectedMessage
 		})
 	}
@@ -148,16 +159,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.state = states.InputPlayerName
 			} else {
 				m.state = states.WaitingForPeers
-				appendCommand(waitForWakuPeers(m.app))
+				appendCommand(commands.WaitForWakuPeers(m.app))
 			}
 		case states.InputPlayerName:
 			m.state = states.WaitingForPeers
-			appendCommand(waitForWakuPeers(m.app))
+			appendCommand(commands.WaitForWakuPeers(m.app))
 		case states.WaitingForPeers:
 			m.state = states.InsideRoom
 			if config.InitialAction() != "" {
 				m.input.SetValue(config.InitialAction())
-				cmd := processInput(&m)
+				cmd := ProcessInput(&m)
 				appendCommand(cmd)
 			}
 		case states.InsideRoom:
@@ -172,7 +183,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 
 			if m.roomID != "" {
-				appendCommand(waitForGameState(m.app))
+				appendCommand(commands.WaitForGameState(m.app))
 			}
 
 			config.Logger.Debug("room created or joined",
@@ -183,7 +194,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case messages.GameStateMessage:
 		m.gameState = msg.State
-		appendCommand(waitForGameState(m.app))
+		appendCommand(commands.WaitForGameState(m.app))
 
 	case tea.KeyMsg:
 		switch msg.Type {
@@ -192,12 +203,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			var cmd tea.Cmd
 			if m.input.Focused() {
-				cmd = processUserInput(&m)
+				cmd = ProcessUserInput(&m)
 			} else {
 				switch m.roomView {
-				case CurrentIssueView:
+				case states.ActiveIssueView:
 					cmd = VoteOnCursor(&m)
-				case IssuesListView:
+				case states.IssuesListView:
 					cmd = DealOnCursor(&m)
 				}
 			}
@@ -205,22 +216,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				appendCommand(cmd)
 			}
 		case tea.KeyLeft:
-			if !m.commandMode && m.roomView == CurrentIssueView {
+			if !m.commandMode && m.roomView == states.ActiveIssueView {
 				MoveCursorLeft(&m)
 			}
 		case tea.KeyRight:
-			if !m.commandMode && m.roomView == CurrentIssueView {
+			if !m.commandMode && m.roomView == states.ActiveIssueView {
 				MoveCursorRight(&m)
 			}
 		case tea.KeyUp:
-			if !m.commandMode && m.roomView == IssuesListView {
+			if !m.commandMode && m.roomView == states.IssuesListView {
 				MoveIssueCursorUp(&m)
 			}
 		case tea.KeyDown:
-			if !m.commandMode && m.roomView == IssuesListView {
+			if !m.commandMode && m.roomView == states.IssuesListView {
 				MoveIssueCursorDown(&m)
 			}
 		case tea.KeyTab:
+			//appendCommand(cmds.ToggleRoomView(m.roomView))
 			toggleCurrentView(&m)
 		}
 	}
@@ -234,7 +246,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	return m, tea.Batch(commands...)
+	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() string {
@@ -252,12 +264,12 @@ func (m model) View() string {
 
 func VoteOnCursor(m *model) tea.Cmd {
 	// TODO: Instead of imitating action, return a ready-to-go tea.Cmd
-	return processAction(m, fmt.Sprintf("vote %s", m.gameState.Deck[m.deckCursor]))
+	return ProcessAction(m, fmt.Sprintf("vote %s", m.gameState.Deck[m.deckCursor]))
 }
 
 func DealOnCursor(m *model) tea.Cmd {
 	// TODO: Instead of imitating action, return a ready-to-go tea.Cmd
-	return processAction(m, fmt.Sprintf("select %d", m.issueCursor))
+	return ProcessAction(m, fmt.Sprintf("select %d", m.issueCursor))
 }
 
 func MoveCursorLeft(m *model) {
@@ -278,10 +290,10 @@ func MoveIssueCursorDown(m *model) {
 
 func toggleCurrentView(m *model) {
 	switch m.roomView {
-	case CurrentIssueView:
-		m.roomView = IssuesListView
-	case IssuesListView:
-		m.roomView = CurrentIssueView
+	case states.ActiveIssueView:
+		m.roomView = states.IssuesListView
+	case states.IssuesListView:
+		m.roomView = states.ActiveIssueView
 	}
 }
 

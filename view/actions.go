@@ -9,6 +9,7 @@ import (
 	"strings"
 	"waku-poker-planning/game"
 	"waku-poker-planning/protocol"
+	"waku-poker-planning/view/commands"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
 )
@@ -107,12 +108,12 @@ func runAddAction(m *model, args []string) tea.Cmd {
 
 func runNewAction(m *model, args []string) tea.Cmd {
 	m.state = states.CreatingRoom
-	return createNewRoom(m.app)
+	return commands.CreateNewRoom(m.app)
 }
 
 func runJoinAction(m *model, args []string) tea.Cmd {
 	m.state = states.JoiningRoom
-	return joinRoom(args[0], m.app)
+	return commands.JoinRoom(args[0], m.app)
 }
 
 func runRevealAction(m *model, args []string) tea.Cmd {

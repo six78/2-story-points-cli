@@ -29,3 +29,7 @@ func NewErrorMessage(err error) ErrorMessage {
 type PlayerIDMessage struct {
 	PlayerID protocol.PlayerID
 }
+
+type RoomViewChange struct {
+	RoomView states.RoomView
+}

@@ -60,9 +60,9 @@ func (m model) renderRoom() string {
 
 func (m model) renderRoomView() string {
 	switch m.roomView {
-	case CurrentIssueView:
+	case states.ActiveIssueView:
 		return m.renderRoomCurrentIssueView()
-	case IssuesListView:
+	case states.IssuesListView:
 		return renderIssuesListView(&m)
 	default:
 		return fmt.Sprintf("unknown view: %d", m.roomView)
@@ -92,18 +92,7 @@ func (m model) renderActionInput() string {
 	if m.commandMode {
 		return m.input.View()
 	}
-
-	//  current issue view:
-	//Use [←] and [→] arrows to select a card and press [Enter]
-	//[Tab] To switch to issues list view
-	//[C] Switch to command mode  [Q] Leave room  [E] Exit  [H] Help
-
-	//  issues list:
-	//Use [↓] and [↑] arrows to select issue to deal and press [Enter]
-	//[Tab] To switch to room view
-	//[C] Switch to command mode  [Q] Leave room  [E] Exit  [H] Help
-
-	return "TBD: key shortcuts"
+	return m.shortcutsView.View()
 }
 
 func renderLogPath() string {

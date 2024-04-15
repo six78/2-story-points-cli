@@ -11,3 +11,10 @@ const (
 	JoiningRoom
 	InsideRoom
 )
+
+type RoomView int
+
+const (
+	ActiveIssueView RoomView = iota
+	IssuesListView
+)
