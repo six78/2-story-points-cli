@@ -3,6 +3,7 @@ package messages
 import (
 	"waku-poker-planning/protocol"
 	"waku-poker-planning/view/states"
+	"waku-poker-planning/waku"
 )
 
 type FatalErrorMessage struct {
@@ -32,4 +33,8 @@ type PlayerIDMessage struct {
 
 type RoomViewChange struct {
 	RoomView states.RoomView
+}
+
+type ConnectionStatus struct {
+	Status waku.ConnectionStatus
 }

@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"errors"
 	tea "github.com/charmbracelet/bubbletea"
 	"waku-poker-planning/app"
+	"waku-poker-planning/config"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
 )
@@ -22,17 +22,17 @@ func InitializeApp(a *app.App) tea.Cmd {
 	}
 }
 
-func WaitForWakuPeers(a *app.App) tea.Cmd {
-	return func() tea.Msg {
-		ok := a.WaitForPeersConnected()
-		if !ok {
-			return messages.FatalErrorMessage{
-				Err: errors.New("failed to connect to peers"),
-			}
-		}
-		return messages.AppStateMessage{FinishedState: states.WaitingForPeers}
-	}
-}
+//func WaitForWakuPeers(a *app.App) tea.Cmd {
+//	return func() tea.Msg {
+//		ok := a.WaitForPeersConnected()
+//		if !ok {
+//			return messages.FatalErrorMessage{
+//				Err: errors.New("failed to connect to peers"),
+//			}
+//		}
+//		return messages.AppStateMessage{FinishedState: states.WaitingForPeers}
+//	}
+//}
 
 func CreateNewRoom(a *app.App) tea.Cmd {
 	return func() tea.Msg {
@@ -81,5 +81,21 @@ func ToggleRoomView(currentRoomView states.RoomView) tea.Cmd {
 			nextRoomView = states.ActiveIssueView
 		}
 		return messages.RoomViewChange{RoomView: nextRoomView}
+	}
+}
+
+func WaitForConnectionStatus(app *app.App) tea.Cmd {
+	config.Logger.Debug("WaitForConnectionStatus")
+	return func() tea.Msg {
+		status, more, err := app.WaitForConnectionStatus()
+		if err != nil {
+			return messages.FatalErrorMessage{Err: err}
+		}
+		if !more {
+			return nil
+		}
+		return messages.ConnectionStatus{
+			Status: status,
+		}
 	}
 }

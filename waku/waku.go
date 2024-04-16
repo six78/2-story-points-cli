@@ -41,7 +41,16 @@ type Node struct {
 	roomCache            ContentTopicCache
 	stats                *Stats
 	lightMode            bool
+	statusSubscribers    []ConnectionStatusSubscription
 }
+
+type ConnectionStatus struct {
+	IsOnline   bool
+	HasHistory bool
+	PeersCount int
+}
+
+type ConnectionStatusSubscription chan ConnectionStatus
 
 func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 
@@ -93,6 +102,8 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 }
 
 func (n *Node) Start() error {
+	go n.watchConnectionStatus()
+
 	err := n.waku.Start(n.ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to start waku node")
@@ -111,9 +122,6 @@ func (n *Node) Start() error {
 			return errors.Wrap(err, "failed to discover nodes")
 		}
 	}
-
-	//go n.watchConnectionStatus()
-	//go n.receiveMessages(contentTopic)
 
 	return nil
 }
@@ -299,30 +307,48 @@ func (n *Node) publishWakuMessage(message *pb.WakuMessage) error {
 	return nil
 }
 
-func (n *Node) WaitForPeersConnected() bool {
-	if n.waku.PeerCount() > 0 {
-		return true
-	}
-	ctx, cancel := context.WithTimeout(n.ctx, 20*time.Second)
-	defer cancel()
+func (n *Node) watchConnectionStatus() {
 	for {
 		select {
-		case <-ctx.Done():
-			return false
+		case <-n.ctx.Done():
+			return
 		case connStatus, more := <-n.wakuConnectionStatus:
 			n.logger.Debug("waku connection status",
 				zap.Any("connStatus", connStatus),
 				zap.Bool("more", more),
 			)
 			if !more {
-				return false
+				return
 			}
-			if len(connStatus.Peers) >= 0 {
-				return true
-			}
+			n.notifyConnectionStatus(&connStatus)
 		}
 	}
 }
+
+//func (n *Node) WaitForPeersConnected() bool {
+//	if n.waku.PeerCount() > 0 {
+//		return true
+//	}
+//	ctx, cancel := context.WithTimeout(n.ctx, 20*time.Second)
+//	defer cancel()
+//	for {
+//		select {
+//		case <-ctx.Done():
+//			return false
+//		case connStatus, more := <-n.wakuConnectionStatus:
+//			n.logger.Debug("waku connection status",
+//				zap.Any("connStatus", connStatus),
+//				zap.Bool("more", more),
+//			)
+//			if !more {
+//				return false
+//			}
+//			if len(connStatus.Peers) >= 0 {
+//				return true
+//			}
+//		}
+//	}
+//}
 
 func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
 	contentTopic, err := n.roomCache.Get(room)
@@ -424,4 +450,22 @@ func decryptMessage(room *pp.Room, message *pb.WakuMessage) ([]byte, error) {
 
 func (n *Node) Stats() Stats {
 	return *n.stats
+}
+
+func (n *Node) SubscribeToConnectionStatus() ConnectionStatusSubscription {
+	channel := make(ConnectionStatusSubscription, 10)
+	n.statusSubscribers = append(n.statusSubscribers, channel)
+	return channel
+}
+
+func (n *Node) notifyConnectionStatus(s *node.ConnStatus) {
+	status := ConnectionStatus{
+		IsOnline:   s.IsOnline,
+		HasHistory: s.HasHistory,
+		PeersCount: len(s.Peers),
+	}
+
+	for _, subscriber := range n.statusSubscribers {
+		subscriber <- status
+	}
 }

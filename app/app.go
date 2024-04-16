@@ -18,7 +18,8 @@ type App struct {
 	ctx  context.Context
 	quit context.CancelFunc
 
-	gameStateSubscription game.StateSubscription
+	gameStateSubscription  game.StateSubscription
+	wakuStatusSubscription waku.ConnectionStatusSubscription
 }
 
 func NewApp() *App {
@@ -75,6 +76,7 @@ func (a *App) Initialize() error {
 	a.Game = game.NewGame(a.ctx, a.waku, playerID)
 	//a.Game.RenamePlayer(a.storage.GetPlayerName())
 	a.gameStateSubscription = a.Game.SubscribeToStateChanges()
+	a.wakuStatusSubscription = a.waku.SubscribeToConnectionStatus()
 
 	return nil
 }
@@ -89,14 +91,14 @@ func (a *App) Stop() {
 	a.quit()
 }
 
-func (a *App) WaitForPeersConnected() bool {
-	if a.waku == nil {
-		config.Logger.Error("waku node not created")
-		return false
-	}
-
-	return a.waku.WaitForPeersConnected()
-}
+//func (a *App) WaitForPeersConnected() bool {
+//	if a.waku == nil {
+//		config.Logger.Error("waku node not created")
+//		return false
+//	}
+//
+//	return a.waku.WaitForPeersConnected()
+//}
 
 func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 	if a.gameStateSubscription == nil {
@@ -109,6 +111,19 @@ func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 		a.gameStateSubscription = nil
 	}
 	return state, more, nil
+}
+
+func (a *App) WaitForConnectionStatus() (waku.ConnectionStatus, bool, error) {
+	if a.wakuStatusSubscription == nil {
+		config.Logger.Error("Waku connection status subscription not created")
+		return waku.ConnectionStatus{}, false, errors.New("Waku connection status subscription not created")
+	}
+
+	status, more := <-a.wakuStatusSubscription
+	if !more {
+		a.wakuStatusSubscription = nil
+	}
+	return status, more, nil
 }
 
 func (a *App) IsDealer() bool {

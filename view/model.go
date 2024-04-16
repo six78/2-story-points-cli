@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -16,8 +17,10 @@ import (
 	"waku-poker-planning/view/components/errorview"
 	"waku-poker-planning/view/components/playersview"
 	"waku-poker-planning/view/components/shortcutsview"
+	"waku-poker-planning/view/components/wakustatusview"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
+	"waku-poker-planning/waku"
 )
 
 type model struct {
@@ -34,19 +37,21 @@ type model struct {
 
 	// Actual nextState that will be rendered in components.
 	// This is filled from app during Update stage.
-	state      states.AppState
-	fatalError error
-	gameState  *protocol.State
-	roomID     string
+	state            states.AppState
+	fatalError       error
+	gameState        *protocol.State
+	roomID           string
+	connectionStatus waku.ConnectionStatus
 
 	// UI components state
-	commandMode   bool
-	deckCursor    int
-	roomView      states.RoomView
-	issueCursor   int
-	errorView     errorview.Model
-	playersView   playersview.Model
-	shortcutsView shortcutsview.Model
+	commandMode    bool
+	deckCursor     int
+	roomView       states.RoomView
+	issueCursor    int
+	errorView      errorview.Model
+	playersView    playersview.Model
+	shortcutsView  shortcutsview.Model
+	wakuStatusView wakustatusview.Model
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -67,11 +72,12 @@ func initialModel(a *app.App) model {
 		roomView:    states.ActiveIssueView,
 		issueCursor: 0,
 		// View components
-		input:         createTextInput(),
-		spinner:       createSpinner(),
-		errorView:     errorview.New(),
-		playersView:   playersview.New(),
-		shortcutsView: shortcutsview.New(),
+		input:          createTextInput(),
+		spinner:        createSpinner(),
+		errorView:      errorview.New(),
+		playersView:    playersview.New(),
+		shortcutsView:  shortcutsview.New(),
+		wakuStatusView: wakustatusview.New(),
 	}
 }
 
@@ -79,6 +85,7 @@ func createTextInput() textinput.Model {
 	input := textinput.New()
 	input.Placeholder = "Type a command..."
 	input.Prompt = "┃ "
+	input.Cursor.SetMode(cursor.CursorBlink)
 	return input
 }
 
@@ -95,6 +102,7 @@ func (m model) Init() tea.Cmd {
 		m.errorView.Init(),
 		m.playersView.Init(),
 		m.shortcutsView.Init(),
+		m.wakuStatusView.Init(),
 		commands.InitializeApp(m.app),
 	)
 }
@@ -125,6 +133,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.errorView = m.errorView.Update(msg)
 	m.playersView, playersCommand = m.playersView.Update(msg)
 	m.shortcutsView = m.shortcutsView.Update(m.roomView, m.commandMode)
+	m.wakuStatusView = m.wakuStatusView.Update(msg)
 
 	cmds := []tea.Cmd{
 		inputCommand,
@@ -159,11 +168,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.state = states.InputPlayerName
 			} else {
 				m.state = states.WaitingForPeers
-				appendCommand(commands.WaitForWakuPeers(m.app))
+				//appendCommand(commands.WaitForWakuPeers(m.app))
+				appendCommand(commands.WaitForConnectionStatus(m.app))
 			}
 		case states.InputPlayerName:
 			m.state = states.WaitingForPeers
-			appendCommand(commands.WaitForWakuPeers(m.app))
+			//appendCommand(commands.WaitForWakuPeers(m.app))
 		case states.WaitingForPeers:
 			m.state = states.InsideRoom
 			if config.InitialAction() != "" {
@@ -191,6 +201,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				zap.Error(msg.Err),
 			)
 		}
+	case messages.ConnectionStatus:
+		m.connectionStatus = msg.Status
+		if m.state == states.WaitingForPeers && m.connectionStatus.PeersCount > 0 {
+			appendMessage(messages.AppStateMessage{
+				FinishedState: states.WaitingForPeers,
+			})
+		}
+		appendCommand(commands.WaitForConnectionStatus(m.app))
 
 	case messages.GameStateMessage:
 		m.gameState = msg.State
@@ -258,7 +276,9 @@ func (m model) View() string {
 	if config.Debug() {
 		view += fmt.Sprintf("%s\n", renderLogPath())
 	}
+	view += m.wakuStatusView.View() + "\n\n"
 	view += m.renderAppState()
+
 	return lipgloss.JoinHorizontal(lipgloss.Left, "  ", view)
 }
 
