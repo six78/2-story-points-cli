@@ -91,15 +91,6 @@ func (a *App) Stop() {
 	a.quit()
 }
 
-//func (a *App) WaitForPeersConnected() bool {
-//	if a.waku == nil {
-//		config.Logger.Error("waku node not created")
-//		return false
-//	}
-//
-//	return a.waku.WaitForPeersConnected()
-//}
-
 func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 	if a.gameStateSubscription == nil {
 		config.Logger.Error("Game state subscription not created")

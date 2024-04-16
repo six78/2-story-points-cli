@@ -22,18 +22,6 @@ func InitializeApp(a *app.App) tea.Cmd {
 	}
 }
 
-//func WaitForWakuPeers(a *app.App) tea.Cmd {
-//	return func() tea.Msg {
-//		ok := a.WaitForPeersConnected()
-//		if !ok {
-//			return messages.FatalErrorMessage{
-//				Err: errors.New("failed to connect to peers"),
-//			}
-//		}
-//		return messages.AppStateMessage{FinishedState: states.WaitingForPeers}
-//	}
-//}
-
 func CreateNewRoom(a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		err := a.Game.CreateNewRoom()

@@ -325,31 +325,6 @@ func (n *Node) watchConnectionStatus() {
 	}
 }
 
-//func (n *Node) WaitForPeersConnected() bool {
-//	if n.waku.PeerCount() > 0 {
-//		return true
-//	}
-//	ctx, cancel := context.WithTimeout(n.ctx, 20*time.Second)
-//	defer cancel()
-//	for {
-//		select {
-//		case <-ctx.Done():
-//			return false
-//		case connStatus, more := <-n.wakuConnectionStatus:
-//			n.logger.Debug("waku connection status",
-//				zap.Any("connStatus", connStatus),
-//				zap.Bool("more", more),
-//			)
-//			if !more {
-//				return false
-//			}
-//			if len(connStatus.Peers) >= 0 {
-//				return true
-//			}
-//		}
-//	}
-//}
-
 func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
 	contentTopic, err := n.roomCache.Get(room)
 	if err != nil {
