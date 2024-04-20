@@ -3,13 +3,13 @@ package waku
 import (
 	"context"
 	"encoding/hex"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wp "github.com/waku-org/go-waku/waku/v2/payload"
-	"github.com/waku-org/go-waku/waku/v2/peerstore"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	wakuenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"github.com/waku-org/go-waku/waku/v2/protocol/lightpush"
@@ -29,6 +29,7 @@ var fleets = map[string]string{
 	"wakuv2.prod":  "enrtree://ANEDLO25QVUGJOUTQFRYKWX6P4Z4GKVESBMHML7DZ6YK4LGS5FC5O@prod.wakuv2.nodes.status.im",
 	"wakuv2.test":  "enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im",
 	"waku.sandbox": "enrtree://AIRVQ5DDA4FFWLRBCHJWUWOO6X6S4ZTZ5B667LQ6AJU6PEYDLRD5O@sandbox.waku.nodes.status.im",
+	"shards.test":  "enrtree://AMOJVZX4V6EXP7NTJPMAYJYST2QP6AJXYW76IU6VGJS7UVSNDYZG4@boot.test.shards.nodes.status.im",
 }
 
 type Node struct {
@@ -59,15 +60,27 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 		return nil, errors.Wrap(err, "failed to resolve TCP address")
 	}
 
+	discoveredNodes, err := discoverNodes(ctx, logger.Named("dnsdiscovery"))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to discover nodes")
+	}
+
 	wakuConnectionStatus := make(chan node.ConnStatus)
 
 	options := []node.WakuNodeOption{
 		node.WithLogger(logger.Named("waku")),
 		//node.WithDNS4Domain(),
-		//node.WithLogLevel(zap.DebugLevel),
+		node.WithLogLevel(zap.DebugLevel),
 		node.WithHostAddress(hostAddr),
-		//node.WithDiscoveryV5(60000, nodes, true),
 		node.WithConnectionStatusChannel(wakuConnectionStatus),
+	}
+
+	if config.WakuDiscV5() {
+		bootNodes := getBootNodes(discoveredNodes)
+		options = append(options,
+			node.WithDiscoveryV5(0, bootNodes, true),
+			node.WithPeerExchange(),
+		)
 	}
 
 	if config.WakuLightMode() {
@@ -85,7 +98,6 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 
 	wakuNode, err := node.New(options...)
 	if err != nil {
-
 		return nil, errors.Wrap(err, "failed to create waku node")
 	}
 
@@ -111,19 +123,35 @@ func (n *Node) Start() error {
 
 	n.logger.Info("waku started", zap.String("peerID", n.waku.ID()))
 
+	if config.WakuDiscV5() {
+		n.logger.Debug("starting discoveryV5")
+		err = n.waku.DiscV5().Start(context.Background())
+		if err != nil {
+			return errors.Wrap(err, "failed to start discoverV5")
+		}
+		n.logger.Debug("started discoveryV5")
+	}
+
 	if staticNodes := config.WakuStaticNodes(); len(staticNodes) != 0 {
 		err = n.addStaticNodes(staticNodes)
 		if err != nil {
 			return errors.Wrap(err, "failed to add static nodes")
 		}
-	} else {
-		err = n.discoverNodes()
-		if err != nil {
-			return errors.Wrap(err, "failed to discover nodes")
-		}
 	}
 
+	n.logger.Info("waku node started")
+
 	return nil
+}
+
+func getBootNodes(discoveredNodes []dnsdisc.DiscoveredNode) []*enode.Node {
+	var bootNodes []*enode.Node
+	for _, n := range discoveredNodes {
+		if n.ENR != nil {
+			bootNodes = append(bootNodes, n.ENR)
+		}
+	}
+	return bootNodes
 }
 
 func (n *Node) Stop() {
@@ -147,10 +175,10 @@ func parseEnrProtocols(v wakuenr.WakuEnrBitfield) string {
 	return strings.Join(out, ",")
 }
 
-func (n *Node) discoverNodes() error {
+func discoverNodes(ctx context.Context, logger *zap.Logger) ([]dnsdisc.DiscoveredNode, error) {
 	enrTree, ok := fleets[config.Fleet()]
 	if !ok {
-		return errors.Errorf("unknown fleet %s", config.Fleet())
+		return nil, errors.Errorf("unknown fleet %s", config.Fleet())
 	}
 
 	// Otherwise run discovery
@@ -159,31 +187,28 @@ func (n *Node) discoverNodes() error {
 		options = append(options, dnsdisc.WithNameserver(nameserver))
 	}
 
-	discoveredNodes, err := dnsdisc.RetrieveNodes(n.ctx, enrTree, options...)
+	discoveredNodes, err := dnsdisc.RetrieveNodes(ctx, enrTree, options...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	n.logger.Debug("discovered nodes", zap.String("entree", enrTree))
+	logger.Debug("discovered nodes", zap.String("entree", enrTree))
 
 	for _, d := range discoveredNodes {
 		enrField := new(wakuenr.WakuEnrBitfield)
 		err = d.ENR.Record().Load(enr.WithEntry(wakuenr.WakuENRField, &enrField))
 		if err != nil {
-			return errors.Wrap(err, "failed to load waku enr field")
+			return nil, errors.Wrap(err, "failed to load waku enr field")
 		}
-		n.logger.Debug("discover node",
+
+		logger.Debug("discover node",
 			zap.String("peerID", d.PeerID.String()),
 			zap.Any("peerInfo", d.PeerInfo),
 			zap.Any("protocols", parseEnrProtocols(*enrField)),
 		)
 	}
 
-	for _, d := range discoveredNodes {
-		n.waku.AddDiscoveredPeer(d.PeerID, d.PeerInfo.Addrs, peerstore.DNSDiscovery, nil, true)
-	}
-
-	return nil
+	return discoveredNodes, nil
 }
 
 func (n *Node) addStaticNodes(staticNodes []string) error {
@@ -314,8 +339,8 @@ func (n *Node) watchConnectionStatus() {
 			return
 		case connStatus, more := <-n.wakuConnectionStatus:
 			n.logger.Debug("waku connection status",
-				zap.Any("connStatus", connStatus),
-				zap.Bool("more", more),
+				zap.Bool("isOnline", connStatus.IsOnline),
+				zap.Any("peersCount", len(connStatus.Peers)),
 			)
 			if !more {
 				return

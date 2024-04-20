@@ -28,6 +28,7 @@ var debug bool
 var anonymous bool
 var wakuStaticNodes StaticWakuNodes
 var wakuLightMode bool
+var wakuDiscV5 bool
 
 var Logger *zap.Logger
 var LogFilePath string
@@ -91,15 +92,16 @@ func ParseArguments() {
 	flag.StringVar(&nameserver, "waku.nameserver", "", "Waku nameserver")
 	flag.Var(&wakuStaticNodes, "waku.staticnode", "Waku static node multiaddress")
 	flag.BoolVar(&wakuLightMode, "waku.lightmode", false, "Waku lightpush/filter mode")
+	flag.BoolVar(&wakuDiscV5, "waku.discv5", false, "Enable DiscV5 discovery")
 	flag.Parse()
 
-	// NOTE: wakuv2.test ENRtree returns invalid URLs, define static nodes
-	if fleet == "wakuv2.test" {
-		fleet = ""
-		wakuStaticNodes = append(wakuStaticNodes, "/dns4/node-01.do-ams3.wakuv2.test.status.im/tcp/30303/p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ")
-		wakuStaticNodes = append(wakuStaticNodes, "/dns4/node-01.gc-us-central1-a.wakuv2.test.status.im/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS")
-		wakuStaticNodes = append(wakuStaticNodes, "/dns4/node-01.ac-cn-hongkong-c.wakuv2.test.status.im/tcp/8000/wss/p2p/16Uiu2HAkvWiyFsgRhuJEb9JfjYxEkoHLgnUQmr1N5mKWnYjxYRVm")
-	}
+	//// NOTE: wakuv2.test ENRtree returns invalid URLs, define static nodes
+	//if fleet == "wakuv2.test" {
+	//	fleet = ""
+	//	wakuStaticNodes = append(wakuStaticNodes, "/dns4/node-01.do-ams3.wakuv2.test.status.im/tcp/30303/p2p/16Uiu2HAmPLe7Mzm8TsYUubgCAW1aJoeFScxrLj8ppHFivPo97bUZ")
+	//	wakuStaticNodes = append(wakuStaticNodes, "/dns4/node-01.gc-us-central1-a.wakuv2.test.status.im/tcp/30303/p2p/16Uiu2HAmJb2e28qLXxT5kZxVUUoJt72EMzNGXB47Rxx5hw3q4YjS")
+	//	wakuStaticNodes = append(wakuStaticNodes, "/dns4/node-01.ac-cn-hongkong-c.wakuv2.test.status.im/tcp/8000/wss/p2p/16Uiu2HAkvWiyFsgRhuJEb9JfjYxEkoHLgnUQmr1N5mKWnYjxYRVm")
+	//}
 
 	initialAction = strings.Join(flag.Args(), " ")
 }
@@ -138,4 +140,8 @@ func WakuStaticNodes() []string {
 
 func WakuLightMode() bool {
 	return wakuLightMode
+}
+
+func WakuDiscV5() bool {
+	return wakuDiscV5
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -72,7 +71,7 @@ func initialModel(a *app.App) model {
 		roomView:    states.ActiveIssueView,
 		issueCursor: 0,
 		// View components
-		input:          createTextInput(),
+		input:          createTextInput(a.IsDealer()),
 		spinner:        createSpinner(),
 		errorView:      errorview.New(),
 		playersView:    playersview.New(),
@@ -81,11 +80,15 @@ func initialModel(a *app.App) model {
 	}
 }
 
-func createTextInput() textinput.Model {
+func createTextInput(focus bool) textinput.Model {
 	input := textinput.New()
 	input.Placeholder = "Type a command..."
 	input.Prompt = "┃ "
 	input.Cursor.SetMode(cursor.CursorBlink)
+	input.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#7D56F4"))
+	if focus {
+		input.Focus()
+	}
 	return input
 }
 
@@ -96,15 +99,18 @@ func createSpinner() spinner.Model {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(
-		textarea.Blink,
+	cmds := []tea.Cmd{
 		m.spinner.Tick,
 		m.errorView.Init(),
 		m.playersView.Init(),
 		m.shortcutsView.Init(),
 		m.wakuStatusView.Init(),
 		commands.InitializeApp(m.app),
-	)
+	}
+	//if m.app.IsDealer() {
+	cmds = append(cmds, textinput.Blink)
+	//}
+	return tea.Batch(cmds...)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -114,32 +120,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		playersCommand tea.Cmd
 	)
 
-	previousState := m.state
-
-	if m.commandMode || m.roomID == "" || m.state == states.InputPlayerName {
-		m.input.Focus()
-	} else {
-		m.input.Blur()
-	}
-
 	// TODO: Rendering could be cached inside components in most cases.
 	//		 This will require to only call Update when needed (because the object is copied).
 	//		 On Update() we would set `cache.valid = false`
 	//		 and then in View() the string could be cached and set `cache.valid = true`.
 	//		 Look shortcutsview for example.
-	m.commandMode = m.app.IsDealer()
-	m.input, inputCommand = m.input.Update(msg)
-	m.spinner, spinnerCommand = m.spinner.Update(msg)
-	m.errorView = m.errorView.Update(msg)
-	m.playersView, playersCommand = m.playersView.Update(msg)
-	m.shortcutsView = m.shortcutsView.Update(m.roomView, m.commandMode)
-	m.wakuStatusView = m.wakuStatusView.Update(msg)
 
-	cmds := []tea.Cmd{
-		inputCommand,
-		spinnerCommand,
-		playersCommand,
-	}
+	var cmds []tea.Cmd
 
 	appendCommand := func(command tea.Cmd) {
 		cmds = append(cmds, command)
@@ -150,6 +137,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return injectedMessage
 		})
 	}
+
+	m.commandMode = m.app.IsDealer()
+	previousState := m.state
 
 	switch msg := msg.(type) {
 
@@ -166,6 +156,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Determine next state
 			if m.app.Game.Player().Name == "" {
 				m.state = states.InputPlayerName
+				cmd := m.input.Focus()
+				appendCommand(cmd)
 			} else {
 				m.state = states.WaitingForPeers
 				//appendCommand(commands.WaitForWakuPeers(m.app))
@@ -174,6 +166,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case states.InputPlayerName:
 			m.state = states.WaitingForPeers
 			//appendCommand(commands.WaitForWakuPeers(m.app))
+			appendCommand(commands.WaitForConnectionStatus(m.app))
+
+			if m.commandMode {
+				cmd := m.input.Focus()
+				appendCommand(cmd)
+			} else {
+				m.input.Blur()
+			}
+
 		case states.WaitingForPeers:
 			m.state = states.InsideRoom
 			if config.InitialAction() != "" {
@@ -255,6 +256,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	if m.state == states.WaitingForPeers && m.connectionStatus.PeersCount > 0 {
+		appendMessage(messages.AppStateMessage{
+			FinishedState: states.WaitingForPeers,
+		})
+	}
+
+	m.input, inputCommand = m.input.Update(msg)
+	m.spinner, spinnerCommand = m.spinner.Update(msg)
+	m.errorView = m.errorView.Update(msg)
+	m.playersView, playersCommand = m.playersView.Update(msg)
+	m.shortcutsView = m.shortcutsView.Update(m.roomView, m.commandMode)
+	m.wakuStatusView = m.wakuStatusView.Update(msg)
+
+	if !m.input.Focused() {
+		appendCommand(m.input.Focus())
+	}
+
+	appendCommand(inputCommand)
+	appendCommand(spinnerCommand)
+	appendCommand(playersCommand)
+
 	if m.state != previousState {
 		switch m.state {
 		case states.InsideRoom:
@@ -283,6 +305,9 @@ func (m model) View() string {
 }
 
 func VoteOnCursor(m *model) tea.Cmd {
+	if m.gameState == nil {
+		return nil
+	}
 	// TODO: Instead of imitating action, return a ready-to-go tea.Cmd
 	return ProcessAction(m, fmt.Sprintf("vote %s", m.gameState.Deck[m.deckCursor]))
 }
@@ -297,6 +322,9 @@ func MoveCursorLeft(m *model) {
 }
 
 func MoveCursorRight(m *model) {
+	if m.gameState == nil {
+		return
+	}
 	m.deckCursor = int(math.Min(float64(m.deckCursor+1), float64(len(m.gameState.Deck)-1)))
 }
 
@@ -305,6 +333,9 @@ func MoveIssueCursorUp(m *model) {
 }
 
 func MoveIssueCursorDown(m *model) {
+	if m.gameState == nil {
+		return
+	}
 	m.issueCursor = int(math.Min(float64(m.issueCursor+1), float64(len(m.gameState.Issues)-1)))
 }
 

@@ -47,15 +47,10 @@ func (m model) renderPlayerNameInput() string {
 
 func (m model) renderGame() string {
 	return lipgloss.JoinVertical(lipgloss.Top,
-		m.renderRoom(),
+		fmt.Sprintf("Room: %s", m.roomID),
+		m.renderRoomView(),
 		m.renderActionInput(),
 		m.errorView.View())
-}
-
-func (m model) renderRoom() string {
-	return fmt.Sprintf("%s\n%s",
-		fmt.Sprintf("Room: %s", m.roomID),
-		m.renderRoomView())
 }
 
 func (m model) renderRoomView() string {
@@ -71,7 +66,7 @@ func (m model) renderRoomView() string {
 
 func (m model) renderRoomCurrentIssueView() string {
 	if m.roomID == "" {
-		return " Join a room or create a new one ..."
+		return " Join a room or create a new one ...\n" + m.input.View()
 	}
 
 	if m.gameState == nil {
