@@ -18,15 +18,15 @@ func InitializeApp(a *app.App) tea.Cmd {
 		if err != nil {
 			return messages.FatalErrorMessage{Err: err}
 		}
-		return messages.AppStateMessage{FinishedState: states.Initializing}
+		return messages.AppStateFinishedMessage{State: states.Initializing}
 	}
 }
 
 func CreateNewRoom(a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		err := a.Game.CreateNewRoom()
-		return messages.AppStateMessage{
-			FinishedState: states.CreatingRoom,
+		return messages.AppStateFinishedMessage{
+			State: states.CreatingRoom,
 			ErrorMessage: messages.ErrorMessage{
 				Err: err,
 			},
@@ -37,8 +37,8 @@ func CreateNewRoom(a *app.App) tea.Cmd {
 func JoinRoom(roomID string, a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		err := a.Game.JoinRoom(roomID)
-		return messages.AppStateMessage{
-			FinishedState: states.JoiningRoom,
+		return messages.AppStateFinishedMessage{
+			State: states.JoiningRoom,
 			ErrorMessage: messages.ErrorMessage{
 				Err: err,
 			},

@@ -10,9 +10,13 @@ type FatalErrorMessage struct {
 	Err error
 }
 
-type AppStateMessage struct {
+type AppStateFinishedMessage struct {
 	ErrorMessage
-	FinishedState states.AppState
+	State states.AppState
+}
+
+type AppStateMessage struct {
+	State states.AppState
 }
 
 type GameStateMessage struct {

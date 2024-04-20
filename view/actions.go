@@ -47,7 +47,7 @@ var actions = map[Action]actionFunc{
 func processPlayerNameInput(m *model, playerName string) tea.Cmd {
 	return func() tea.Msg {
 		m.app.Game.RenamePlayer(playerName)
-		return messages.AppStateMessage{FinishedState: states.InputPlayerName}
+		return messages.AppStateFinishedMessage{State: states.InputPlayerName}
 	}
 }
 

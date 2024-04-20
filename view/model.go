@@ -138,16 +138,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		})
 	}
 
+	switchToState := func(state states.AppState) {
+		m.state = state
+		appendMessage(messages.AppStateMessage{State: state})
+	}
+
 	m.commandMode = m.app.IsDealer()
-	previousState := m.state
 
 	switch msg := msg.(type) {
 
 	case messages.FatalErrorMessage:
 		m.fatalError = msg.Err
 
-	case messages.AppStateMessage:
-		switch msg.FinishedState {
+	case messages.AppStateFinishedMessage:
+		switch msg.State {
 		case states.Initializing:
 			// Notify PlayerID generated
 			appendMessage(messages.PlayerIDMessage{
@@ -155,19 +159,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 			// Determine next state
 			if m.app.Game.Player().Name == "" {
-				m.state = states.InputPlayerName
+				switchToState(states.InputPlayerName)
 				cmd := m.input.Focus()
 				appendCommand(cmd)
 			} else {
-				m.state = states.WaitingForPeers
-				//appendCommand(commands.WaitForWakuPeers(m.app))
-				appendCommand(commands.WaitForConnectionStatus(m.app))
+				switchToState(states.WaitingForPeers)
 			}
-		case states.InputPlayerName:
-			m.state = states.WaitingForPeers
-			//appendCommand(commands.WaitForWakuPeers(m.app))
+			// Subscribe to connection status when app initialized
 			appendCommand(commands.WaitForConnectionStatus(m.app))
+		case states.InputPlayerName:
+			switchToState(states.WaitingForPeers)
 
+			// Update input state
 			if m.commandMode {
 				cmd := m.input.Focus()
 				appendCommand(cmd)
@@ -176,7 +179,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case states.WaitingForPeers:
-			m.state = states.InsideRoom
+			switchToState(states.InsideRoom)
 			if config.InitialAction() != "" {
 				m.input.SetValue(config.InitialAction())
 				cmd := ProcessInput(&m)
@@ -185,7 +188,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case states.InsideRoom:
 			break
 		case states.CreatingRoom, states.JoiningRoom:
-			m.state = states.InsideRoom
+			switchToState(states.InsideRoom)
 			m.roomID = m.app.Game.RoomID()
 			m.gameState = m.app.GameState()
 
@@ -202,11 +205,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				zap.Error(msg.Err),
 			)
 		}
+	case messages.AppStateMessage:
+		// Immediately skip to next state if peers already connected
+		if m.state == states.WaitingForPeers && m.connectionStatus.PeersCount > 0 {
+			appendMessage(messages.AppStateFinishedMessage{
+				State: states.WaitingForPeers,
+			})
+		}
+		// Update input placeholder
+		switch m.state {
+		case states.InsideRoom:
+			m.input.Placeholder = "Type a command..."
+		case states.InputPlayerName:
+			m.input.Placeholder = "Type your name..."
+		default:
+		}
+
 	case messages.ConnectionStatus:
 		m.connectionStatus = msg.Status
 		if m.state == states.WaitingForPeers && m.connectionStatus.PeersCount > 0 {
-			appendMessage(messages.AppStateMessage{
-				FinishedState: states.WaitingForPeers,
+			appendMessage(messages.AppStateFinishedMessage{
+				State: states.WaitingForPeers,
 			})
 		}
 		appendCommand(commands.WaitForConnectionStatus(m.app))
@@ -256,12 +275,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	if m.state == states.WaitingForPeers && m.connectionStatus.PeersCount > 0 {
-		appendMessage(messages.AppStateMessage{
-			FinishedState: states.WaitingForPeers,
-		})
-	}
-
 	m.input, inputCommand = m.input.Update(msg)
 	m.spinner, spinnerCommand = m.spinner.Update(msg)
 	m.errorView = m.errorView.Update(msg)
@@ -276,15 +289,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	appendCommand(inputCommand)
 	appendCommand(spinnerCommand)
 	appendCommand(playersCommand)
-
-	if m.state != previousState {
-		switch m.state {
-		case states.InsideRoom:
-			m.input.Placeholder = "Type a command..."
-		case states.InputPlayerName:
-			m.input.Placeholder = "Type your name..."
-		}
-	}
 
 	return m, tea.Batch(cmds...)
 }
