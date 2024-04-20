@@ -5,7 +5,7 @@ import "github.com/charmbracelet/bubbles/key"
 type KeyMap struct {
 	// Common
 	ToggleView  key.Binding
-	CommandMode key.Binding
+	ToggleInput key.Binding
 	LeaveRoom   key.Binding
 	// Issues list
 	NextIssue     key.Binding
@@ -23,9 +23,9 @@ var DefaultKeyMap = KeyMap{
 		key.WithKeys("tab"),
 		key.WithHelp("Tab", "Toggle room view"),
 	),
-	CommandMode: key.NewBinding(
-		key.WithKeys("c"),
-		key.WithHelp("C", "Switch to command mode"),
+	ToggleInput: key.NewBinding(
+		key.WithKeys("shift+tab"),
+		key.WithHelp("Shift+Tab", "Toggle input mode"),
 	),
 	LeaveRoom: key.NewBinding(
 		key.WithKeys("q"),

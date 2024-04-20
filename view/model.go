@@ -16,6 +16,7 @@ import (
 	"waku-poker-planning/view/components/errorview"
 	"waku-poker-planning/view/components/playersview"
 	"waku-poker-planning/view/components/shortcutsview"
+	"waku-poker-planning/view/components/userinput"
 	"waku-poker-planning/view/components/wakustatusview"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
@@ -54,7 +55,7 @@ type model struct {
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
-	input   textinput.Model
+	input   userinput.Model
 	spinner spinner.Model
 }
 
@@ -66,12 +67,12 @@ func initialModel(a *app.App) model {
 		gameState: nil,
 		roomID:    "",
 		// UI components state
-		commandMode: a.IsDealer(),
+		commandMode: false,
 		deckCursor:  0,
 		roomView:    states.ActiveIssueView,
 		issueCursor: 0,
 		// View components
-		input:          createTextInput(a.IsDealer()),
+		input:          userinput.New(false),
 		spinner:        createSpinner(),
 		errorView:      errorview.New(),
 		playersView:    playersview.New(),
@@ -99,18 +100,15 @@ func createSpinner() spinner.Model {
 }
 
 func (m model) Init() tea.Cmd {
-	cmds := []tea.Cmd{
+	return tea.Batch(
+		m.input.Init(),
 		m.spinner.Tick,
 		m.errorView.Init(),
 		m.playersView.Init(),
 		m.shortcutsView.Init(),
 		m.wakuStatusView.Init(),
 		commands.InitializeApp(m.app),
-	}
-	//if m.app.IsDealer() {
-	cmds = append(cmds, textinput.Blink)
-	//}
-	return tea.Batch(cmds...)
+	)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -143,8 +141,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		appendMessage(messages.AppStateMessage{State: state})
 	}
 
-	m.commandMode = m.app.IsDealer()
-
 	switch msg := msg.(type) {
 
 	case messages.FatalErrorMessage:
@@ -160,8 +156,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Determine next state
 			if m.app.Game.Player().Name == "" {
 				switchToState(states.InputPlayerName)
-				cmd := m.input.Focus()
-				appendCommand(cmd)
 			} else {
 				switchToState(states.WaitingForPeers)
 			}
@@ -169,14 +163,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			appendCommand(commands.WaitForConnectionStatus(m.app))
 		case states.InputPlayerName:
 			switchToState(states.WaitingForPeers)
-
-			// Update input state
-			if m.commandMode {
-				cmd := m.input.Focus()
-				appendCommand(cmd)
-			} else {
-				m.input.Blur()
-			}
 
 		case states.WaitingForPeers:
 			switchToState(states.InsideRoom)
@@ -212,14 +198,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				State: states.WaitingForPeers,
 			})
 		}
-		// Update input placeholder
-		switch m.state {
-		case states.InsideRoom:
-			m.input.Placeholder = "Type a command..."
-		case states.InputPlayerName:
-			m.input.Placeholder = "Type your name..."
-		default:
-		}
 
 	case messages.ConnectionStatus:
 		m.connectionStatus = msg.Status
@@ -233,6 +211,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.GameStateMessage:
 		m.gameState = msg.State
 		appendCommand(commands.WaitForGameState(m.app))
+
+	case messages.CommandModeChange:
+		m.commandMode = msg.CommandMode
 
 	case tea.KeyMsg:
 		switch msg.Type {
@@ -270,8 +251,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				MoveIssueCursorDown(&m)
 			}
 		case tea.KeyTab:
-			//appendCommand(cmds.ToggleRoomView(m.roomView))
+			config.Logger.Debug("<<< tab")
 			toggleCurrentView(&m)
+
+		case tea.KeyShiftTab:
+			config.Logger.Debug("<<< shift+tab")
+			appendMessage(messages.CommandModeChange{
+				CommandMode: !m.commandMode,
+			})
 		}
 	}
 
@@ -281,10 +268,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.playersView, playersCommand = m.playersView.Update(msg)
 	m.shortcutsView = m.shortcutsView.Update(m.roomView, m.commandMode)
 	m.wakuStatusView = m.wakuStatusView.Update(msg)
-
-	if !m.input.Focused() {
-		appendCommand(m.input.Focus())
-	}
 
 	appendCommand(inputCommand)
 	appendCommand(spinnerCommand)

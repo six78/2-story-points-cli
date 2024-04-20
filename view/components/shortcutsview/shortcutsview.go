@@ -64,20 +64,21 @@ func (m Model) View() string {
 	row2 := key(keys.ToggleView)
 	switch m.roomView {
 	case states.ActiveIssueView:
-		row2 += text(" To switch to issues list view")
+		row2 += text(" Switch to issues list view")
 	case states.IssuesListView:
 		row2 += text(" To switch to room view")
 	default:
-		row2 += text(" Toggle view")
+		row2 += text(" Switch to ")
+	}
+
+	row2 += separator + key(keys.ToggleInput)
+	if m.commandMode {
+		row2 += text(" Switch to shortcuts mode")
+	} else {
+		row2 += text(" Switch to commands mode")
 	}
 
 	// TODO: Uncomment when implemented
-	//row3 := key(keys.CommandMode)
-	//if m.commandMode {
-	//	row3 += text(" Switch to manual mode")
-	//} else {
-	//	row3 += text(" Switch to command mode")
-	//}
 	//row3 += separator + key(keys.LeaveRoom) + text(" Leave room")
 
 	return lipgloss.JoinVertical(lipgloss.Top, row1, row2)

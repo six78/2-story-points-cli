@@ -60,9 +60,12 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 		return nil, errors.Wrap(err, "failed to resolve TCP address")
 	}
 
-	discoveredNodes, err := discoverNodes(ctx, logger.Named("dnsdiscovery"))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to discover nodes")
+	var discoveredNodes []dnsdisc.DiscoveredNode
+	if config.WakuDnsDiscovery() {
+		discoveredNodes, err = discoverNodes(ctx, logger.Named("dnsdiscovery"))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to discover nodes")
+		}
 	}
 
 	wakuConnectionStatus := make(chan node.ConnStatus)

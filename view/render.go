@@ -66,7 +66,7 @@ func (m model) renderRoomView() string {
 
 func (m model) renderRoomCurrentIssueView() string {
 	if m.roomID == "" {
-		return " Join a room or create a new one ...\n" + m.input.View()
+		return " Join a room or create a new one ...\n"
 	}
 
 	if m.gameState == nil {

@@ -29,6 +29,7 @@ var anonymous bool
 var wakuStaticNodes StaticWakuNodes
 var wakuLightMode bool
 var wakuDiscV5 bool
+var wakuDnsDiscovery bool
 
 var Logger *zap.Logger
 var LogFilePath string
@@ -93,6 +94,7 @@ func ParseArguments() {
 	flag.Var(&wakuStaticNodes, "waku.staticnode", "Waku static node multiaddress")
 	flag.BoolVar(&wakuLightMode, "waku.lightmode", false, "Waku lightpush/filter mode")
 	flag.BoolVar(&wakuDiscV5, "waku.discv5", false, "Enable DiscV5 discovery")
+	flag.BoolVar(&wakuDnsDiscovery, "waku.dnsdiscovery", true, "Enable DNS discovery")
 	flag.Parse()
 
 	//// NOTE: wakuv2.test ENRtree returns invalid URLs, define static nodes
@@ -144,4 +146,8 @@ func WakuLightMode() bool {
 
 func WakuDiscV5() bool {
 	return wakuDiscV5
+}
+
+func WakuDnsDiscovery() bool {
+	return wakuDnsDiscovery
 }

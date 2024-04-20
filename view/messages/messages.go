@@ -42,3 +42,7 @@ type RoomViewChange struct {
 type ConnectionStatus struct {
 	Status waku.ConnectionStatus
 }
+
+type CommandModeChange struct {
+	CommandMode bool
+}
