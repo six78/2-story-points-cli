@@ -40,17 +40,31 @@ func (m model) renderAppState() string {
 }
 
 func (m model) renderPlayerNameInput() string {
-	return fmt.Sprintf(" \n\n%s\n%s",
+	return lipgloss.JoinVertical(
+		lipgloss.Top,
 		m.input.View(),
-		m.errorView.View())
+		m.errorView.View(),
+	)
 }
 
 func (m model) renderGame() string {
+	roomViewSeparator := ""
+	if m.roomID != "" {
+		roomViewSeparator = "\n"
+	}
 	return lipgloss.JoinVertical(lipgloss.Top,
-		fmt.Sprintf("Room: %s", m.roomID),
-		m.renderRoomView(),
+		m.wakuStatusView.View(),
+		m.renderRoomID(),
+		roomViewSeparator+m.renderRoomView(),
 		m.renderActionInput(),
 		m.errorView.View())
+}
+
+func (m model) renderRoomID() string {
+	if m.roomID == "" {
+		return "  Join a room or create a new one ..."
+	}
+	return "  Room: " + m.roomID
 }
 
 func (m model) renderRoomView() string {
@@ -66,11 +80,13 @@ func (m model) renderRoomView() string {
 
 func (m model) renderRoomCurrentIssueView() string {
 	if m.roomID == "" {
-		return " Join a room or create a new one ...\n"
+		return ""
 	}
 
 	if m.gameState == nil {
-		return m.spinner.View() + " Waiting for initial game state ..."
+		return fmt.Sprintf("\n%s Waiting for initial game state ...\n",
+			m.spinner.View(),
+		)
 	}
 
 	return fmt.Sprintf(`Issue:  %s
@@ -91,7 +107,6 @@ func (m model) renderActionInput() string {
 }
 
 func renderLogPath() string {
-	//path := config.LogFilePath
 	path := strings.Replace(config.LogFilePath, " ", "%20", -1)
 	return fmt.Sprintf("Log: file:///%s", path)
 }
@@ -148,6 +163,8 @@ func renderCard(value protocol.VoteValue, cursor bool, voted bool) string {
 		}
 		column = append(column, "  ^")
 		//card = lipgloss.JoinVertical(lipgloss.Top, []string{card, "  ^"}...)
+	} else {
+		column = append(column, "")
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Top, column...)

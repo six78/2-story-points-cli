@@ -283,9 +283,8 @@ func (m model) View() string {
 
 	view := "\n"
 	if config.Debug() {
-		view += fmt.Sprintf("%s\n", renderLogPath())
+		view += fmt.Sprintf("%s\n\n", renderLogPath())
 	}
-	view += m.wakuStatusView.View() + "\n\n"
 	view += m.renderAppState()
 
 	return lipgloss.JoinHorizontal(lipgloss.Left, "  ", view)

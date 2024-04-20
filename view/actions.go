@@ -112,8 +112,14 @@ func runNewAction(m *model, args []string) tea.Cmd {
 }
 
 func runJoinAction(m *model, args []string) tea.Cmd {
-	m.state = states.JoiningRoom
-	return commands.JoinRoom(args[0], m.app)
+	return func() tea.Msg {
+		m.state = states.JoiningRoom
+		if len(args) == 0 {
+			err := errors.New("no room id argument provided")
+			return messages.NewErrorMessage(err)
+		}
+		return commands.JoinRoom(args[0], m.app)()
+	}
 }
 
 func runRevealAction(m *model, args []string) tea.Cmd {
