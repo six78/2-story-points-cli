@@ -426,7 +426,9 @@ func (g *Game) Deal(input string) (protocol.IssueID, error) {
 }
 
 func (g *Game) CreateNewRoom() error {
-	g.LeaveRoom()
+	if g.room != nil {
+		return errors.New("exit current room to create a new one")
+	}
 
 	room, err := protocol.NewRoom()
 	if err != nil {
@@ -479,7 +481,9 @@ func (g *Game) JoinRoom(roomID string) error {
 		return errors.New("already in this room")
 	}
 
-	g.LeaveRoom()
+	if g.room != nil {
+		return errors.New("exit current room to create a new one")
+	}
 
 	if roomID == "" {
 		return errors.New("empty room ID")
@@ -612,11 +616,11 @@ func (g *Game) Finish(result protocol.VoteValue) error {
 	}
 
 	item.Result = &result
-	g.state.ActiveIssue = ""
+	g.state.ActiveIssue = g.state.Issues.GetNextIssueToDeal(g.state.ActiveIssue)
 	g.state.VotesRevealed = false
 	g.resetOurVote()
-
 	g.notifyChangedState(true)
+
 	return nil
 }
 

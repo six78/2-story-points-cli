@@ -264,25 +264,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				zap.String("roomID", m.roomID),
 				zap.Any("msg", msg),
 			)
-			if m.roomID == "" && key.Matches(msg, commands.DefaultKeyMap.NewRoom) {
-				appendCommand(runNewAction(&m, nil))
-			}
 			//case key.Matches(msg, commands.DefaultKeyMap.JoinRoom):
 			//	appendCommand(runJoinAction(&m, nil))
-			//if m.roomID == "" && key.Matches(msg, commands.DefaultKeyMap.PasteRoom) {
-			//	appendCommand(commands.JoinRoomFromClipboard(m.app))
-			//}
-			if m.roomID != "" && key.Matches(msg, commands.DefaultKeyMap.ExitRoom) {
-				appendCommand(runExitAction(&m, nil))
-			}
-			if m.roomID == "" && len(msg.String()) > 8 {
-				_, err := protocol.ParseRoomID(msg.String())
-				if err != nil {
-					err = errors.Wrap(err, "pasted text is not a valid room id")
-					appendMessage(messages.NewErrorMessage(err))
-					break
+
+			if m.roomID != "" {
+				switch {
+				case key.Matches(msg, commands.DefaultKeyMap.ExitRoom):
+					appendCommand(runExitAction(&m, nil))
+				case key.Matches(msg, commands.DefaultKeyMap.RevealVotes):
+					appendCommand(runRevealAction(&m, nil))
+				case key.Matches(msg, commands.DefaultKeyMap.FinishVote):
+					appendCommand(runFinishAction(&m, nil))
 				}
-				appendCommand(commands.JoinRoom(msg.String(), m.app))
+			} else {
+				switch {
+				case key.Matches(msg, commands.DefaultKeyMap.NewRoom):
+					appendCommand(runNewAction(&m, nil))
+				case len(msg.String()) > 8:
+					_, err := protocol.ParseRoomID(msg.String())
+					if err != nil {
+						err = errors.Wrap(err, "pasted text is not a valid room id")
+						appendMessage(messages.NewErrorMessage(err))
+						break
+					}
+					appendCommand(commands.JoinRoom(msg.String(), m.app))
+				}
 			}
 		}
 	}
