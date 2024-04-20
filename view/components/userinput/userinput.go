@@ -43,7 +43,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case messages.AppStateMessage:
 		switch msg.State {
-		case states.InsideRoom:
+		case states.Playing:
 			m.input.Placeholder = "Type a command..."
 		case states.InputPlayerName:
 			cmd = m.input.Focus()

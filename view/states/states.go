@@ -9,7 +9,7 @@ const (
 	WaitingForPeers
 	CreatingRoom
 	JoiningRoom
-	InsideRoom
+	Playing
 )
 
 type RoomView int

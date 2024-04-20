@@ -6,7 +6,6 @@ type KeyMap struct {
 	// Common
 	ToggleView  key.Binding
 	ToggleInput key.Binding
-	LeaveRoom   key.Binding
 	// Issues list
 	NextIssue     key.Binding
 	PreviousIssue key.Binding
@@ -15,6 +14,14 @@ type KeyMap struct {
 	NextCard     key.Binding
 	PreviousCard key.Binding
 	SelectCard   key.Binding
+	// Dealer controls
+	RevealVotes key.Binding
+	FinishVote  key.Binding
+	AddIssue    key.Binding
+	// Room controls
+	NewRoom  key.Binding
+	JoinRoom key.Binding
+	ExitRoom key.Binding
 }
 
 var DefaultKeyMap = KeyMap{
@@ -26,10 +33,6 @@ var DefaultKeyMap = KeyMap{
 	ToggleInput: key.NewBinding(
 		key.WithKeys("shift+tab"),
 		key.WithHelp("Shift+Tab", "Toggle input mode"),
-	),
-	LeaveRoom: key.NewBinding(
-		key.WithKeys("q"),
-		key.WithHelp("Q", "Leave room"),
 	),
 	// Issues list
 	NextIssue: key.NewBinding(
@@ -56,5 +59,26 @@ var DefaultKeyMap = KeyMap{
 	SelectCard: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("Enter", "Select card"),
+	),
+	// Dealer controls
+	RevealVotes: key.NewBinding(
+		key.WithKeys("r"),
+		key.WithHelp("R", "Reveal votes")),
+	FinishVote: key.NewBinding(
+		key.WithKeys("f"),
+		key.WithHelp("F", "Finish vote and deal next issue")),
+	AddIssue: key.NewBinding(
+		key.WithKeys("a"),
+		key.WithHelp("A", "Add issue")),
+	// Room join controls
+	NewRoom: key.NewBinding(
+		key.WithKeys("n"),
+		key.WithHelp("N", "Create a new room")),
+	JoinRoom: key.NewBinding(
+		key.WithKeys("j"),
+		key.WithHelp("J", "Join room")),
+	ExitRoom: key.NewBinding(
+		key.WithKeys("e"),
+		key.WithHelp("E", "Exit room"),
 	),
 }

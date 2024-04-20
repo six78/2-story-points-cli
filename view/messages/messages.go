@@ -46,3 +46,8 @@ type ConnectionStatus struct {
 type CommandModeChange struct {
 	CommandMode bool
 }
+
+type RoomChange struct {
+	RoomID   string
+	IsDealer bool
+}

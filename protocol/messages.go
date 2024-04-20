@@ -8,8 +8,9 @@ type PlayerID string
 type IssueID string
 
 type Player struct {
-	ID   PlayerID `json:"id"`
-	Name string   `json:"name"`
+	ID     PlayerID `json:"id"`
+	Name   string   `json:"name"`
+	Online bool     `json:"online"`
 }
 
 type Issue struct {
@@ -57,9 +58,10 @@ func (s *State) VoteState() VoteState {
 type MessageType string
 
 const (
-	MessageTypeState        MessageType = "__state"
-	MessageTypePlayerOnline MessageType = "__player_online"
-	MessageTypePlayerVote   MessageType = "__player_vote"
+	MessageTypeState         MessageType = "__state"
+	MessageTypePlayerOnline  MessageType = "__player_online"
+	MessageTypePlayerVote    MessageType = "__player_vote"
+	MessageTypePlayerOffline MessageType = "__player_left"
 )
 
 type Message struct {
@@ -73,6 +75,11 @@ type GameStateMessage struct {
 }
 
 type PlayerOnlineMessage struct {
+	Message
+	Player Player `json:"player,omitempty"`
+}
+
+type PlayerOfflineMessage struct {
 	Message
 	Player Player `json:"player,omitempty"`
 }

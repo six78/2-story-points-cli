@@ -18,7 +18,7 @@ type Game struct {
 	logger    *zap.Logger
 	ctx       context.Context
 	transport Transport
-	leaveRoom chan struct{}
+	exitRoom  chan struct{}
 	features  FeatureFlags
 
 	isDealer bool
@@ -37,7 +37,7 @@ func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerI
 		logger:    config.Logger.Named("game"),
 		ctx:       ctx,
 		transport: transport,
-		leaveRoom: nil,
+		exitRoom:  nil,
 		features:  defaultFeatureFlags(),
 		isDealer:  false,
 		player: &protocol.Player{
@@ -54,12 +54,17 @@ func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerI
 }
 
 func (g *Game) LeaveRoom() {
-	if g.leaveRoom != nil {
-		close(g.leaveRoom)
+	if g.exitRoom != nil {
+		close(g.exitRoom)
+	}
+
+	if g.room != nil {
+		g.publishUserOffline()
 	}
 
 	g.logger.Info("left room", zap.String("roomID", g.roomID.String()))
 
+	g.exitRoom = nil
 	g.isDealer = false
 	g.room = nil
 	g.roomID = protocol.NewRoomID("")
@@ -116,6 +121,9 @@ func (g *Game) processMessage(payload []byte) {
 		g.notifyChangedState(false)
 
 	case protocol.MessageTypePlayerOnline:
+		if !g.isDealer {
+			return
+		}
 		var playerOnline protocol.PlayerOnlineMessage
 		err := json.Unmarshal(payload, &playerOnline)
 		if err != nil {
@@ -123,16 +131,47 @@ func (g *Game) processMessage(payload []byte) {
 			return
 		}
 		g.logger.Info("player is online", zap.Any("player", playerOnline.Player))
-		if g.isDealer {
-			// TODO: Store player pointers in a map
-			playerSaved := slices.ContainsFunc(g.state.Players, func(player protocol.Player) bool {
-				return player.ID == playerOnline.Player.ID
-			})
-			if !playerSaved {
-				g.state.Players = append(g.state.Players, playerOnline.Player)
-				g.notifyChangedState(true)
-			}
+
+		// TODO: Store player pointers in a map
+
+		index := g.playerIndex(playerOnline.Player.ID)
+		if index < 0 {
+			playerOnline.Player.Online = true
+			g.state.Players = append(g.state.Players, playerOnline.Player)
+			g.notifyChangedState(true)
+			return
 		}
+
+		playerChanged := !g.state.Players[index].Online ||
+			g.state.Players[index].Name != playerOnline.Player.Name
+
+		if !playerChanged {
+			return
+		}
+
+		g.state.Players[index].Online = true
+		g.state.Players[index].Name = playerOnline.Player.Name
+		g.notifyChangedState(true)
+
+	case protocol.MessageTypePlayerOffline:
+		if !g.isDealer {
+			return
+		}
+		var playerOffline protocol.PlayerOfflineMessage
+		err := json.Unmarshal(payload, &playerOffline)
+		if err != nil {
+			logger.Error("failed to unmarshal message", zap.Error(err))
+			return
+		}
+		g.logger.Info("player is offline", zap.Any("player", playerOffline.Player))
+
+		index := g.playerIndex(playerOffline.Player.ID)
+		if index < 0 {
+			return
+		}
+
+		g.state.Players[index].Online = false
+		g.notifyChangedState(true)
 
 	case protocol.MessageTypePlayerVote:
 		if !g.isDealer {
@@ -229,12 +268,12 @@ func (g *Game) notifyChangedState(publish bool) {
 }
 
 func (g *Game) publishOnlineState() {
-	g.PublishUserOnline(g.player)
+	g.publishUserOnline()
 	for {
 		select {
 		case <-time.After(config.OnlineMessagePeriod):
-			g.PublishUserOnline(g.player)
-		case <-g.leaveRoom:
+			g.publishUserOnline()
+		case <-g.exitRoom:
 			return
 		case <-g.ctx.Done():
 			return
@@ -248,7 +287,7 @@ func (g *Game) publishStatePeriodically() {
 		select {
 		case <-time.After(config.StateMessagePeriod):
 			g.notifyChangedState(true)
-		case <-g.leaveRoom:
+		case <-g.exitRoom:
 			g.logger.Debug("state publish loop finished: room left")
 			return
 		case <-g.ctx.Done():
@@ -267,7 +306,7 @@ func (g *Game) processIncomingMessages(sub chan []byte) {
 				return
 			}
 			g.processMessage(payload)
-		case <-g.leaveRoom:
+		case <-g.exitRoom:
 			return
 		case <-g.ctx.Done():
 			return
@@ -299,14 +338,25 @@ func (g *Game) publishMessage(message any) {
 	}
 }
 
-func (g *Game) PublishUserOnline(player *protocol.Player) {
+func (g *Game) publishUserOnline() {
 	g.logger.Debug("publishing online state")
 	g.publishMessage(protocol.PlayerOnlineMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypePlayerOnline,
 			Timestamp: g.timestamp(),
 		},
-		Player: *player,
+		Player: *g.player,
+	})
+}
+
+func (g *Game) publishUserOffline() {
+	g.logger.Debug("publishing offline state")
+	g.publishMessage(protocol.PlayerOfflineMessage{
+		Message: protocol.Message{
+			Type:      protocol.MessageTypePlayerOffline,
+			Timestamp: g.timestamp(),
+		},
+		Player: *g.player,
 	})
 }
 
@@ -388,6 +438,8 @@ func (g *Game) CreateNewRoom() error {
 		return errors.Wrap(err, "failed to marshal room room")
 	}
 
+	g.exitRoom = make(chan struct{})
+
 	sub, err := g.transport.SubscribeToMessages(room)
 	if err != nil {
 		return errors.Wrap(err, "failed to subscribe to messages")
@@ -415,7 +467,7 @@ func (g *Game) CreateNewRoom() error {
 	g.notifyChangedState(true)
 	go g.processIncomingMessages(sub)
 	go g.publishOnlineState()
-	//go g.publishStatePeriodically()
+	go g.publishStatePeriodically()
 
 	g.logger.Info("new room created", zap.String("roomID", roomID.String()))
 
@@ -438,7 +490,7 @@ func (g *Game) JoinRoom(roomID string) error {
 		return errors.Wrap(err, "failed to parse room ID")
 	}
 
-	g.leaveRoom = make(chan struct{})
+	g.exitRoom = make(chan struct{})
 
 	sub, err := g.transport.SubscribeToMessages(room)
 	if err != nil {
@@ -482,7 +534,7 @@ func (g *Game) MyVote() protocol.VoteResult {
 
 func (g *Game) RenamePlayer(name string) {
 	g.player.Name = name
-	g.PublishUserOnline(g.player)
+	g.publishUserOnline()
 }
 
 func (g *Game) Reveal() error {
@@ -633,4 +685,10 @@ func (g *Game) SelectIssue(index int) error {
 	g.notifyChangedState(true)
 
 	return nil
+}
+
+func (g *Game) playerIndex(playerID protocol.PlayerID) int {
+	return slices.IndexFunc(g.state.Players, func(player protocol.Player) bool {
+		return player.ID == playerID
+	})
 }

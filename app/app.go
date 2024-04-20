@@ -50,14 +50,16 @@ func (a *App) Initialize() error {
 		return errors.Wrap(err, "failed to create storage")
 	}
 
-	w, err := waku.NewNode(a.ctx, config.Logger)
+	a.waku, err = waku.NewNode(a.ctx, config.Logger)
 	if err != nil {
 		printedErr := errors.New("failed to create waku node")
 		config.Logger.Error(printedErr.Error(), zap.Error(err))
 		return printedErr
 	}
 
-	err = w.Start()
+	a.wakuStatusSubscription = a.waku.SubscribeToConnectionStatus()
+
+	err = a.waku.Start()
 	if err != nil {
 		printedErr := errors.New("failed to start waku node")
 		config.Logger.Error(printedErr.Error(), zap.Error(err))
@@ -72,11 +74,9 @@ func (a *App) Initialize() error {
 		}
 	}
 
-	a.waku = w
 	a.Game = game.NewGame(a.ctx, a.waku, playerID)
 	//a.Game.RenamePlayer(a.storage.GetPlayerName())
 	a.gameStateSubscription = a.Game.SubscribeToStateChanges()
-	a.wakuStatusSubscription = a.waku.SubscribeToConnectionStatus()
 
 	return nil
 }

@@ -2,9 +2,8 @@ package view
 
 import (
 	"fmt"
-	"github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"go.uber.org/zap"
@@ -81,18 +80,6 @@ func initialModel(a *app.App) model {
 	}
 }
 
-func createTextInput(focus bool) textinput.Model {
-	input := textinput.New()
-	input.Placeholder = "Type a command..."
-	input.Prompt = "┃ "
-	input.Cursor.SetMode(cursor.CursorBlink)
-	input.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#7D56F4"))
-	if focus {
-		input.Focus()
-	}
-	return input
-}
-
 func createSpinner() spinner.Model {
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
@@ -165,26 +152,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switchToState(states.WaitingForPeers)
 
 		case states.WaitingForPeers:
-			switchToState(states.InsideRoom)
+			switchToState(states.Playing)
 			if config.InitialAction() != "" {
 				m.input.SetValue(config.InitialAction())
 				cmd := ProcessInput(&m)
 				appendCommand(cmd)
 			}
-		case states.InsideRoom:
+		case states.Playing:
 			break
 		case states.CreatingRoom, states.JoiningRoom:
-			switchToState(states.InsideRoom)
-			m.roomID = m.app.Game.RoomID()
+			// TODO: Drop CreatingRoom and JoiningRoom and use messages.RoomChange instead
+			switchToState(states.Playing)
 			m.gameState = m.app.GameState()
+
+			appendMessage(messages.RoomChange{
+				RoomID:   m.app.Game.RoomID(),
+				IsDealer: m.app.Game.IsDealer(),
+			})
 
 			appendMessage(messages.ErrorMessage{
 				Err: msg.Err,
 			})
 
-			if m.roomID != "" {
-				appendCommand(commands.WaitForGameState(m.app))
-			}
+			appendCommand(commands.WaitForGameState(m.app))
 
 			config.Logger.Debug("room created or joined",
 				zap.String("roomID", m.roomID),
@@ -215,9 +205,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.CommandModeChange:
 		m.commandMode = msg.CommandMode
 
+	case messages.RoomChange:
+		m.roomID = msg.RoomID
+		config.Logger.Debug("room changed",
+			zap.String("roomID", msg.RoomID),
+			zap.Bool("isDealer", msg.IsDealer))
+
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC:
+			// TODO: publish offline message
 			return m, tea.Quit
 		case tea.KeyEnter:
 			var cmd tea.Cmd
@@ -260,13 +257,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				CommandMode: !m.commandMode,
 			})
 		}
+		if !m.input.Focused() {
+			if m.roomID == "" && key.Matches(msg, commands.DefaultKeyMap.NewRoom) {
+				appendCommand(runNewAction(&m, nil))
+				//case key.Matches(msg, commands.DefaultKeyMap.JoinRoom):
+				//	appendCommand(runJoinAction(&m, nil))
+			}
+			if m.roomID != "" && key.Matches(msg, commands.DefaultKeyMap.ExitRoom) {
+				appendCommand(runExitAction(&m, nil))
+			}
+		}
 	}
 
 	m.input, inputCommand = m.input.Update(msg)
 	m.spinner, spinnerCommand = m.spinner.Update(msg)
 	m.errorView = m.errorView.Update(msg)
 	m.playersView, playersCommand = m.playersView.Update(msg)
-	m.shortcutsView = m.shortcutsView.Update(m.roomView, m.commandMode)
+	m.shortcutsView = m.shortcutsView.Update(msg, m.roomView)
 	m.wakuStatusView = m.wakuStatusView.Update(msg)
 
 	appendCommand(inputCommand)

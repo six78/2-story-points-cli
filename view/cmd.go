@@ -27,7 +27,7 @@ func ProcessInput(m *model) tea.Cmd {
 		return processPlayerNameInput(m, m.input.Value())
 	}
 
-	if m.state == states.InsideRoom {
+	if m.state == states.Playing {
 		defer m.input.Reset()
 		return ProcessAction(m, m.input.Value())
 	}

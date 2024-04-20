@@ -28,7 +28,7 @@ func (m model) renderAppState() string {
 		return m.renderPlayerNameInput()
 	case states.WaitingForPeers:
 		return m.spinner.View() + " Connecting to Waku peers..."
-	case states.InsideRoom:
+	case states.Playing:
 		return m.renderGame()
 	case states.CreatingRoom:
 		return m.spinner.View() + " Creating room..."
@@ -209,6 +209,10 @@ func renderIssuesListView(m *model) string {
 		items = append(items, style.Render(item))
 	}
 
+	if len(items) == 0 {
+		items = append(items, "- No issues dealt yet")
+	}
+
 	fullBlock := lipgloss.JoinVertical(lipgloss.Top, items...)
-	return fmt.Sprintf("Issues:\n%s", fullBlock)
+	return fmt.Sprintf("Issues:\n%s\n", fullBlock)
 }

@@ -20,6 +20,7 @@ const (
 	Rename Action = "rename"
 	New    Action = "new"
 	Join   Action = "join"
+	Exit   Action = "exit"
 	Vote   Action = "vote"
 	Deal   Action = "deal"
 	Add    Action = "add"
@@ -38,6 +39,7 @@ var actions = map[Action]actionFunc{
 	Add:    runAddAction,
 	New:    runNewAction,
 	Join:   runJoinAction,
+	Exit:   runExitAction,
 	Reveal: runRevealAction,
 	Finish: runFinishAction,
 	Deck:   runDeckAction,
@@ -119,6 +121,16 @@ func runJoinAction(m *model, args []string) tea.Cmd {
 			return messages.NewErrorMessage(err)
 		}
 		return commands.JoinRoom(args[0], m.app)()
+	}
+}
+
+func runExitAction(m *model, args []string) tea.Cmd {
+	return func() tea.Msg {
+		m.app.Game.LeaveRoom()
+		return messages.RoomChange{
+			RoomID:   m.app.Game.RoomID(),
+			IsDealer: m.app.Game.IsDealer(),
+		}
 	}
 }
 

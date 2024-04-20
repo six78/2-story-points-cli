@@ -13,12 +13,14 @@ const textColor = lipgloss.Color("#FAFAFA")
 const borderColor = lipgloss.Color("#555555")
 
 var (
-	playerNameStyle = lipgloss.NewStyle().
-			Foreground(textColor).
-			PaddingLeft(1).
-			PaddingRight(1).
-			Align(lipgloss.Center)
-	myNameStyle = playerNameStyle.Copy().Bold(true)
+	onlinePlayerStyle = lipgloss.NewStyle().
+				Foreground(textColor).
+				PaddingLeft(1).
+				PaddingRight(1).
+				Align(lipgloss.Center)
+	offlinePlayerStyle = onlinePlayerStyle.Copy().
+				Foreground(borderColor)
+	myNameStyle = onlinePlayerStyle.Copy().Bold(true)
 	borderStyle = lipgloss.NewStyle().Foreground(borderColor)
 )
 
@@ -29,10 +31,11 @@ type PlayerVoteResult struct {
 }
 
 type Model struct {
-	votes        []playervoteview.Model
-	playerNames  []string
-	playerID     protocol.PlayerID
-	playerColumn int
+	votes         []playervoteview.Model
+	playerNames   []string
+	playersOnline []bool
+	playerID      protocol.PlayerID
+	playerColumn  int
 }
 
 func New() Model {
@@ -83,7 +86,10 @@ func (m Model) View() string {
 				if col == m.playerColumn {
 					return myNameStyle
 				}
-				return playerNameStyle
+				if m.playersOnline[col] {
+					return onlinePlayerStyle
+				}
+				return offlinePlayerStyle
 			default:
 				return m.votes[col].Style()
 			}
@@ -103,14 +109,19 @@ func handleNewState(m *Model, state *protocol.State) {
 	}
 
 	m.playerNames = make([]string, 0, len(state.Players))
+	m.playersOnline = make([]bool, 0, len(state.Players))
 	m.votes = make([]playervoteview.Model, 0, len(state.Players))
 
 	for i, player := range state.Players {
-		m.playerNames = append(m.playerNames, player.Name)
-		voteView := playervoteview.New(player.ID)
-		m.votes = append(m.votes, voteView)
+		playerName := player.Name
 		if player.ID == m.playerID {
 			m.playerColumn = i
+			playerName += " (You)"
 		}
+		m.playerNames = append(m.playerNames, playerName)
+		m.playersOnline = append(m.playersOnline, player.Online)
+		voteView := playervoteview.New(player.ID)
+		m.votes = append(m.votes, voteView)
+
 	}
 }

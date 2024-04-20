@@ -228,7 +228,7 @@ For example for a Fibbonacci deck
 ```shell
  To vote se [←] and [→] arrows to select a card and press [Enter]
  [Tab] To switch to issues list view
- [R] Reveal  [F] Reveal  [D] Deal next issue  [A] Add issue
+ [R] Reveal  [F] Finish and deal next issue  [A] Add issue
  [C] Switch to manual mode  [Q] Leave room  [E] Exit
 <last-command-error>
 ```

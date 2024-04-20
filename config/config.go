@@ -12,7 +12,7 @@ import (
 )
 
 const OnlineMessagePeriod = 5 * time.Second
-const StateMessagePeriod = 10 * time.Second
+const StateMessagePeriod = 30 * time.Second
 const logsDirectory = "logs"
 const SymmetricKeyLength = 16
 const EnableSymmetricEncryption = false
