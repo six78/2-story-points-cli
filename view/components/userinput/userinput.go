@@ -22,9 +22,9 @@ func New(commandMode bool) Model {
 	input.Prompt = "┃ "
 	input.Cursor.SetMode(cursor.CursorBlink)
 	input.Cursor.Style = style
-	//if commandMode {
-	input.Focus()
-	//}
+	if commandMode {
+		input.Focus()
+	}
 
 	return Model{
 		input:       input,

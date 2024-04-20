@@ -74,7 +74,12 @@ func (a *App) Initialize() error {
 		}
 	}
 
-	a.Game = game.NewGame(a.ctx, a.waku, playerID)
+	playerName := a.storage.PlayerName()
+	if config.PlayerName() != "" {
+		playerName = config.PlayerName()
+	}
+
+	a.Game = game.NewGame(a.ctx, a.waku, playerID, playerName)
 	//a.Game.RenamePlayer(a.storage.GetPlayerName())
 	a.gameStateSubscription = a.Game.SubscribeToStateChanges()
 
@@ -121,6 +126,10 @@ func (a *App) IsDealer() bool {
 	return a.Game != nil && a.Game.IsDealer()
 }
 
-func (a *App) GameRoomID() string {
-	return a.Game.RoomID()
+func (a *App) RenamePlayer(name string) error {
+	a.Game.RenamePlayer(name)
+	if config.Anonymous() {
+		return nil
+	}
+	return a.storage.SetPlayerName(name)
 }

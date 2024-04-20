@@ -249,11 +249,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				MoveIssueCursorDown(&m)
 			}
 		case tea.KeyTab:
-			config.Logger.Debug("<<< tab")
-			toggleCurrentView(&m)
+			if m.roomID != "" {
+				toggleCurrentView(&m)
+			}
 
 		case tea.KeyShiftTab:
-			config.Logger.Debug("<<< shift+tab")
 			appendMessage(messages.CommandModeChange{
 				CommandMode: !m.commandMode,
 			})

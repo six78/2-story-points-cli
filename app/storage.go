@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/google/uuid"
+	"encoding/json"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"sync"
@@ -12,14 +12,18 @@ import (
 	"github.com/shibukawa/configdir"
 )
 
-const playerFileName = "player.json"
-const dbFileName = "db.json"
+const playerStorageFileName = "player.json"
 
 type Storage struct {
-	playerID protocol.PlayerID
+	player playerStorage
 
 	configDirs configdir.ConfigDir
 	mutex      *sync.RWMutex
+}
+
+type playerStorage struct {
+	ID   protocol.PlayerID `json:"id"`
+	Name string            `json:"name"`
 }
 
 func NewStorage() (*Storage, error) {
@@ -31,53 +35,79 @@ func NewStorage() (*Storage, error) {
 }
 
 func (s *Storage) initialize() error {
-	var err error
-	s.playerID, err = s.readPlayerID()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	err := s.readPlayer()
 	config.Logger.Info("storage initialized",
-		zap.String("playerID", string(s.playerID)),
-		zap.String("configDir", s.configDirs.QueryFolderContainsFile(playerFileName).Path),
+		zap.Any("player", s.player),
+		zap.String("configDir", s.configDirs.QueryFolderContainsFile(playerStorageFileName).Path),
 	)
 	return err
 }
 
-func (s *Storage) readPlayerID() (protocol.PlayerID, error) {
-	folder := s.configDirs.QueryFolderContainsFile(playerFileName)
+func (s *Storage) readPlayer() error {
+	folder := s.configDirs.QueryFolderContainsFile(playerStorageFileName)
 	if folder == nil {
 		config.Logger.Info("no player UUID found, creating a new one")
 		return s.createPlayerID()
 	}
 
-	data, err := folder.ReadFile(playerFileName)
+	data, err := folder.ReadFile(playerStorageFileName)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to read config data")
+		return errors.Wrap(err, "failed to read player data")
 	}
 
-	playerUUID, err := uuid.ParseBytes(data)
+	err = json.Unmarshal(data, &s.player)
 	if err == nil {
-		return protocol.PlayerID(playerUUID.String()), nil
+		return nil
 	}
 
-	config.Logger.Error("failed to parse player UUID, creating a new one", zap.Error(err))
+	config.Logger.Error("failed to parse player storage, creating a new one", zap.Error(err))
 	return s.createPlayerID()
 }
 
-func (s *Storage) createPlayerID() (protocol.PlayerID, error) {
+func (s *Storage) createPlayerID() error {
 	playerUUID, err := game.GeneratePlayerID()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to generate player UUID")
+		return errors.Wrap(err, "failed to generate player id")
+	}
+
+	s.player.ID = playerUUID
+	s.player.Name = ""
+
+	return s.savePlayerStorage()
+}
+
+func (s *Storage) savePlayerStorage() error {
+	playerJson, err := json.Marshal(s.player)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal player storage")
 	}
 
 	folders := s.configDirs.QueryFolders(configdir.Global)
-	err = folders[0].WriteFile(playerFileName, []byte(playerUUID))
+	err = folders[0].WriteFile(playerStorageFileName, playerJson)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to save player UUID")
+		return errors.Wrap(err, "failed to save player storage")
 	}
 
-	return playerUUID, nil
+	return nil
 }
 
 func (s *Storage) PlayerID() protocol.PlayerID {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	return s.playerID
+	return s.player.ID
+}
+
+func (s *Storage) PlayerName() string {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.player.Name
+}
+
+func (s *Storage) SetPlayerName(name string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.player.Name = name
+	return s.savePlayerStorage()
 }
