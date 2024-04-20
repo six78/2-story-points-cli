@@ -1,6 +1,8 @@
 package commands
 
-import "github.com/charmbracelet/bubbles/key"
+import (
+	"github.com/charmbracelet/bubbles/key"
+)
 
 type KeyMap struct {
 	// Common

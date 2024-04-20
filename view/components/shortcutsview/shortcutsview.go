@@ -71,7 +71,8 @@ func (m Model) View() string {
 
 	if !m.inRoom {
 		row := key(keys.NewRoom) + text(" "+keys.NewRoom.Help().Desc) + bigSeparator +
-			key(keys.JoinRoom) + text(" "+keys.JoinRoom.Help().Desc)
+			key(keys.JoinRoom) + text(" "+keys.JoinRoom.Help().Desc) + bigSeparator +
+			text("... or just ") + keyText("[paste]") + text(" the room id")
 		rows = append(rows, row)
 	}
 
@@ -134,7 +135,11 @@ func (m Model) View() string {
 
 func key(key bubblekey.Binding) string {
 	s := fmt.Sprintf("[%s]", key.Help().Key)
-	return keyStyle.Render(s)
+	return keyText(s)
+}
+
+func keyText(text string) string {
+	return keyStyle.Render(text)
 }
 
 func text(text string) string {

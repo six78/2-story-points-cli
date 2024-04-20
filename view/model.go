@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"math"
 	"waku-poker-planning/app"
@@ -111,7 +112,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	//		 and then in View() the string could be cached and set `cache.valid = true`.
 	//		 Look shortcutsview for example.
 
-	var cmds []tea.Cmd
+	cmds := make([]tea.Cmd, 0, 8)
 
 	appendCommand := func(command tea.Cmd) {
 		cmds = append(cmds, command)
@@ -257,14 +258,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				CommandMode: !m.commandMode,
 			})
 		}
+
 		if !m.input.Focused() {
+			config.Logger.Debug("<<<",
+				zap.String("roomID", m.roomID),
+				zap.Any("msg", msg),
+			)
 			if m.roomID == "" && key.Matches(msg, commands.DefaultKeyMap.NewRoom) {
 				appendCommand(runNewAction(&m, nil))
-				//case key.Matches(msg, commands.DefaultKeyMap.JoinRoom):
-				//	appendCommand(runJoinAction(&m, nil))
 			}
+			//case key.Matches(msg, commands.DefaultKeyMap.JoinRoom):
+			//	appendCommand(runJoinAction(&m, nil))
+			//if m.roomID == "" && key.Matches(msg, commands.DefaultKeyMap.PasteRoom) {
+			//	appendCommand(commands.JoinRoomFromClipboard(m.app))
+			//}
 			if m.roomID != "" && key.Matches(msg, commands.DefaultKeyMap.ExitRoom) {
 				appendCommand(runExitAction(&m, nil))
+			}
+			if m.roomID == "" && len(msg.String()) > 8 {
+				_, err := protocol.ParseRoomID(msg.String())
+				if err != nil {
+					err = errors.Wrap(err, "pasted text is not a valid room id")
+					appendMessage(messages.NewErrorMessage(err))
+					break
+				}
+				appendCommand(commands.JoinRoom(msg.String(), m.app))
 			}
 		}
 	}

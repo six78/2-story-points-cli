@@ -1,9 +1,10 @@
 package commands
 
 import (
+	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/pkg/errors"
 	"waku-poker-planning/app"
-	"waku-poker-planning/config"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
 )
@@ -73,7 +74,6 @@ func ToggleRoomView(currentRoomView states.RoomView) tea.Cmd {
 }
 
 func WaitForConnectionStatus(app *app.App) tea.Cmd {
-	config.Logger.Debug("WaitForConnectionStatus")
 	return func() tea.Msg {
 		status, more, err := app.WaitForConnectionStatus()
 		if err != nil {
@@ -85,5 +85,20 @@ func WaitForConnectionStatus(app *app.App) tea.Cmd {
 		return messages.ConnectionStatus{
 			Status: status,
 		}
+	}
+}
+
+func JoinRoomFromClipboard(app *app.App) tea.Cmd {
+	return func() tea.Msg {
+		if clipboard.Unsupported {
+			err := errors.New("clipboard is unsupported")
+			return messages.NewErrorMessage(err)
+		}
+		roomID, err := clipboard.ReadAll()
+		if err != nil {
+			err := errors.Wrap(err, "failed to read from clipboard")
+			return messages.NewErrorMessage(err)
+		}
+		return JoinRoom(roomID, app)()
 	}
 }
