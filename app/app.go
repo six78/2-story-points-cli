@@ -66,20 +66,12 @@ func (a *App) Initialize() error {
 		return printedErr
 	}
 
-	playerID := a.storage.PlayerID()
-	if config.Anonymous() {
-		playerID, err = game.GeneratePlayerID()
-		if err != nil {
-			return errors.Wrap(err, "failed to generate player ID")
-		}
+	player, err := a.loadPlayer()
+	if err != nil {
+		return err
 	}
 
-	playerName := a.storage.PlayerName()
-	if config.PlayerName() != "" {
-		playerName = config.PlayerName()
-	}
-
-	a.Game = game.NewGame(a.ctx, a.waku, playerID, playerName)
+	a.Game = game.NewGame(a.ctx, a.waku, player)
 	//a.Game.RenamePlayer(a.storage.GetPlayerName())
 	a.gameStateSubscription = a.Game.SubscribeToStateChanges()
 
@@ -142,4 +134,28 @@ func (a *App) RenamePlayer(name string) error {
 
 func (a *App) LoadRoomState(roomID protocol.RoomID) (*protocol.State, error) {
 	return a.storage.LoadRoomState(roomID)
+}
+
+func (a *App) loadPlayer() (*protocol.Player, error) {
+	var err error
+	var player protocol.Player
+
+	// Load ID
+	if !config.Anonymous() {
+		player.ID = a.storage.PlayerID()
+	} else {
+		player.ID, err = game.GeneratePlayerID()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to generate player ID")
+		}
+	}
+
+	// Load Name
+	if config.PlayerName() != "" {
+		player.Name = config.PlayerName()
+	} else if !config.Anonymous() {
+		player.Name = a.storage.PlayerName()
+	}
+
+	return &player, nil
 }

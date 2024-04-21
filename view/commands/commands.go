@@ -102,3 +102,10 @@ func SelectIssue(app *app.App, index int) tea.Cmd {
 		return messages.NewErrorMessage(err)
 	}
 }
+
+func QuitApp(app *app.App) tea.Cmd {
+	return func() tea.Msg {
+		app.Game.LeaveRoom()
+		return tea.Quit()
+	}
+}

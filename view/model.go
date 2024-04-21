@@ -197,8 +197,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC:
-			// TODO: publish offline message
-			return m, tea.Quit
+			appendCommand(commands.QuitApp(m.app))
 		case tea.KeyEnter:
 			var cmd tea.Cmd
 			if m.input.Focused() {

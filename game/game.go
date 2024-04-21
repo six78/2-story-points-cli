@@ -32,7 +32,7 @@ type Game struct {
 	stateSubscribers []StateSubscription
 }
 
-func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerID, playerName string) *Game {
+func NewGame(ctx context.Context, transport Transport, player *protocol.Player) *Game {
 	return &Game{
 		logger:    config.Logger.Named("game"),
 		ctx:       ctx,
@@ -41,8 +41,9 @@ func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerI
 		features:  defaultFeatureFlags(),
 		isDealer:  false,
 		player: &protocol.Player{
-			ID:   playerID,
-			Name: playerName,
+			ID:     player.ID,
+			Name:   player.Name,
+			Online: true,
 		},
 		myVote: protocol.VoteResult{
 			Value:     "",
