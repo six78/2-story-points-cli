@@ -10,6 +10,8 @@ import (
 type Room struct {
 	Version      byte   `json:"version"`
 	SymmetricKey []byte `json:"symmetricKey"`
+
+	cachedRoomID *RoomID
 }
 
 type RoomID struct {
@@ -41,13 +43,16 @@ func (room *Room) Bytes() []byte {
 }
 
 func (room *Room) ToRoomID() (RoomID, error) {
-	bytes := room.Bytes()
-	roomID := base58.Encode(bytes)
-	return NewRoomID(roomID), nil
+	if room.cachedRoomID == nil {
+		bytes := room.Bytes()
+		roomID := NewRoomID(base58.Encode(bytes))
+		room.cachedRoomID = &roomID
+	}
+	return *room.cachedRoomID, nil
 }
 
-func ParseRoomID(roomID string) (*Room, error) {
-	decoded, err := base58.Decode(roomID)
+func ParseRoomID(input string) (*Room, error) {
+	decoded, err := base58.Decode(input)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to decode room ID")
 	}
@@ -62,9 +67,12 @@ func ParseRoomID(roomID string) (*Room, error) {
 		return nil, errors.Errorf("unexpected version: %d", decodedVersion)
 	}
 
+	roomID := NewRoomID(input)
+
 	return &Room{
 		Version:      decodedVersion,
 		SymmetricKey: decoded[1:],
+		cachedRoomID: &roomID,
 	}, nil
 }
 
@@ -76,6 +84,7 @@ func NewRoom() (*Room, error) {
 	return &Room{
 		Version:      Version,
 		SymmetricKey: symmetricKey,
+		cachedRoomID: nil,
 	}, nil
 }
 

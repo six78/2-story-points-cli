@@ -12,7 +12,7 @@ import (
 
 type ContentTopicCache struct {
 	logger       *zap.Logger
-	room         *pp.Room
+	roomID       *pp.RoomID
 	contentTopic string
 	err          error
 }
@@ -20,13 +20,18 @@ type ContentTopicCache struct {
 func NewRoomCache(logger *zap.Logger) ContentTopicCache {
 	return ContentTopicCache{
 		logger:       logger.Named("TopicCache"),
-		room:         nil,
+		roomID:       nil,
 		contentTopic: "",
 	}
 }
 
 func (r *ContentTopicCache) Get(room *pp.Room) (string, error) {
-	if room != r.room {
+	roomID, err := room.ToRoomID()
+	if err != nil {
+		return "", err
+	}
+	if r.roomID == nil || *r.roomID != roomID {
+		r.roomID = &roomID
 		r.contentTopic, r.err = r.roomContentTopic(room)
 		if r.err != nil {
 			r.logger.Error("failed to calculate content topic", zap.Error(r.err))
@@ -47,12 +52,6 @@ func (r *ContentTopicCache) roomContentTopic(room *pp.Room) (string, error) {
 	hash := crypto.Keccak256(room.Bytes())
 	contentTopicName := hexutil.Encode(hash[:4])[2:]
 	contentTopic, err := protocol.NewContentTopic("six78", version, contentTopicName, "json") // WARNING: "six78" is not the name of the app
-
-	var bytesArray []string
-
-	for _, b := range hash {
-		bytesArray = append(bytesArray, strconv.Itoa(int(b)))
-	}
 
 	r.logger.Debug("content topic details",
 		zap.String("version", version),

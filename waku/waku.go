@@ -355,16 +355,6 @@ func (n *Node) watchConnectionStatus() {
 }
 
 func (n *Node) SubscribeToMessages(room *pp.Room) (*game.MessagesSubscription, error) {
-	//subUUID, err := uuid.NewUUID()
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "failed to generate subscription uuid")
-	//}
-	//
-	//roomID, err := room.ToRoomID()
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "failed to get room id")
-	//}
-
 	n.logger.Debug("subscribing to room")
 
 	contentTopic, err := n.roomCache.Get(room)
