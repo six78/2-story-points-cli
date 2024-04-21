@@ -235,6 +235,10 @@ func runRestoreAction(m *model, args []string) tea.Cmd {
 		if err != nil {
 			return messages.NewErrorMessage(err)
 		}
+		if state == nil {
+			err = errors.New("room not found in storage")
+			return messages.NewErrorMessage(err)
+		}
 		return commands.JoinRoom(m.app, roomID.String(), state)()
 	}
 }

@@ -122,7 +122,7 @@ func (s *Storage) SetPlayerName(name string) error {
 }
 
 func (s *Storage) LoadRoomState(roomID protocol.RoomID) (*protocol.State, error) {
-	filePath := path.Join(roomsDirectory, roomID.String(), ".json")
+	filePath := roomFilePath(roomID)
 	folder := s.configDirs.QueryFolderContainsFile(filePath)
 	if folder == nil {
 		return nil, nil
@@ -155,7 +155,7 @@ func (s *Storage) SaveRoomState(roomID protocol.RoomID, state *protocol.State) e
 		return errors.Wrap(err, "failed to marshal room data")
 	}
 
-	filePath := path.Join(roomsDirectory, roomID.String(), ".json")
+	filePath := roomFilePath(roomID)
 	folders := s.configDirs.QueryFolders(configdir.Global)
 
 	err = folders[0].WriteFile(filePath, roomJson)
@@ -164,4 +164,8 @@ func (s *Storage) SaveRoomState(roomID protocol.RoomID, state *protocol.State) e
 	}
 
 	return nil
+}
+
+func roomFilePath(roomID protocol.RoomID) string {
+	return path.Join(roomsDirectory, roomID.String()+".json")
 }
