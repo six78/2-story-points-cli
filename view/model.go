@@ -208,6 +208,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					cmd = VoteOnCursor(&m)
 				case states.IssuesListView:
 					cmd = commands.SelectIssue(m.app, m.issueCursor)
+					toggleRoomView(&m)
 				}
 			}
 			if cmd != nil {
@@ -231,7 +232,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case tea.KeyTab:
 			if !m.roomID.Empty() {
-				toggleCurrentView(&m)
+				toggleRoomView(&m)
 			}
 
 		case tea.KeyShiftTab:
@@ -336,7 +337,7 @@ func MoveIssueCursorDown(m *model) {
 	m.issueCursor = int(math.Min(float64(m.issueCursor+1), float64(len(m.gameState.Issues)-1)))
 }
 
-func toggleCurrentView(m *model) {
+func toggleRoomView(m *model) {
 	switch m.roomView {
 	case states.ActiveIssueView:
 		m.roomView = states.IssuesListView

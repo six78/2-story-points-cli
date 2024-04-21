@@ -60,9 +60,9 @@ func (m Model) View() string {
 	var rows []string
 
 	if !m.inRoom {
-		row := key(keys.NewRoom) + text(" "+keys.NewRoom.Help().Desc) + bigSeparator +
-			key(keys.JoinRoom) + text(" "+keys.JoinRoom.Help().Desc) + bigSeparator +
-			text("... or just ") + keyText("[paste]") + text(" the room id")
+		row := key(keys.NewRoom) + smallSeparator + text("to create a new room") + bigSeparator +
+			//key(keys.JoinRoom) + text(" "+keys.JoinRoom.Help().Desc) + bigSeparator +
+			text("... or just ") + keyText("[paste]") + text(" the room id to join")
 		rows = append(rows, row)
 	}
 
@@ -89,8 +89,8 @@ func (m Model) View() string {
 
 	if m.inRoom && m.isDealer { // Row 2 (optional, dealer-only)
 		row := key(keys.RevealVotes) + text(" Reveal") + bigSeparator +
-			keyHelp(keys.FinishVote) + bigSeparator +
-			keyHelp(keys.AddIssue) + bigSeparator +
+			//keyHelp(keys.FinishVote) + bigSeparator +
+			//keyHelp(keys.AddIssue) + bigSeparator +
 			keyHelp(keys.ExitRoom)
 		rows = append(rows, row)
 	}
