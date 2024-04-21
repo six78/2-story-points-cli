@@ -9,6 +9,9 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"math"
+	"net/url"
+	"strings"
+	"time"
 	"waku-poker-planning/app"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
@@ -45,14 +48,15 @@ type model struct {
 	connectionStatus waku.ConnectionStatus
 
 	// UI components state
-	commandMode    bool
-	roomView       states.RoomView
-	issueCursor    int
-	errorView      errorview.Model
-	playersView    playersview.Model
-	shortcutsView  shortcutsview.Model
-	wakuStatusView wakustatusview.Model
-	deckView       deckview.Model
+	commandMode     bool
+	roomView        states.RoomView
+	issueCursor     int
+	errorView       errorview.Model
+	playersView     playersview.Model
+	shortcutsView   shortcutsview.Model
+	wakuStatusView  wakustatusview.Model
+	deckView        deckview.Model
+	disableEnterKey bool // Workaround: Used to allow pasting multiline text (list of issues)
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -200,30 +204,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			zap.Bool("isDealer", msg.IsDealer))
 		appendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
 
+	case messages.EnableEnterKey:
+		m.disableEnterKey = false
+
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			appendCommand(commands.QuitApp(m.app))
 		case tea.KeyEnter:
 			var cmd tea.Cmd
+			if m.disableEnterKey {
+				break
+			}
 			if m.input.Focused() {
 				cmd = ProcessUserInput(&m)
-			} else {
-				switch m.roomView {
-				case states.ActiveIssueView:
-					if m.gameState.VoteState() == protocol.VotingState {
-						cmd = VoteOnCursor(&m)
-					} else if m.gameState.VoteState() == protocol.RevealedState {
-						cmd = FinishOnCursor(&m)
-					}
-				case states.IssuesListView:
-					cmd = commands.SelectIssue(m.app, m.issueCursor)
-					toggleRoomView(&m)
-				}
-			}
-			if cmd != nil {
 				appendCommand(cmd)
+				break
 			}
+			switch m.roomView {
+			case states.ActiveIssueView:
+				if m.gameState.VoteState() == protocol.VotingState {
+					cmd = VoteOnCursor(&m)
+				} else if m.gameState.VoteState() == protocol.RevealedState {
+					cmd = FinishOnCursor(&m)
+				}
+			case states.IssuesListView:
+				cmd = commands.SelectIssue(m.app, m.issueCursor)
+				toggleRoomView(&m)
+			}
+			appendCommand(cmd)
 		case tea.KeyUp:
 			if !m.commandMode && m.roomView == states.IssuesListView {
 				MoveIssueCursorUp(&m)
@@ -236,7 +245,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !m.roomID.Empty() {
 				toggleRoomView(&m)
 			}
-
 		case tea.KeyShiftTab:
 			appendMessage(messages.CommandModeChange{
 				CommandMode: !m.commandMode,
@@ -248,9 +256,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				zap.Any("roomID", m.roomID),
 				zap.Any("msg", msg),
 			)
-			//case key.Matches(msg, commands.DefaultKeyMap.JoinRoom):
-			//	appendCommand(runJoinAction(&m, nil))
-
 			if !m.roomID.Empty() {
 				switch {
 				case key.Matches(msg, commands.DefaultKeyMap.ExitRoom):
@@ -264,17 +269,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				switch {
 				case key.Matches(msg, commands.DefaultKeyMap.NewRoom):
 					appendCommand(runNewAction(&m, nil))
-				case len(msg.String()) > 16:
-					_, err := protocol.ParseRoomID(msg.String())
-					if err != nil {
-						err = errors.Wrap(err, "pasted text is not a valid room id")
-						appendMessage(messages.NewErrorMessage(err))
-						break
-					}
-					roomID := protocol.NewRoomID(msg.String())
-					appendCommand(commands.JoinRoom(m.app, roomID, nil))
 				}
 			}
+			message, command := m.handlePastedText(msg.String())
+			appendMessage(message)
+			appendCommand(command)
 		}
 	}
 
@@ -351,6 +350,43 @@ func toggleRoomView(m *model) {
 		m.roomView = states.ActiveIssueView
 		m.deckView.Focus()
 	}
+}
+
+func (m *model) handlePastedText(text string) (tea.Msg, tea.Cmd) {
+	if len(text) < 16 {
+		return nil, nil
+	}
+
+	config.Logger.Debug("handlePastedText", zap.String("text", text))
+
+	// Try to parse as room id
+	room, err := protocol.ParseRoomID(text)
+	if err == nil {
+		if !room.VersionSupported() {
+			err = errors.Wrap(err, fmt.Sprintf("this room has unsupported version %d", room.Version))
+			return messages.NewErrorMessage(err), nil
+		}
+		roomID := protocol.NewRoomID(text)
+		return nil, commands.JoinRoom(m.app, roomID, nil)
+	}
+
+	// Try to parse as issues list
+	lines := strings.Split(text, "\n")
+	cmds := make([]tea.Cmd, 0, len(lines))
+
+	for _, line := range lines {
+		u, err := url.Parse(line)
+		if err != nil {
+			config.Logger.Warn("failed to parse issue url", zap.Error(err))
+			continue
+		}
+		cmds = append(cmds, commands.AddIssue(m.app, u.String()))
+	}
+
+	m.disableEnterKey = true
+	cmds = append(cmds, commands.DelayMessage(200*time.Millisecond, messages.EnableEnterKey{}))
+
+	return nil, tea.Batch(cmds...)
 }
 
 // Ensure that model fulfils the tea.Model interface at compile time.

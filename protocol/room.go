@@ -51,29 +51,30 @@ func (room *Room) ToRoomID() (RoomID, error) {
 	return *room.cachedRoomID, nil
 }
 
+func (room *Room) VersionSupported() bool {
+	return room.Version == Version
+}
+
 func ParseRoomID(input string) (*Room, error) {
 	decoded, err := base58.Decode(input)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode room ID")
+		return nil, errors.Wrap(err, "failed to decode room id")
 	}
 
 	if len(decoded) < 1 {
 		return nil, errors.New("room id is too short")
 	}
-
-	decodedVersion := decoded[0]
-
-	if decodedVersion != Version {
-		return nil, errors.Errorf("unexpected version: %d", decodedVersion)
+	roomID := NewRoomID(input)
+	room := &Room{
+		Version:      decoded[0],
+		cachedRoomID: &roomID,
 	}
 
-	roomID := NewRoomID(input)
+	if room.VersionSupported() {
+		room.SymmetricKey = decoded[1:]
+	}
 
-	return &Room{
-		Version:      decodedVersion,
-		SymmetricKey: decoded[1:],
-		cachedRoomID: &roomID,
-	}, nil
+	return room, nil
 }
 
 func NewRoom() (*Room, error) {

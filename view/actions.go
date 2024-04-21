@@ -98,7 +98,9 @@ func runDealAction(m *model, args []string) tea.Cmd {
 			err := errors.New("empty deal")
 			return messages.NewErrorMessage(err)
 		}
-		_, err := m.app.Game.Deal(args[0])
+		// TODO: Find a better way of restoring empty spaces between args
+		issue := strings.Join(args, " ")
+		_, err := m.app.Game.Deal(issue)
 		return messages.NewErrorMessage(err)
 	}
 }
@@ -109,8 +111,7 @@ func runAddAction(m *model, args []string) tea.Cmd {
 			err := errors.New("empty issue")
 			return messages.NewErrorMessage(err)
 		}
-		_, err := m.app.Game.AddIssue(args[0])
-		return messages.NewErrorMessage(err)
+		return commands.AddIssue(m.app, args[0])()
 	}
 }
 

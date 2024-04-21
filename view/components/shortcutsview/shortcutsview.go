@@ -5,14 +5,15 @@ import (
 	bubblekey "github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"waku-poker-planning/protocol"
 	"waku-poker-planning/view/commands"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
 )
 
 const (
-	smallSeparator = " "
-	bigSeparator   = "  "
+	separator1 = " "
+	separator2 = "  "
 )
 
 var (
@@ -25,6 +26,7 @@ type Model struct {
 	commandMode bool
 	isDealer    bool
 	inRoom      bool
+	voteState   protocol.VoteState
 }
 
 func New() Model {
@@ -49,6 +51,12 @@ func (m Model) Update(msg tea.Msg, view states.RoomView) Model {
 	case messages.RoomJoin:
 		m.inRoom = !msg.RoomID.Empty()
 		m.isDealer = msg.IsDealer
+	case messages.GameStateMessage:
+		if msg.State != nil {
+			m.voteState = msg.State.VoteState()
+		} else {
+			m.voteState = protocol.IdleState
+		}
 	}
 
 	return m
@@ -60,8 +68,8 @@ func (m Model) View() string {
 	var rows []string
 
 	if !m.inRoom {
-		row := key(keys.NewRoom) + smallSeparator + text("to create a new room") + bigSeparator +
-			//key(keys.JoinRoom) + text(" "+keys.JoinRoom.Help().Desc) + bigSeparator +
+		row := key(keys.NewRoom) + separator1 + text("to create a new room") + separator2 +
+			//key(keys.JoinRoom) + text(" "+keys.JoinRoom.Help().Desc) + separator2 +
 			text("... or just ") + keyText("[paste]") + text(" the room id to join")
 		rows = append(rows, row)
 	}
@@ -71,27 +79,36 @@ func (m Model) View() string {
 		case states.ActiveIssueView:
 			row := text("Use ") + key(keys.PreviousCard) +
 				text(" and ") + key(keys.NextCard) +
-				text(" arrows to select card and press ") + key(keys.SelectCard) + text(" to vote")
+				text(" arrows to select card and press ") + key(keys.SelectCard)
+			switch m.voteState {
+			case protocol.VotingState:
+				row += text(" to vote")
+			case protocol.RevealedState:
+				row += text(" to save estimation")
+			default:
+				row = ""
+			}
 			rows = append(rows, row)
 
 		case states.IssuesListView:
-			if !m.isDealer {
+			row := "" // Keep empty line for alignment between views
+			if !m.isDealer || (m.voteState != protocol.IdleState && m.voteState != protocol.FinishedState) {
 				// Selecting issue is only available for dealer
-				rows = append(rows, "") // Keep empty line for alignment between views
-			} else {
-				row := text("Use ") + key(keys.PreviousIssue) +
+				row = text("Use ") + key(keys.PreviousIssue) +
 					text(" and ") + key(keys.NextIssue) +
 					text(" arrows to select issue and press ") + key(keys.SelectCard) + text(" to deal")
-				rows = append(rows, row)
 			}
+			rows = append(rows, row)
 		}
 	}
 
 	if m.inRoom && m.isDealer { // Row 2 (optional, dealer-only)
-		row := key(keys.RevealVotes) + text(" Reveal") + bigSeparator +
-			//keyHelp(keys.FinishVote) + bigSeparator +
-			//keyHelp(keys.AddIssue) + bigSeparator +
-			keyHelp(keys.ExitRoom)
+		row := ""
+		if m.voteState == protocol.VotingState {
+			row += key(keys.RevealVotes) + text(" Reveal") + separator2
+		}
+		//keyHelp(keys.FinishVote) + separator2 +
+		//keyHelp(keys.AddIssue) + separator2 +
 		rows = append(rows, row)
 	}
 
@@ -108,7 +125,7 @@ func (m Model) View() string {
 			default:
 				row += text(" Toggle room view")
 			}
-			row += bigSeparator
+			row += separator2
 		}
 
 		row += key(keys.ToggleInput)
@@ -117,6 +134,11 @@ func (m Model) View() string {
 		} else {
 			row += text(" Switch to commands mode")
 		}
+
+		if m.inRoom {
+			row += separator2 + keyHelp(keys.ExitRoom)
+		}
+
 		rows = append(rows, row)
 	}
 
@@ -141,5 +163,5 @@ func help(key bubblekey.Binding) string {
 }
 
 func keyHelp(k bubblekey.Binding) string {
-	return key(k) + smallSeparator + help(k)
+	return key(k) + separator1 + help(k)
 }

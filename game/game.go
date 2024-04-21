@@ -494,6 +494,9 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to parse room ID")
 	}
+	if !room.VersionSupported() {
+		return errors.Wrap(err, fmt.Sprintf("this room has unsupported version %d", room.Version))
+	}
 
 	g.exitRoom = make(chan struct{})
 
@@ -669,6 +672,7 @@ func (g *Game) addIssue(titleOrURL string) (protocol.IssueID, error) {
 		return "", errors.New("issue already exists")
 	}
 
+	g.logger.Debug("adding issue", zap.String("titleOrUrl", titleOrURL))
 	issue := protocol.Issue{
 		ID:         issueID,
 		TitleOrURL: titleOrURL,

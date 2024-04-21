@@ -2,6 +2,7 @@ package commands
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"time"
 	"waku-poker-planning/app"
 	"waku-poker-planning/protocol"
 	"waku-poker-planning/view/messages"
@@ -117,6 +118,13 @@ func FinishVoting(app *app.App, result protocol.VoteValue) tea.Cmd {
 	}
 }
 
+func AddIssue(app *app.App, urlOrTitle string) tea.Cmd {
+	return func() tea.Msg {
+		_, err := app.Game.AddIssue(urlOrTitle)
+		return messages.NewErrorMessage(err)
+	}
+}
+
 func SelectIssue(app *app.App, index int) tea.Cmd {
 	return func() tea.Msg {
 		err := app.Game.SelectIssue(index)
@@ -128,5 +136,12 @@ func QuitApp(app *app.App) tea.Cmd {
 	return func() tea.Msg {
 		app.Game.LeaveRoom()
 		return tea.Quit()
+	}
+}
+
+func DelayMessage(timeout time.Duration, msg tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		time.Sleep(timeout)
+		return msg
 	}
 }

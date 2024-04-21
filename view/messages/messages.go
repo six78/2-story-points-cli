@@ -57,3 +57,6 @@ type RoomJoin struct {
 type MyVote struct {
 	Result protocol.VoteResult
 }
+
+type EnableEnterKey struct {
+}
