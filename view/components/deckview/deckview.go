@@ -5,23 +5,26 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 	"math"
+	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
 	"waku-poker-planning/view/components/voteview"
 	"waku-poker-planning/view/messages"
 )
 
 var (
-	defaultBorderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))
-	votedBorderStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#aaaaaa"))
+	defaultBorderStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))
+	votedBorderStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#aaaaaa"))
+	highlightBorderStyle = lipgloss.NewStyle().Foreground(config.UserColor)
 )
 
 type Model struct {
-	deck        protocol.Deck
-	voteState   protocol.VoteState
-	myVote      protocol.VoteValue
-	commandMode bool
-	cursor      int
-	focused     bool
+	deck         protocol.Deck
+	voteState    protocol.VoteState
+	myVote       protocol.VoteValue
+	focused      bool
+	commandMode  bool
+	voteCursor   int
+	finishCursor int
 }
 
 func New(focused bool) Model {
@@ -50,14 +53,26 @@ func (m Model) Update(msg tea.Msg) Model {
 		m.myVote = msg.Result.Value
 
 	case tea.KeyMsg:
+		if m.commandMode || !m.focused {
+			break
+		}
 		switch msg.Type {
 		case tea.KeyLeft:
-			if !m.commandMode && m.focused {
-				m.cursor = int(math.Max(float64(m.cursor-1), 0))
+			switch m.voteState {
+			case protocol.VotingState:
+				m.voteCursor = m.incrementCursor(m.voteCursor)
+			case protocol.RevealedState:
+				m.finishCursor = m.incrementCursor(m.finishCursor)
+			default:
 			}
+
 		case tea.KeyRight:
-			if !m.commandMode && m.focused {
-				m.cursor = int(math.Min(float64(m.cursor+1), float64(len(m.deck)-1)))
+			switch m.voteState {
+			case protocol.VotingState:
+				m.voteCursor = m.decrementCursor(m.voteCursor)
+			case protocol.RevealedState:
+				m.finishCursor = m.decrementCursor(m.finishCursor)
+			default:
 			}
 		default:
 		}
@@ -66,11 +81,16 @@ func (m Model) Update(msg tea.Msg) Model {
 }
 
 func (m Model) View() string {
-	renderCursor := !m.commandMode && (m.voteState == protocol.VotingState)
+	renderVoteCursor := !m.commandMode && (m.voteState == protocol.VotingState)
+	renderFinishCursor := !m.commandMode && (m.voteState == protocol.RevealedState)
 	cards := make([]string, 0, len(m.deck)*2)
 
 	for i, value := range m.deck {
-		card := renderCard(value, renderCursor && i == m.cursor, value == m.myVote)
+		card := renderCard(value,
+			renderVoteCursor && i == m.voteCursor,
+			renderFinishCursor && i == m.finishCursor,
+			value == m.myVote,
+		)
 		cards = append(cards, card, " ") // Add a space between cards
 	}
 
@@ -85,14 +105,18 @@ func (m *Model) Blur() {
 	m.focused = false
 }
 
-func (m *Model) Cursor() int {
-	return m.cursor
+func (m *Model) VoteCursor() int {
+	return m.voteCursor
 }
 
-func renderCard(value protocol.VoteValue, cursor bool, voted bool) string {
+func (m *Model) FinishCursor() int {
+	return m.finishCursor
+}
+
+func renderCard(value protocol.VoteValue, voteCursor bool, finishCursor bool, voted bool) string {
 	card := table.New().
 		Border(lipgloss.RoundedBorder()).
-		BorderStyle(*cardBorderStyle(voted)).
+		BorderStyle(*cardBorderStyle(voted, finishCursor)).
 		StyleFunc(func(row, col int) lipgloss.Style {
 			return *voteview.VoteStyle(value)
 		}).
@@ -108,7 +132,7 @@ func renderCard(value protocol.VoteValue, cursor bool, voted bool) string {
 
 	column = append(column, card)
 
-	if cursor {
+	if voteCursor {
 		if voted {
 			column = append(column, "")
 		}
@@ -120,10 +144,21 @@ func renderCard(value protocol.VoteValue, cursor bool, voted bool) string {
 	return lipgloss.JoinVertical(lipgloss.Top, column...)
 }
 
-func cardBorderStyle(voted bool) *lipgloss.Style {
+func cardBorderStyle(voted bool, highlight bool) *lipgloss.Style {
+	if highlight {
+		return &highlightBorderStyle
+	}
 	if voted {
 		return &votedBorderStyle
 	} else {
 		return &defaultBorderStyle
 	}
+}
+
+func (m *Model) incrementCursor(cursor int) int {
+	return int(math.Max(float64(cursor-1), 0))
+}
+
+func (m *Model) decrementCursor(cursor int) int {
+	return int(math.Min(float64(cursor+1), float64(len(m.deck)-1)))
 }

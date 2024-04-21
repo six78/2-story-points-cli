@@ -110,6 +110,13 @@ func PublishVote(app *app.App, vote protocol.VoteValue) tea.Cmd {
 	}
 }
 
+func FinishVoting(app *app.App, result protocol.VoteValue) tea.Cmd {
+	return func() tea.Msg {
+		err := app.Game.Finish(result)
+		return messages.NewErrorMessage(err)
+	}
+}
+
 func SelectIssue(app *app.App, index int) tea.Cmd {
 	return func() tea.Msg {
 		err := app.Game.SelectIssue(index)

@@ -139,7 +139,7 @@ func renderIssuesListView(m *model) string {
 		var style lipgloss.Style
 		if showSelector && i == m.issueCursor {
 			item += "> "
-			style = lipgloss.NewStyle().Foreground(lipgloss.Color("#7D56F4"))
+			style = lipgloss.NewStyle().Foreground(config.UserColor)
 		} else {
 			item += "  "
 		}

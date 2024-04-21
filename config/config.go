@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"fmt"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/shibukawa/configdir"
 	"go.uber.org/zap"
 	"os"
@@ -19,6 +20,8 @@ const EnableSymmetricEncryption = false
 
 const VendorName = "six78"
 const ApplicationName = "waku-poker-planning"
+
+const UserColor = lipgloss.Color("#7D56F4")
 
 var fleet string
 var nameserver string

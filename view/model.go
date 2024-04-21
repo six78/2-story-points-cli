@@ -184,7 +184,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		appendCommand(commands.WaitForConnectionStatus(m.app))
 
 	case messages.GameStateMessage:
-		if m.gameState != nil && msg.State.ActiveIssue != m.gameState.ActiveIssue {
+		if m.gameState != nil && msg.State != nil && msg.State.ActiveIssue != m.gameState.ActiveIssue {
 			appendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
 		}
 		m.gameState = msg.State
@@ -211,7 +211,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				switch m.roomView {
 				case states.ActiveIssueView:
-					cmd = VoteOnCursor(&m)
+					if m.gameState.VoteState() == protocol.VotingState {
+						cmd = VoteOnCursor(&m)
+					} else if m.gameState.VoteState() == protocol.RevealedState {
+						cmd = FinishOnCursor(&m)
+					}
 				case states.IssuesListView:
 					cmd = commands.SelectIssue(m.app, m.issueCursor)
 					toggleRoomView(&m)
@@ -307,12 +311,24 @@ func VoteOnCursor(m *model) tea.Cmd {
 	if m.gameState == nil {
 		return nil
 	}
-	cursor := m.deckView.Cursor()
+	cursor := m.deckView.VoteCursor()
 	if cursor < 0 || cursor > len(m.gameState.Deck) {
 		return nil
 	}
 	vote := m.gameState.Deck[cursor]
 	return commands.PublishVote(m.app, vote)
+}
+
+func FinishOnCursor(m *model) tea.Cmd {
+	if m.gameState == nil {
+		return nil
+	}
+	cursor := m.deckView.FinishCursor()
+	if cursor < 0 || cursor > len(m.gameState.Deck) {
+		return nil
+	}
+	result := m.gameState.Deck[cursor]
+	return commands.FinishVoting(m.app, result)
 }
 
 func MoveIssueCursorUp(m *model) {

@@ -5,11 +5,12 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"waku-poker-planning/config"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
 )
 
-var style = lipgloss.NewStyle().Foreground(lipgloss.Color("#7D56F4"))
+var style = lipgloss.NewStyle().Foreground(config.UserColor)
 
 type Model struct {
 	input       textinput.Model
