@@ -261,7 +261,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				switch {
 				case key.Matches(msg, commands.DefaultKeyMap.NewRoom):
 					appendCommand(runNewAction(&m, nil))
-				case len(msg.String()) > 8:
+				case len(msg.String()) > 16:
 					_, err := protocol.ParseRoomID(msg.String())
 					if err != nil {
 						err = errors.Wrap(err, "pasted text is not a valid room id")

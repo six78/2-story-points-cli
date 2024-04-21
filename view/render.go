@@ -117,7 +117,7 @@ func (m model) renderDeck() string {
 	}
 
 	deck := m.gameState.Deck
-	renderCursor := !m.commandMode
+	renderCursor := !m.commandMode && m.gameState.VoteState() == protocol.VotingState
 	myVote := m.app.Game.MyVote().Value
 
 	cards := make([]string, 0, len(deck)*2)

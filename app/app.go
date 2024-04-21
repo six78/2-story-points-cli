@@ -99,9 +99,11 @@ func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 		a.gameStateSubscription = nil
 	}
 
-	err := a.storage.SaveRoomState(a.Game.RoomID(), state)
-	if err != nil {
-		config.Logger.Error("failed to save room state", zap.Error(err))
+	if !config.Anonymous() && a.Game.IsDealer() { // Only store room state for non-anonymously joined rooms
+		err := a.storage.SaveRoomState(a.Game.RoomID(), state)
+		if err != nil {
+			config.Logger.Error("failed to save room state", zap.Error(err))
+		}
 	}
 
 	return state, more, nil
@@ -133,6 +135,9 @@ func (a *App) RenamePlayer(name string) error {
 }
 
 func (a *App) LoadRoomState(roomID protocol.RoomID) (*protocol.State, error) {
+	if config.Anonymous() {
+		return nil, nil
+	}
 	return a.storage.LoadRoomState(roomID)
 }
 
