@@ -3,11 +3,9 @@ package view
 import (
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 	"strings"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
-	"waku-poker-planning/view/components/playervoteview"
 	"waku-poker-planning/view/states"
 )
 
@@ -95,7 +93,7 @@ func (m model) renderRoomCurrentIssueView() string {
 %s`,
 		renderIssue(m.gameState.Issues.Get(m.gameState.ActiveIssue)),
 		m.playersView.View(),
-		m.renderDeck(),
+		m.deckView.View(),
 	)
 }
 
@@ -109,65 +107,6 @@ func (m model) renderActionInput() string {
 func renderLogPath() string {
 	path := strings.Replace(config.LogFilePath, " ", "%20", -1)
 	return fmt.Sprintf("Log: file:///%s", path)
-}
-
-func (m model) renderDeck() string {
-	if m.gameState == nil {
-		return ""
-	}
-
-	deck := m.gameState.Deck
-	renderCursor := !m.commandMode && m.gameState.VoteState() == protocol.VotingState
-	myVote := m.app.Game.MyVote().Value
-
-	cards := make([]string, 0, len(deck)*2)
-
-	for i, value := range deck {
-		card := renderCard(value, renderCursor && i == m.deckCursor, value == myVote)
-		cards = append(cards, card, " ") // Add a space between cards
-	}
-
-	return lipgloss.JoinHorizontal(lipgloss.Left, cards...)
-}
-
-func renderCard(value protocol.VoteValue, cursor bool, voted bool) string {
-	var borderStyle lipgloss.Style
-	if voted {
-		borderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#aaaaaa"))
-	} else {
-		borderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))
-	}
-
-	card := table.New().
-		Border(lipgloss.RoundedBorder()).
-		BorderStyle(borderStyle).
-		StyleFunc(func(row, col int) lipgloss.Style {
-			return playervoteview.VoteStyle(value)
-		}).
-		Rows([]string{string(value)}).
-		String()
-
-	var column []string
-	column = []string{}
-
-	if !voted {
-		column = append(column, "")
-		//card = lipgloss.JoinVertical(lipgloss.Top, []string{"", card}...)
-	}
-
-	column = append(column, card)
-
-	if cursor {
-		if voted {
-			column = append(column, "")
-		}
-		column = append(column, "  ^")
-		//card = lipgloss.JoinVertical(lipgloss.Top, []string{card, "  ^"}...)
-	} else {
-		column = append(column, "")
-	}
-
-	return lipgloss.JoinVertical(lipgloss.Top, column...)
 }
 
 func renderIssue(item *protocol.Issue) string {

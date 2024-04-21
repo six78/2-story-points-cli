@@ -51,3 +51,9 @@ type RoomJoin struct {
 	RoomID   protocol.RoomID
 	IsDealer bool
 }
+
+// TODO: Try to find a better solution, probably game.subscribeToMyVote().
+// With this message the logic is duplicated in Game and Model.
+type MyVote struct {
+	Result protocol.VoteResult
+}

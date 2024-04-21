@@ -13,6 +13,7 @@ import (
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
 	"waku-poker-planning/view/commands"
+	"waku-poker-planning/view/components/deckview"
 	"waku-poker-planning/view/components/errorview"
 	"waku-poker-planning/view/components/playersview"
 	"waku-poker-planning/view/components/shortcutsview"
@@ -45,13 +46,13 @@ type model struct {
 
 	// UI components state
 	commandMode    bool
-	deckCursor     int
 	roomView       states.RoomView
 	issueCursor    int
 	errorView      errorview.Model
 	playersView    playersview.Model
 	shortcutsView  shortcutsview.Model
 	wakuStatusView wakustatusview.Model
+	deckView       deckview.Model
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -68,7 +69,6 @@ func initialModel(a *app.App) model {
 		roomID:    protocol.RoomID{},
 		// UI components state
 		commandMode: false,
-		deckCursor:  0,
 		roomView:    states.ActiveIssueView,
 		issueCursor: 0,
 		// View components
@@ -78,6 +78,7 @@ func initialModel(a *app.App) model {
 		playersView:    playersview.New(),
 		shortcutsView:  shortcutsview.New(),
 		wakuStatusView: wakustatusview.New(),
+		deckView:       deckview.New(true),
 	}
 }
 
@@ -95,6 +96,7 @@ func (m model) Init() tea.Cmd {
 		m.playersView.Init(),
 		m.shortcutsView.Init(),
 		m.wakuStatusView.Init(),
+		m.deckView.Init(),
 		commands.InitializeApp(m.app),
 	)
 }
@@ -182,6 +184,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		appendCommand(commands.WaitForConnectionStatus(m.app))
 
 	case messages.GameStateMessage:
+		if m.gameState != nil && msg.State.ActiveIssue != m.gameState.ActiveIssue {
+			appendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
+		}
 		m.gameState = msg.State
 		appendCommand(commands.WaitForGameState(m.app))
 
@@ -193,6 +198,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		config.Logger.Debug("room joined",
 			zap.String("roomID", msg.RoomID.String()),
 			zap.Bool("isDealer", msg.IsDealer))
+		appendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
 
 	case tea.KeyMsg:
 		switch msg.Type {
@@ -213,14 +219,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if cmd != nil {
 				appendCommand(cmd)
-			}
-		case tea.KeyLeft:
-			if !m.commandMode && m.roomView == states.ActiveIssueView {
-				MoveCursorLeft(&m)
-			}
-		case tea.KeyRight:
-			if !m.commandMode && m.roomView == states.ActiveIssueView {
-				MoveCursorRight(&m)
 			}
 		case tea.KeyUp:
 			if !m.commandMode && m.roomView == states.IssuesListView {
@@ -282,6 +280,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.playersView, playersCommand = m.playersView.Update(msg)
 	m.shortcutsView = m.shortcutsView.Update(msg, m.roomView)
 	m.wakuStatusView = m.wakuStatusView.Update(msg)
+	m.deckView = m.deckView.Update(msg)
 
 	appendCommand(inputCommand)
 	appendCommand(spinnerCommand)
@@ -308,22 +307,12 @@ func VoteOnCursor(m *model) tea.Cmd {
 	if m.gameState == nil {
 		return nil
 	}
-	if m.deckCursor < 0 || m.deckCursor > len(m.gameState.Deck) {
+	cursor := m.deckView.Cursor()
+	if cursor < 0 || cursor > len(m.gameState.Deck) {
 		return nil
 	}
-	vote := m.gameState.Deck[m.deckCursor]
+	vote := m.gameState.Deck[cursor]
 	return commands.PublishVote(m.app, vote)
-}
-
-func MoveCursorLeft(m *model) {
-	m.deckCursor = int(math.Max(float64(m.deckCursor-1), 0))
-}
-
-func MoveCursorRight(m *model) {
-	if m.gameState == nil {
-		return
-	}
-	m.deckCursor = int(math.Min(float64(m.deckCursor+1), float64(len(m.gameState.Deck)-1)))
 }
 
 func MoveIssueCursorUp(m *model) {
@@ -341,8 +330,10 @@ func toggleRoomView(m *model) {
 	switch m.roomView {
 	case states.ActiveIssueView:
 		m.roomView = states.IssuesListView
+		m.deckView.Blur()
 	case states.IssuesListView:
 		m.roomView = states.ActiveIssueView
+		m.deckView.Focus()
 	}
 }
 

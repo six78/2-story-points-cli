@@ -100,7 +100,13 @@ func WaitForConnectionStatus(app *app.App) tea.Cmd {
 func PublishVote(app *app.App, vote protocol.VoteValue) tea.Cmd {
 	return func() tea.Msg {
 		err := app.Game.PublishVote(vote)
-		return messages.NewErrorMessage(err)
+		if err != nil {
+			return messages.NewErrorMessage(err)
+		}
+		// TODO: Send err=nil ErrorMessage here
+		return messages.MyVote{
+			Result: app.Game.MyVote(),
+		}
 	}
 }
 

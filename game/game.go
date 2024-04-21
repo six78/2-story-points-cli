@@ -115,7 +115,7 @@ func (g *Game) processMessage(payload []byte) {
 		}
 		if g.state != nil && stateMessage.State.ActiveIssue != g.state.ActiveIssue {
 			// Voting finished or new issue dealt. Reset our vote.
-			g.resetOurVote()
+			g.resetMyVote()
 		}
 		g.state = &stateMessage.State
 		g.state.Deck, _ = GetDeck(Fibonacci) // FIXME: remove hardcoded deck
@@ -465,7 +465,7 @@ func (g *Game) CreateNewRoom() error {
 		Issues:      make([]*protocol.Issue, 0),
 	}
 	g.stateTimestamp = g.timestamp()
-	g.resetOurVote()
+	g.resetMyVote()
 
 	g.notifyChangedState(true)
 	go g.processIncomingMessages(sub)
@@ -510,6 +510,7 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	if state != nil {
 		g.state.Deck, _ = GetDeck(Fibonacci) // FIXME: remove hardcoded deck
 	}
+	g.resetMyVote()
 
 	go g.processIncomingMessages(sub)
 	go g.publishOnlineState()
@@ -630,13 +631,13 @@ func (g *Game) Finish(result protocol.VoteValue) error {
 	item.Result = &result
 	g.state.ActiveIssue = g.state.Issues.GetNextIssueToDeal(g.state.ActiveIssue)
 	g.state.VotesRevealed = false
-	g.resetOurVote()
+	g.resetMyVote()
 	g.notifyChangedState(true)
 
 	return nil
 }
 
-func (g *Game) resetOurVote() {
+func (g *Game) resetMyVote() {
 	g.myVote = protocol.VoteResult{
 		Value:     "",
 		Timestamp: 0,
