@@ -477,8 +477,8 @@ func (g *Game) CreateNewRoom() error {
 	return nil
 }
 
-func (g *Game) JoinRoom(roomID string, state *protocol.State) error {
-	if g.RoomID().String() == roomID {
+func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
+	if g.RoomID() == roomID {
 		return errors.New("already in this room")
 	}
 
@@ -486,11 +486,11 @@ func (g *Game) JoinRoom(roomID string, state *protocol.State) error {
 		return errors.New("exit current room to create a new one")
 	}
 
-	if roomID == "" {
+	if roomID.Empty() {
 		return errors.New("empty room ID")
 	}
 
-	room, err := protocol.ParseRoomID(roomID)
+	room, err := protocol.ParseRoomID(roomID.String())
 	if err != nil {
 		return errors.Wrap(err, "failed to parse room ID")
 	}
@@ -504,7 +504,7 @@ func (g *Game) JoinRoom(roomID string, state *protocol.State) error {
 
 	g.isDealer = state != nil
 	g.room = room
-	g.roomID = protocol.NewRoomID(roomID)
+	g.roomID = roomID
 	g.state = state
 	g.stateTimestamp = 0
 	if state != nil {
@@ -516,12 +516,12 @@ func (g *Game) JoinRoom(roomID string, state *protocol.State) error {
 	g.notifyChangedState(state != nil)
 
 	if state == nil {
-		g.logger.Info("joined room", zap.String("roomID", roomID))
+		g.logger.Info("joined room", zap.Any("roomID", roomID))
 
 	} else {
 		g.stateTimestamp = g.timestamp()
 		g.logger.Info("loaded room",
-			zap.String("roomID", roomID),
+			zap.Any("roomID", roomID),
 			zap.Bool("isDealer", g.isDealer))
 	}
 

@@ -124,7 +124,8 @@ func runJoinAction(m *model, args []string) tea.Cmd {
 			err := errors.New("no room id argument provided")
 			return messages.NewErrorMessage(err)
 		}
-		return commands.JoinRoom(m.app, args[0], nil)()
+		roomID := protocol.NewRoomID(args[0])
+		return commands.JoinRoom(m.app, roomID, nil)()
 	}
 }
 
@@ -239,6 +240,6 @@ func runRestoreAction(m *model, args []string) tea.Cmd {
 			err = errors.New("room not found in storage")
 			return messages.NewErrorMessage(err)
 		}
-		return commands.JoinRoom(m.app, roomID.String(), state)()
+		return commands.JoinRoom(m.app, roomID, state)()
 	}
 }

@@ -268,7 +268,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						appendMessage(messages.NewErrorMessage(err))
 						break
 					}
-					appendCommand(commands.JoinRoom(m.app, msg.String(), nil))
+					roomID := protocol.NewRoomID(msg.String())
+					appendCommand(commands.JoinRoom(m.app, roomID, nil))
 				}
 			}
 		}
