@@ -47,7 +47,7 @@ type CommandModeChange struct {
 	CommandMode bool
 }
 
-type RoomChange struct {
-	RoomID   string
+type RoomJoin struct {
+	RoomID   protocol.RoomID
 	IsDealer bool
 }

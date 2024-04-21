@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 	"waku-poker-planning/config"
+	"waku-poker-planning/game"
 	pp "waku-poker-planning/protocol"
 )
 
@@ -353,7 +354,19 @@ func (n *Node) watchConnectionStatus() {
 	}
 }
 
-func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
+func (n *Node) SubscribeToMessages(room *pp.Room) (*game.MessagesSubscription, error) {
+	//subUUID, err := uuid.NewUUID()
+	//if err != nil {
+	//	return nil, errors.Wrap(err, "failed to generate subscription uuid")
+	//}
+	//
+	//roomID, err := room.ToRoomID()
+	//if err != nil {
+	//	return nil, errors.Wrap(err, "failed to get room id")
+	//}
+
+	n.logger.Debug("subscribing to room")
+
 	contentTopic, err := n.roomCache.Get(room)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build content topic")
@@ -378,9 +391,18 @@ func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
 			}
 		}
 
+		if err != nil {
+			n.logger.Error("failed to subscribe to content topic", zap.Bool("lightMode", n.lightMode), zap.Error(err))
+			return nil, errors.Wrap(err, "failed to subscribe to content topic")
+		}
+
 		if len(subs) != 1 {
-			unsubscribe()
-			return nil, errors.Errorf("unexpected number of subscriptions: %d", len(subs))
+			if len(subs) > 0 {
+				unsubscribe()
+			}
+			err = errors.Errorf("unexpected number of subscriptions: %d", len(subs))
+			n.logger.Error("failed to subscribe to content topic", zap.Error(err))
+			return nil, err
 		}
 
 		in = subs[0].C
@@ -394,42 +416,66 @@ func (n *Node) SubscribeToMessages(room *pp.Room) (chan []byte, error) {
 			if err != nil {
 				n.logger.Warn("failed to unsubscribe from relay", zap.Error(err))
 			}
+			// WARNING: Why 0 peers after this?
+			// FIXME: Open a go-waku PR. This unregister should be called in WakuRelay.RemoveTopicValidator
+			err = n.waku.Relay().PubSub().UnregisterTopicValidator(contentFilter.PubsubTopic)
+			if err != nil {
+				n.logger.Warn("failed to unregister topic validator")
+			}
+		}
+
+		if err != nil {
+			n.logger.Error("failed to subscribe to content topic", zap.Bool("lightMode", n.lightMode), zap.Error(err))
+			return nil, errors.Wrap(err, "failed to subscribe to content topic")
 		}
 
 		if len(subs) != 1 {
-			unsubscribe()
-			return nil, errors.Errorf("unexpected number of subscriptions: %d", len(subs))
+			if len(subs) > 0 {
+				unsubscribe()
+			}
+			err = errors.Errorf("unexpected number of subscriptions: %d", len(subs))
+			n.logger.Error("failed to subscribe to content topic", zap.Error(err))
+			return nil, err
 		}
 
 		in = subs[0].Ch
 	}
 
-	if err != nil {
-		n.logger.Error("failed to subscribe to content topic", zap.Bool("lightMode", n.lightMode))
-		return nil, errors.Wrap(err, "failed to subscribe to content topic")
+	leaveRoom := make(chan struct{})
+	sub := &game.MessagesSubscription{
+		Ch: make(chan []byte, 10),
+		Unsubscribe: func() {
+			close(leaveRoom)
+		},
 	}
 
-	out := make(chan []byte, 10)
-
 	go func() {
-		defer close(out)
-		defer unsubscribe()
+		defer func() {
+			unsubscribe()
+			close(sub.Ch)
+			n.logger.Debug("subscription channel closed")
+		}()
 
-		for value := range in {
-			n.logger.Info("waku message received (relay)",
-				zap.String("payload", string(value.Message().Payload)),
-			)
-			payload, err := decryptMessage(room, value.Message())
-			if err != nil {
-				n.logger.Warn("failed to decrypt message payload")
+		for {
+			select {
+			case <-leaveRoom:
+				return
+			case value := <-in:
+				n.logger.Info("waku message received (relay)",
+					zap.String("payload", string(value.Message().Payload)),
+				)
+				payload, err := decryptMessage(room, value.Message())
+				if err != nil {
+					n.logger.Warn("failed to decrypt message payload")
+				}
+
+				n.stats.IncrementReceivedMessages()
+				sub.Ch <- payload
 			}
-
-			n.stats.IncrementReceivedMessages()
-			out <- payload
 		}
 	}()
 
-	return out, nil
+	return sub, nil
 }
 
 func decryptMessage(room *pp.Room, message *pb.WakuMessage) ([]byte, error) {

@@ -40,7 +40,7 @@ type model struct {
 	state            states.AppState
 	fatalError       error
 	gameState        *protocol.State
-	roomID           string
+	roomID           protocol.RoomID
 	connectionStatus waku.ConnectionStatus
 
 	// UI components state
@@ -65,7 +65,7 @@ func initialModel(a *app.App) model {
 		// Initial model values
 		state:     states.Initializing,
 		gameState: nil,
-		roomID:    "",
+		roomID:    protocol.RoomID{},
 		// UI components state
 		commandMode: false,
 		deckCursor:  0,
@@ -147,8 +147,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				switchToState(states.WaitingForPeers)
 			}
-			// Subscribe to connection status when app initialized
+			// Subscribe to states when app initialized
 			appendCommand(commands.WaitForConnectionStatus(m.app))
+			appendCommand(commands.WaitForGameState(m.app))
+
 		case states.InputPlayerName:
 			switchToState(states.WaitingForPeers)
 
@@ -161,26 +163,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case states.Playing:
 			break
-		case states.CreatingRoom, states.JoiningRoom:
-			// TODO: Drop CreatingRoom and JoiningRoom and use messages.RoomChange instead
-			switchToState(states.Playing)
-			m.gameState = m.app.GameState()
-
-			appendMessage(messages.RoomChange{
-				RoomID:   m.app.Game.RoomID(),
-				IsDealer: m.app.Game.IsDealer(),
-			})
-
-			appendMessage(messages.ErrorMessage{
-				Err: msg.Err,
-			})
-
-			appendCommand(commands.WaitForGameState(m.app))
-
-			config.Logger.Debug("room created or joined",
-				zap.String("roomID", m.roomID),
-				zap.Error(msg.Err),
-			)
 		}
 	case messages.AppStateMessage:
 		// Immediately skip to next state if peers already connected
@@ -206,10 +188,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.CommandModeChange:
 		m.commandMode = msg.CommandMode
 
-	case messages.RoomChange:
+	case messages.RoomJoin:
 		m.roomID = msg.RoomID
-		config.Logger.Debug("room changed",
-			zap.String("roomID", msg.RoomID),
+		config.Logger.Debug("room joined",
+			zap.String("roomID", msg.RoomID.String()),
 			zap.Bool("isDealer", msg.IsDealer))
 
 	case tea.KeyMsg:
@@ -226,7 +208,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case states.ActiveIssueView:
 					cmd = VoteOnCursor(&m)
 				case states.IssuesListView:
-					cmd = DealOnCursor(&m)
+					cmd = commands.SelectIssue(m.app, m.issueCursor)
 				}
 			}
 			if cmd != nil {
@@ -249,7 +231,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				MoveIssueCursorDown(&m)
 			}
 		case tea.KeyTab:
-			if m.roomID != "" {
+			if !m.roomID.Empty() {
 				toggleCurrentView(&m)
 			}
 
@@ -261,13 +243,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if !m.input.Focused() {
 			config.Logger.Debug("<<<",
-				zap.String("roomID", m.roomID),
+				zap.Any("roomID", m.roomID),
 				zap.Any("msg", msg),
 			)
 			//case key.Matches(msg, commands.DefaultKeyMap.JoinRoom):
 			//	appendCommand(runJoinAction(&m, nil))
 
-			if m.roomID != "" {
+			if !m.roomID.Empty() {
 				switch {
 				case key.Matches(msg, commands.DefaultKeyMap.ExitRoom):
 					appendCommand(runExitAction(&m, nil))
@@ -287,7 +269,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						appendMessage(messages.NewErrorMessage(err))
 						break
 					}
-					appendCommand(commands.JoinRoom(msg.String(), m.app))
+					appendCommand(commands.JoinRoom(m.app, msg.String(), nil))
 				}
 			}
 		}
@@ -325,13 +307,11 @@ func VoteOnCursor(m *model) tea.Cmd {
 	if m.gameState == nil {
 		return nil
 	}
-	// TODO: Instead of imitating action, return a ready-to-go tea.Cmd
-	return ProcessAction(m, fmt.Sprintf("vote %s", m.gameState.Deck[m.deckCursor]))
-}
-
-func DealOnCursor(m *model) tea.Cmd {
-	// TODO: Instead of imitating action, return a ready-to-go tea.Cmd
-	return ProcessAction(m, fmt.Sprintf("select %d", m.issueCursor))
+	if m.deckCursor < 0 || m.deckCursor > len(m.gameState.Deck) {
+		return nil
+	}
+	vote := m.gameState.Deck[m.deckCursor]
+	return commands.PublishVote(m.app, vote)
 }
 
 func MoveCursorLeft(m *model) {

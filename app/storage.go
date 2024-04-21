@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"path"
 	"sync"
 	"waku-poker-planning/config"
 	"waku-poker-planning/game"
@@ -12,7 +13,10 @@ import (
 	"github.com/shibukawa/configdir"
 )
 
-const playerStorageFileName = "player.json"
+const (
+	playerStorageFileName = "player.json"
+	roomsDirectory        = "rooms"
+)
 
 type Storage struct {
 	player playerStorage
@@ -24,6 +28,11 @@ type Storage struct {
 type playerStorage struct {
 	ID   protocol.PlayerID `json:"id"`
 	Name string            `json:"name"`
+}
+
+type roomStorage struct {
+	// TODO: PrivateKey string
+	State *protocol.State `json:"state"`
 }
 
 func NewStorage() (*Storage, error) {
@@ -110,4 +119,49 @@ func (s *Storage) SetPlayerName(name string) error {
 	defer s.mutex.Unlock()
 	s.player.Name = name
 	return s.savePlayerStorage()
+}
+
+func (s *Storage) LoadRoomState(roomID protocol.RoomID) (*protocol.State, error) {
+	filePath := path.Join(roomsDirectory, roomID.String(), ".json")
+	folder := s.configDirs.QueryFolderContainsFile(filePath)
+	if folder == nil {
+		return nil, nil
+	}
+
+	data, err := folder.ReadFile(filePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read room storage file")
+	}
+
+	var room roomStorage
+	err = json.Unmarshal(data, &room)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal storage file")
+	}
+
+	return room.State, nil
+}
+
+func (s *Storage) SaveRoomState(roomID protocol.RoomID, state *protocol.State) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	room := roomStorage{
+		State: state,
+	}
+
+	roomJson, err := json.Marshal(room)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal room data")
+	}
+
+	filePath := path.Join(roomsDirectory, roomID.String(), ".json")
+	folders := s.configDirs.QueryFolders(configdir.Global)
+
+	err = folders[0].WriteFile(filePath, roomJson)
+	if err != nil {
+		return errors.Wrap(err, "failed to write room storage")
+	}
+
+	return nil
 }

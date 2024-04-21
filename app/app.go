@@ -106,6 +106,12 @@ func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 	if !more {
 		a.gameStateSubscription = nil
 	}
+
+	err := a.storage.SaveRoomState(a.Game.RoomID(), state)
+	if err != nil {
+		config.Logger.Error("failed to save room state", zap.Error(err))
+	}
+
 	return state, more, nil
 }
 
@@ -132,4 +138,8 @@ func (a *App) RenamePlayer(name string) error {
 		return nil
 	}
 	return a.storage.SetPlayerName(name)
+}
+
+func (a *App) LoadRoomState(roomID protocol.RoomID) (*protocol.State, error) {
+	return a.storage.LoadRoomState(roomID)
 }

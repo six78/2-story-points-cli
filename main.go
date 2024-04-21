@@ -8,8 +8,8 @@ import (
 )
 
 func main() {
-	config.SetupLogger()
 	config.ParseArguments()
+	config.SetupLogger()
 
 	a := app.NewApp()
 	defer a.Stop()

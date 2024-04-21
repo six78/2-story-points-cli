@@ -17,33 +17,35 @@ import (
 type Action string
 
 const (
-	Rename Action = "rename"
-	New    Action = "new"
-	Join   Action = "join"
-	Exit   Action = "exit"
-	Vote   Action = "vote"
-	Deal   Action = "deal"
-	Add    Action = "add"
-	Reveal Action = "reveal"
-	Finish Action = "finish"
-	Deck   Action = "deck"
-	Select Action = "select"
+	Rename  Action = "rename"
+	New     Action = "new"
+	Join    Action = "join"
+	Exit    Action = "exit"
+	Vote    Action = "vote"
+	Deal    Action = "deal"
+	Add     Action = "add"
+	Reveal  Action = "reveal"
+	Finish  Action = "finish"
+	Deck    Action = "deck"
+	Select  Action = "select"
+	Restore Action = "restore"
 )
 
 type actionFunc func(m *model, args []string) tea.Cmd
 
 var actions = map[Action]actionFunc{
-	Rename: runRenameAction,
-	Vote:   runVoteAction,
-	Deal:   runDealAction,
-	Add:    runAddAction,
-	New:    runNewAction,
-	Join:   runJoinAction,
-	Exit:   runExitAction,
-	Reveal: runRevealAction,
-	Finish: runFinishAction,
-	Deck:   runDeckAction,
-	Select: runSelectAction,
+	Rename:  runRenameAction,
+	Vote:    runVoteAction,
+	Deal:    runDealAction,
+	Add:     runAddAction,
+	New:     runNewAction,
+	Join:    runJoinAction,
+	Exit:    runExitAction,
+	Reveal:  runRevealAction,
+	Finish:  runFinishAction,
+	Deck:    runDeckAction,
+	Select:  runSelectAction,
+	Restore: runRestoreAction,
 }
 
 func processPlayerNameInput(m *model, playerName string) tea.Cmd {
@@ -86,8 +88,7 @@ func runVoteAction(m *model, args []string) tea.Cmd {
 			return messages.NewErrorMessage(err)
 		}
 
-		err = m.app.Game.PublishVote(vote)
-		return messages.NewErrorMessage(err)
+		return commands.PublishVote(m.app, vote)()
 	}
 }
 
@@ -114,25 +115,23 @@ func runAddAction(m *model, args []string) tea.Cmd {
 }
 
 func runNewAction(m *model, args []string) tea.Cmd {
-	m.state = states.CreatingRoom
 	return commands.CreateNewRoom(m.app)
 }
 
 func runJoinAction(m *model, args []string) tea.Cmd {
 	return func() tea.Msg {
-		m.state = states.JoiningRoom
 		if len(args) == 0 {
 			err := errors.New("no room id argument provided")
 			return messages.NewErrorMessage(err)
 		}
-		return commands.JoinRoom(args[0], m.app)()
+		return commands.JoinRoom(m.app, args[0], nil)()
 	}
 }
 
 func runExitAction(m *model, args []string) tea.Cmd {
 	return func() tea.Msg {
 		m.app.Game.LeaveRoom()
-		return messages.RoomChange{
+		return messages.RoomJoin{
 			RoomID:   m.app.Game.RoomID(),
 			IsDealer: m.app.Game.IsDealer(),
 		}
@@ -210,15 +209,32 @@ func runDeckAction(m *model, args []string) tea.Cmd {
 func runSelectAction(m *model, args []string) tea.Cmd {
 	return func() tea.Msg {
 		if len(args) == 0 {
-			return messages.NewErrorMessage(errors.New("no issue index given"))
+			err := errors.New("no issue index provided")
+			return messages.NewErrorMessage(err)
 		}
 
 		index, err := strconv.Atoi(args[0])
 		if err != nil {
-			return messages.NewErrorMessage(fmt.Errorf("invalid issue index: %s", args[0]))
+			err = fmt.Errorf("invalid issue index: %s (%w)", args[0], err)
+			return messages.NewErrorMessage(err)
 		}
 
-		err = m.app.Game.SelectIssue(index)
-		return messages.NewErrorMessage(err)
+		return commands.SelectIssue(m.app, index)()
+	}
+}
+
+func runRestoreAction(m *model, args []string) tea.Cmd {
+	return func() tea.Msg {
+		if len(args) == 0 {
+			err := errors.New("no room id argument provided")
+			return messages.NewErrorMessage(err)
+		}
+
+		roomID := protocol.NewRoomID(args[0])
+		state, err := m.app.LoadRoomState(roomID)
+		if err != nil {
+			return messages.NewErrorMessage(err)
+		}
+		return commands.JoinRoom(m.app, roomID.String(), state)()
 	}
 }

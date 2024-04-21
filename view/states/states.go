@@ -7,8 +7,6 @@ const (
 	Initializing
 	InputPlayerName
 	WaitingForPeers
-	CreatingRoom
-	JoiningRoom
 	Playing
 )
 

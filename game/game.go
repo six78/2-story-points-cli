@@ -54,12 +54,12 @@ func NewGame(ctx context.Context, transport Transport, playerID protocol.PlayerI
 }
 
 func (g *Game) LeaveRoom() {
-	if g.exitRoom != nil {
-		close(g.exitRoom)
-	}
-
 	if g.room != nil {
 		g.publishUserOffline()
+	}
+
+	if g.exitRoom != nil {
+		close(g.exitRoom)
 	}
 
 	g.logger.Info("left room", zap.String("roomID", g.roomID.String()))
@@ -297,11 +297,11 @@ func (g *Game) publishStatePeriodically() {
 	}
 }
 
-func (g *Game) processIncomingMessages(sub chan []byte) {
-	// FIXME: defer unsubscribe
+func (g *Game) processIncomingMessages(sub *MessagesSubscription) {
+	defer sub.Unsubscribe()
 	for {
 		select {
-		case payload, more := <-sub:
+		case payload, more := <-sub.Ch:
 			if !more {
 				return
 			}
@@ -476,8 +476,8 @@ func (g *Game) CreateNewRoom() error {
 	return nil
 }
 
-func (g *Game) JoinRoom(roomID string) error {
-	if g.RoomID() == roomID {
+func (g *Game) JoinRoom(roomID string, state *protocol.State) error {
+	if g.RoomID().String() == roomID {
 		return errors.New("already in this room")
 	}
 
@@ -501,17 +501,28 @@ func (g *Game) JoinRoom(roomID string) error {
 		return errors.Wrap(err, "failed to subscribe to messages")
 	}
 
-	g.isDealer = false
+	g.isDealer = state != nil
 	g.room = room
 	g.roomID = protocol.NewRoomID(roomID)
-	g.state = nil
+	g.state = state
 	g.stateTimestamp = 0
+	if state != nil {
+		g.state.Deck, _ = GetDeck(Fibonacci) // FIXME: remove hardcoded deck
+	}
 
 	go g.processIncomingMessages(sub)
 	go g.publishOnlineState()
-	g.notifyChangedState(false)
+	g.notifyChangedState(state != nil)
 
-	g.logger.Info("joined room", zap.String("roomID", roomID))
+	if state == nil {
+		g.logger.Info("joined room", zap.String("roomID", roomID))
+
+	} else {
+		g.stateTimestamp = g.timestamp()
+		g.logger.Info("loaded room",
+			zap.String("roomID", roomID),
+			zap.Bool("isDealer", g.isDealer))
+	}
 
 	return nil
 }
@@ -524,8 +535,8 @@ func (g *Game) Room() protocol.Room {
 	return *g.room
 }
 
-func (g *Game) RoomID() string {
-	return g.roomID.String()
+func (g *Game) RoomID() protocol.RoomID {
+	return g.roomID
 }
 
 func (g *Game) Player() protocol.Player {
@@ -633,13 +644,8 @@ func (g *Game) resetOurVote() {
 
 func (g *Game) AddIssue(titleOrURL string) (protocol.IssueID, error) {
 	if !g.isDealer {
-		return "", errors.New("only dealer can deal")
+		return "", errors.New("only dealer can add issues")
 	}
-
-	if g.state.VoteState() != protocol.IdleState && g.state.VoteState() != protocol.FinishedState {
-		return "", errors.New("cannot deal when voting is in progress")
-	}
-
 	issueID, err := g.addIssue(titleOrURL)
 	if err != nil {
 		return "", err

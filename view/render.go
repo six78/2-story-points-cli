@@ -30,10 +30,6 @@ func (m model) renderAppState() string {
 		return m.spinner.View() + " Connecting to Waku peers..."
 	case states.Playing:
 		return m.renderGame()
-	case states.CreatingRoom:
-		return m.spinner.View() + " Creating room..."
-	case states.JoiningRoom:
-		return m.spinner.View() + " Joining room..."
 	}
 
 	return "unknown app state"
@@ -49,7 +45,7 @@ func (m model) renderPlayerNameInput() string {
 
 func (m model) renderGame() string {
 	roomViewSeparator := ""
-	if m.roomID != "" {
+	if !m.roomID.Empty() {
 		roomViewSeparator = "\n"
 	}
 	return lipgloss.JoinVertical(lipgloss.Top,
@@ -61,10 +57,14 @@ func (m model) renderGame() string {
 }
 
 func (m model) renderRoomID() string {
-	if m.roomID == "" {
+	if m.roomID.Empty() {
 		return "  Join a room or create a new one ..."
 	}
-	return "  Room: " + m.roomID
+	var dealerString string
+	if m.app.Game.IsDealer() {
+		dealerString = " [dealer]"
+	}
+	return "  Room: " + m.roomID.String() + dealerString
 }
 
 func (m model) renderRoomView() string {
@@ -79,7 +79,7 @@ func (m model) renderRoomView() string {
 }
 
 func (m model) renderRoomCurrentIssueView() string {
-	if m.roomID == "" {
+	if m.roomID.Empty() {
 		return ""
 	}
 

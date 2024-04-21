@@ -1,10 +1,9 @@
 package commands
 
 import (
-	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/pkg/errors"
 	"waku-poker-planning/app"
+	"waku-poker-planning/protocol"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
 )
@@ -26,23 +25,25 @@ func InitializeApp(a *app.App) tea.Cmd {
 func CreateNewRoom(a *app.App) tea.Cmd {
 	return func() tea.Msg {
 		err := a.Game.CreateNewRoom()
-		return messages.AppStateFinishedMessage{
-			State: states.CreatingRoom,
-			ErrorMessage: messages.ErrorMessage{
-				Err: err,
-			},
+		if err != nil {
+			return messages.NewErrorMessage(err)
+		}
+		return messages.RoomJoin{
+			RoomID:   a.Game.RoomID(),
+			IsDealer: a.Game.IsDealer(),
 		}
 	}
 }
 
-func JoinRoom(roomID string, a *app.App) tea.Cmd {
+func JoinRoom(a *app.App, roomID string, state *protocol.State) tea.Cmd {
 	return func() tea.Msg {
-		err := a.Game.JoinRoom(roomID)
-		return messages.AppStateFinishedMessage{
-			State: states.JoiningRoom,
-			ErrorMessage: messages.ErrorMessage{
-				Err: err,
-			},
+		err := a.Game.JoinRoom(roomID, state)
+		if err != nil {
+			return messages.NewErrorMessage(err)
+		}
+		return messages.RoomJoin{
+			RoomID:   a.Game.RoomID(),
+			IsDealer: a.Game.IsDealer(),
 		}
 	}
 }
@@ -51,7 +52,7 @@ func WaitForGameState(app *app.App) tea.Cmd {
 	return func() tea.Msg {
 		state, more, err := app.WaitForGameState()
 		if err != nil {
-			return messages.FatalErrorMessage{err}
+			return messages.FatalErrorMessage{Err: err}
 		}
 		if !more {
 			return nil
@@ -88,17 +89,16 @@ func WaitForConnectionStatus(app *app.App) tea.Cmd {
 	}
 }
 
-func JoinRoomFromClipboard(app *app.App) tea.Cmd {
+func PublishVote(app *app.App, vote protocol.VoteValue) tea.Cmd {
 	return func() tea.Msg {
-		if clipboard.Unsupported {
-			err := errors.New("clipboard is unsupported")
-			return messages.NewErrorMessage(err)
-		}
-		roomID, err := clipboard.ReadAll()
-		if err != nil {
-			err := errors.Wrap(err, "failed to read from clipboard")
-			return messages.NewErrorMessage(err)
-		}
-		return JoinRoom(roomID, app)()
+		err := app.Game.PublishVote(vote)
+		return messages.NewErrorMessage(err)
+	}
+}
+
+func SelectIssue(app *app.App, index int) tea.Cmd {
+	return func() tea.Msg {
+		err := app.Game.SelectIssue(index)
+		return messages.NewErrorMessage(err)
 	}
 }

@@ -46,11 +46,17 @@ func (n *StaticWakuNodes) Set(value string) error {
 }
 
 func SetupLogger() {
+	var c zap.Config
+	if debug {
+		c = zap.NewDevelopmentConfig()
+	} else {
+		c = zap.NewProductionConfig()
+	}
+
 	LogFilePath = createLogFile()
-	config := zap.NewDevelopmentConfig()
-	config.OutputPaths = []string{LogFilePath}
-	config.Development = false
-	logger, err := config.Build()
+	c.OutputPaths = []string{LogFilePath}
+	c.Development = false
+	logger, err := c.Build()
 	if err != nil {
 		panic(err)
 	}

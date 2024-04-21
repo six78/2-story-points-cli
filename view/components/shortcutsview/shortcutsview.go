@@ -46,18 +46,8 @@ func (m Model) Update(msg tea.Msg, view states.RoomView) Model {
 	switch msg := msg.(type) {
 	case messages.CommandModeChange:
 		m.commandMode = msg.CommandMode
-	case messages.AppStateFinishedMessage:
-		switch msg.State {
-		case states.CreatingRoom:
-			m.isDealer = true
-			m.inRoom = true
-		case states.JoiningRoom:
-			m.isDealer = false
-			m.inRoom = true
-		default:
-		}
-	case messages.RoomChange:
-		m.inRoom = msg.RoomID != ""
+	case messages.RoomJoin:
+		m.inRoom = !msg.RoomID.Empty()
 		m.isDealer = msg.IsDealer
 	}
 

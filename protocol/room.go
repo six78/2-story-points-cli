@@ -24,6 +24,10 @@ func (id RoomID) String() string {
 	return id.string
 }
 
+func (id RoomID) Empty() bool {
+	return id.string == ""
+}
+
 // RoomID: base58 encoded byte array:
 // - byte 0: 	    version
 // - byte 1..end: symmetric key
