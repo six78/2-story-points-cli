@@ -1,6 +1,9 @@
 package protocol
 
-import "waku-poker-planning/config"
+import (
+	"time"
+	"waku-poker-planning/config"
+)
 
 const Version byte = 1
 
@@ -11,6 +14,8 @@ type Player struct {
 	ID     PlayerID `json:"id"`
 	Name   string   `json:"name"`
 	Online bool     `json:"online"`
+
+	OnlineTimestamp time.Time `json:"-"`
 }
 
 type Issue struct {

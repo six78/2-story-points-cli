@@ -138,6 +138,7 @@ func (g *Game) processMessage(payload []byte) {
 		index := g.playerIndex(playerOnline.Player.ID)
 		if index < 0 {
 			playerOnline.Player.Online = true
+			playerOnline.Player.OnlineTimestamp = time.Now()
 			g.state.Players = append(g.state.Players, playerOnline.Player)
 			g.notifyChangedState(true)
 			return
@@ -151,6 +152,7 @@ func (g *Game) processMessage(payload []byte) {
 		}
 
 		g.state.Players[index].Online = true
+		g.state.Players[index].OnlineTimestamp = time.Now()
 		g.state.Players[index].Name = playerOnline.Player.Name
 		g.notifyChangedState(true)
 
@@ -282,7 +284,7 @@ func (g *Game) publishOnlineState() {
 	}
 }
 
-func (g *Game) publishStatePeriodically() {
+func (g *Game) publishStateLoop() {
 	g.logger.Debug("state publish loop started")
 	for {
 		select {
@@ -294,6 +296,31 @@ func (g *Game) publishStatePeriodically() {
 		case <-g.ctx.Done():
 			g.logger.Debug("state publish loop finished: ctx done")
 			return
+		}
+	}
+}
+
+func (g *Game) checkPlayersStateLoop() {
+	g.logger.Debug("check users state loop")
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-g.exitRoom:
+			return
+		case <-g.ctx.Done():
+			return
+		case <-ticker.C:
+			if g.state == nil {
+				continue
+			}
+			now := time.Now()
+			for i, player := range g.state.Players {
+				diff := now.Sub(player.OnlineTimestamp)
+				if diff > 20*time.Second {
+					g.state.Players[i].Online = false
+				}
+			}
 		}
 	}
 }
@@ -470,7 +497,8 @@ func (g *Game) CreateNewRoom() error {
 	g.notifyChangedState(true)
 	go g.processIncomingMessages(sub)
 	go g.publishOnlineState()
-	go g.publishStatePeriodically()
+	go g.publishStateLoop()
+	go g.checkPlayersStateLoop()
 
 	g.logger.Info("new room created", zap.String("roomID", roomID.String()))
 
