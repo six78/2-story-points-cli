@@ -22,6 +22,7 @@ const VendorName = "six78"
 const ApplicationName = "waku-poker-planning"
 
 const UserColor = lipgloss.Color("#7D56F4")
+const ForegroundShadeColor = lipgloss.Color("#555555")
 
 var fleet string
 var nameserver string

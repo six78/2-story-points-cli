@@ -16,6 +16,10 @@ import (
 		for each component. This would be a proper way of using bubbletea!
 */
 
+var (
+	foregroundShadeStyle = lipgloss.NewStyle().Foreground(config.ForegroundShadeColor)
+)
+
 func (m model) renderAppState() string {
 	switch m.state {
 	case states.Idle:
@@ -60,7 +64,7 @@ func (m model) renderRoomID() string {
 	}
 	var dealerString string
 	if m.app.Game.IsDealer() {
-		dealerString = " [dealer]"
+		dealerString = foregroundShadeStyle.Render(" (dealer)")
 	}
 	return "  Room: " + m.roomID.String() + dealerString
 }
@@ -89,6 +93,7 @@ func (m model) renderRoomCurrentIssueView() string {
 
 	return lipgloss.JoinVertical(lipgloss.Top,
 		m.issueView.View(),
+		"",
 		m.playersView.View(),
 		m.deckView.View(),
 	)
@@ -118,7 +123,7 @@ func renderIssuesListView(m *model) string {
 	var items []string
 
 	for i, issue := range issues {
-		result := "  -"
+		result := "  - "
 		if issue.Result != nil {
 			vote := fmt.Sprintf("%2s", string(*issue.Result))
 			result = voteview.VoteStyle(*issue.Result).Render(vote)

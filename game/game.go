@@ -412,8 +412,8 @@ func (g *Game) Deal(input string) (protocol.IssueID, error) {
 		return "", errors.New("only dealer can deal")
 	}
 
-	if g.state.VoteState() != protocol.IdleState && g.state.VoteState() != protocol.FinishedState {
-		return "", errors.New("cannot deal when voting is in progress")
+	if g.state.VoteState() == protocol.RevealedState {
+		return "", errors.New("finish current vote to deal another issue")
 	}
 
 	issueID, err := g.addIssue(input)
@@ -689,7 +689,7 @@ func (g *Game) SelectIssue(index int) error {
 		return errors.New("only dealer can deal")
 	}
 
-	if g.state.VoteState() != protocol.IdleState && g.state.VoteState() != protocol.FinishedState {
+	if g.state.VoteState() == protocol.RevealedState {
 		return errors.New("cannot deal when voting is in progress")
 	}
 
@@ -697,6 +697,8 @@ func (g *Game) SelectIssue(index int) error {
 		return errors.New("invalid issue index")
 	}
 
+	g.state.Issues[index].Result = nil
+	g.state.Issues[index].Votes = make(map[protocol.PlayerID]protocol.VoteResult)
 	g.state.ActiveIssue = g.state.Issues[index].ID
 	g.notifyChangedState(true)
 

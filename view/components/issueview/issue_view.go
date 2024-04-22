@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/go-github/v61/github"
+	"github.com/muesli/termenv"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"net/url"
@@ -19,7 +20,7 @@ import (
 )
 
 var (
-	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))
+	errorStyle = lipgloss.NewStyle().Foreground(config.ForegroundShadeColor)
 	//defaultStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))
 )
 
@@ -37,8 +38,14 @@ type Model struct {
 }
 
 type issueInfo struct {
-	err   error
-	title *string
+	err    error
+	title  *string
+	labels []labelInfo
+}
+
+type labelInfo struct {
+	name  *string
+	style lipgloss.Style
 }
 
 func New() Model {
@@ -97,10 +104,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	return fmt.Sprintf("Issue:  %s\n        %s",
+	rightColumn := lipgloss.JoinVertical(lipgloss.Top,
 		m.renderRow1(),
-		m.renderRow2(),
-	)
+		m.renderInfo())
+	return lipgloss.JoinHorizontal(lipgloss.Left,
+		"Issue:  \n\n", // Fill at least 3 lines
+		rightColumn)
 }
 
 func (m *Model) renderRow1() string {
@@ -110,7 +119,7 @@ func (m *Model) renderRow1() string {
 	return "-"
 }
 
-func (m *Model) renderRow2() string {
+func (m *Model) renderInfo() string {
 	if m.issue == nil {
 		return ""
 	}
@@ -128,11 +137,24 @@ func (m *Model) renderRow2() string {
 		return errorStyle.Render(fmt.Sprintf("[%s]", info.err.Error()))
 	}
 
+	row1 := ""
 	if info.title == nil {
-		return errorStyle.Render("[empty issue title]")
+		row1 = errorStyle.Render("[empty issue title]")
+	} else {
+		row1 = *info.title
 	}
 
-	return *info.title
+	var labels []string
+	for _, l := range info.labels {
+		if l.name == nil {
+			continue
+		}
+		labelName := fmt.Sprintf("[%s]", *l.name)
+		labels = append(labels, l.style.Render(labelName))
+	}
+	row2 := strings.Join(labels, " ")
+
+	return lipgloss.JoinVertical(lipgloss.Top, row1, row2)
 }
 
 type githubIssueRequest struct {
@@ -196,12 +218,40 @@ func fetchIssue(client *github.Client, input *protocol.Issue) tea.Cmd {
 			}
 		}
 
+		labels := make([]labelInfo, len(issue.Labels))
+		for i, label := range issue.Labels {
+			labels[i].name = label.Name
+			labels[i].style = labelStyle(label.Color)
+		}
+
 		return issueFetchedMessage{
 			url: input.TitleOrURL,
 			info: &issueInfo{
-				err:   nil,
-				title: issue.Title,
+				err:    nil,
+				title:  issue.Title,
+				labels: labels,
 			},
 		}
 	}
+}
+
+func labelStyle(input *string) lipgloss.Style {
+	if input == nil {
+		return lipgloss.NewStyle().Foreground(config.ForegroundShadeColor)
+	}
+
+	color := lipgloss.Color("#" + *input)
+
+	if lipgloss.DefaultRenderer().HasDarkBackground() == colorIsDark(color) {
+		return lipgloss.NewStyle().Background(color)
+	}
+
+	return lipgloss.NewStyle().Foreground(color)
+}
+
+func colorIsDark(color lipgloss.Color) bool {
+	renderer := lipgloss.DefaultRenderer()
+	c := renderer.ColorProfile().Color(string(color))
+	_, _, lightness := termenv.ConvertToRGB(c).Hsl()
+	return lightness < 0.5
 }
