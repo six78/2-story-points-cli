@@ -99,11 +99,11 @@ func ParseArguments() {
 	flag.StringVar(&playerName, "name", "", "Player name")
 	flag.BoolVar(&debug, "debug", false, "Show debug info")
 	flag.BoolVar(&anonymous, "anonymous", false, "Anonymous mode")
-	flag.StringVar(&fleet, "waku.fleet", "wakuv2.prod", "Waku fleet name")
+	flag.StringVar(&fleet, "waku.fleet", "shards.test", "Waku fleet name")
 	flag.StringVar(&nameserver, "waku.nameserver", "", "Waku nameserver")
 	flag.Var(&wakuStaticNodes, "waku.staticnode", "Waku static node multiaddress")
 	flag.BoolVar(&wakuLightMode, "waku.lightmode", false, "Waku lightpush/filter mode")
-	flag.BoolVar(&wakuDiscV5, "waku.discv5", false, "Enable DiscV5 discovery")
+	flag.BoolVar(&wakuDiscV5, "waku.discv5", true, "Enable DiscV5 discovery")
 	flag.BoolVar(&wakuDnsDiscovery, "waku.dnsdiscovery", true, "Enable DNS discovery")
 	flag.Parse()
 
