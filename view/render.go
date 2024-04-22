@@ -5,7 +5,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"strings"
 	"waku-poker-planning/config"
-	"waku-poker-planning/protocol"
 	"waku-poker-planning/view/states"
 )
 
@@ -66,13 +65,13 @@ func (m model) renderRoomID() string {
 }
 
 func (m model) renderRoomView() string {
-	switch m.roomView {
+	switch m.roomViewState {
 	case states.ActiveIssueView:
 		return m.renderRoomCurrentIssueView()
 	case states.IssuesListView:
 		return renderIssuesListView(&m)
 	default:
-		return fmt.Sprintf("unknown view: %d", m.roomView)
+		return fmt.Sprintf("unknown view: %d", m.roomViewState)
 	}
 }
 
@@ -87,11 +86,8 @@ func (m model) renderRoomCurrentIssueView() string {
 		)
 	}
 
-	return fmt.Sprintf(`Issue:  %s
-
-%s
-%s`,
-		renderIssue(m.gameState.Issues.Get(m.gameState.ActiveIssue)),
+	return lipgloss.JoinVertical(lipgloss.Top,
+		m.issueView.View(),
 		m.playersView.View(),
 		m.deckView.View(),
 	)
@@ -107,13 +103,6 @@ func (m model) renderActionInput() string {
 func renderLogPath() string {
 	path := strings.Replace(config.LogFilePath, " ", "%20", -1)
 	return fmt.Sprintf("Log: file:///%s", path)
-}
-
-func renderIssue(item *protocol.Issue) string {
-	if item == nil {
-		return "-"
-	}
-	return item.TitleOrURL
 }
 
 func renderIssuesListView(m *model) string {

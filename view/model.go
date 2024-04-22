@@ -18,6 +18,7 @@ import (
 	"waku-poker-planning/view/commands"
 	"waku-poker-planning/view/components/deckview"
 	"waku-poker-planning/view/components/errorview"
+	"waku-poker-planning/view/components/issueview"
 	"waku-poker-planning/view/components/playersview"
 	"waku-poker-planning/view/components/shortcutsview"
 	"waku-poker-planning/view/components/userinput"
@@ -49,13 +50,14 @@ type model struct {
 
 	// UI components state
 	commandMode     bool
-	roomView        states.RoomView
+	roomViewState   states.RoomView
 	issueCursor     int
 	errorView       errorview.Model
 	playersView     playersview.Model
 	shortcutsView   shortcutsview.Model
 	wakuStatusView  wakustatusview.Model
 	deckView        deckview.Model
+	issueView       issueview.Model
 	disableEnterKey bool // Workaround: Used to allow pasting multiline text (list of issues)
 
 	// Components to be rendered
@@ -72,9 +74,9 @@ func initialModel(a *app.App) model {
 		gameState: nil,
 		roomID:    protocol.RoomID{},
 		// UI components state
-		commandMode: false,
-		roomView:    states.ActiveIssueView,
-		issueCursor: 0,
+		commandMode:   false,
+		roomViewState: states.ActiveIssueView,
+		issueCursor:   0,
 		// View components
 		input:          userinput.New(false),
 		spinner:        createSpinner(),
@@ -83,6 +85,7 @@ func initialModel(a *app.App) model {
 		shortcutsView:  shortcutsview.New(),
 		wakuStatusView: wakustatusview.New(),
 		deckView:       deckview.New(true),
+		issueView:      issueview.New(),
 	}
 }
 
@@ -101,15 +104,17 @@ func (m model) Init() tea.Cmd {
 		m.shortcutsView.Init(),
 		m.wakuStatusView.Init(),
 		m.deckView.Init(),
+		m.issueView.Init(),
 		commands.InitializeApp(m.app),
 	)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
-		inputCommand   tea.Cmd
-		spinnerCommand tea.Cmd
-		playersCommand tea.Cmd
+		inputCommand     tea.Cmd
+		spinnerCommand   tea.Cmd
+		playersCommand   tea.Cmd
+		issueViewCommand tea.Cmd
 	)
 
 	// TODO: Rendering could be cached inside components in most cases.
@@ -221,7 +226,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				appendCommand(cmd)
 				break
 			}
-			switch m.roomView {
+			switch m.roomViewState {
 			case states.ActiveIssueView:
 				if m.gameState.VoteState() == protocol.VotingState {
 					cmd = VoteOnCursor(&m)
@@ -234,11 +239,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			appendCommand(cmd)
 		case tea.KeyUp:
-			if !m.commandMode && m.roomView == states.IssuesListView {
+			if !m.commandMode && m.roomViewState == states.IssuesListView {
 				MoveIssueCursorUp(&m)
 			}
 		case tea.KeyDown:
-			if !m.commandMode && m.roomView == states.IssuesListView {
+			if !m.commandMode && m.roomViewState == states.IssuesListView {
 				MoveIssueCursorDown(&m)
 			}
 		case tea.KeyTab:
@@ -281,13 +286,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.spinner, spinnerCommand = m.spinner.Update(msg)
 	m.errorView = m.errorView.Update(msg)
 	m.playersView, playersCommand = m.playersView.Update(msg)
-	m.shortcutsView = m.shortcutsView.Update(msg, m.roomView)
+	m.shortcutsView = m.shortcutsView.Update(msg, m.roomViewState)
 	m.wakuStatusView = m.wakuStatusView.Update(msg)
 	m.deckView = m.deckView.Update(msg)
+	m.issueView, issueViewCommand = m.issueView.Update(msg)
 
 	appendCommand(inputCommand)
 	appendCommand(spinnerCommand)
 	appendCommand(playersCommand)
+	appendCommand(issueViewCommand)
 
 	return m, tea.Batch(cmds...)
 }
@@ -342,12 +349,12 @@ func MoveIssueCursorDown(m *model) {
 }
 
 func toggleRoomView(m *model) {
-	switch m.roomView {
+	switch m.roomViewState {
 	case states.ActiveIssueView:
-		m.roomView = states.IssuesListView
+		m.roomViewState = states.IssuesListView
 		m.deckView.Blur()
 	case states.IssuesListView:
-		m.roomView = states.ActiveIssueView
+		m.roomViewState = states.ActiveIssueView
 		m.deckView.Focus()
 	}
 }
