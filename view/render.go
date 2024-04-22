@@ -5,6 +5,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"strings"
 	"waku-poker-planning/config"
+	"waku-poker-planning/view/components/voteview"
 	"waku-poker-planning/view/states"
 )
 
@@ -117,20 +118,21 @@ func renderIssuesListView(m *model) string {
 	var items []string
 
 	for i, issue := range issues {
-		result := "-"
+		result := "  -"
 		if issue.Result != nil {
-			result = string(*issue.Result)
+			vote := fmt.Sprintf("%2s", string(*issue.Result))
+			result = voteview.VoteStyle(*issue.Result).Render(vote)
 		} else if issue.ID == activeIssue {
-			result = m.spinner.View()
+			result = fmt.Sprintf(" %2s ", m.spinner.View())
 		}
 
 		var item string
 		var style lipgloss.Style
 		if showSelector && i == m.issueCursor {
-			item += "> "
+			item += ">"
 			style = lipgloss.NewStyle().Foreground(config.UserColor)
 		} else {
-			item += "  "
+			item += " "
 		}
 
 		item += fmt.Sprintf("%s  %s", result, issue.TitleOrURL)
