@@ -49,16 +49,19 @@ type model struct {
 	connectionStatus waku.ConnectionStatus
 
 	// UI components state
-	commandMode     bool
-	roomViewState   states.RoomView
-	issueCursor     int
-	errorView       errorview.Model
-	playersView     playersview.Model
-	shortcutsView   shortcutsview.Model
-	wakuStatusView  wakustatusview.Model
-	deckView        deckview.Model
-	issueView       issueview.Model
-	disableEnterKey bool // Workaround: Used to allow pasting multiline text (list of issues)
+	commandMode    bool
+	roomViewState  states.RoomView
+	issueCursor    int
+	errorView      errorview.Model
+	playersView    playersview.Model
+	shortcutsView  shortcutsview.Model
+	wakuStatusView wakustatusview.Model
+	deckView       deckview.Model
+	issueView      issueview.Model
+
+	// Workaround: Used to allow pasting multiline text (list of issues)
+	disableEnterKey     bool
+	disableEnterRestart chan struct{}
 
 	// Components to be rendered
 	// This is filled from actual nextState during View stage.
@@ -86,6 +89,9 @@ func initialModel(a *app.App) model {
 		wakuStatusView: wakustatusview.New(),
 		deckView:       deckview.New(true),
 		issueView:      issueview.New(),
+		// Other
+		disableEnterKey:     false,
+		disableEnterRestart: nil,
 	}
 }
 
@@ -211,6 +217,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case messages.EnableEnterKey:
 		m.disableEnterKey = false
+		m.disableEnterRestart = nil
 
 	case tea.KeyMsg:
 		switch msg.Type {
@@ -391,7 +398,18 @@ func (m *model) handlePastedText(text string) (tea.Msg, tea.Cmd) {
 	}
 
 	m.disableEnterKey = true
-	cmds = append(cmds, commands.DelayMessage(200*time.Millisecond, messages.EnableEnterKey{}))
+
+	if m.disableEnterRestart != nil {
+		m.disableEnterRestart <- struct{}{}
+	} else {
+		m.disableEnterRestart = make(chan struct{})
+		cmd := commands.DelayMessage(
+			100*time.Millisecond,
+			messages.EnableEnterKey{},
+			m.disableEnterRestart,
+		)
+		cmds = append(cmds, cmd)
+	}
 
 	return nil, tea.Batch(cmds...)
 }

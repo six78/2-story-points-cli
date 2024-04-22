@@ -22,6 +22,7 @@ type Model struct {
 	voteState    protocol.VoteState
 	myVote       protocol.VoteValue
 	focused      bool
+	isDealer     bool
 	commandMode  bool
 	voteCursor   int
 	finishCursor int
@@ -47,8 +48,13 @@ func (m Model) Update(msg tea.Msg) Model {
 			m.deck = msg.State.Deck
 			m.voteState = msg.State.VoteState()
 		}
+
+	case messages.RoomJoin:
+		m.isDealer = msg.IsDealer
+
 	case messages.CommandModeChange:
 		m.commandMode = msg.CommandMode
+
 	case messages.MyVote:
 		m.myVote = msg.Result.Value
 
@@ -62,7 +68,9 @@ func (m Model) Update(msg tea.Msg) Model {
 			case protocol.VotingState:
 				m.voteCursor = m.incrementCursor(m.voteCursor)
 			case protocol.RevealedState:
-				m.finishCursor = m.incrementCursor(m.finishCursor)
+				if m.isDealer {
+					m.finishCursor = m.incrementCursor(m.finishCursor)
+				}
 			default:
 			}
 
@@ -71,7 +79,9 @@ func (m Model) Update(msg tea.Msg) Model {
 			case protocol.VotingState:
 				m.voteCursor = m.decrementCursor(m.voteCursor)
 			case protocol.RevealedState:
-				m.finishCursor = m.decrementCursor(m.finishCursor)
+				if m.isDealer {
+					m.finishCursor = m.decrementCursor(m.finishCursor)
+				}
 			default:
 			}
 		default:
@@ -82,7 +92,7 @@ func (m Model) Update(msg tea.Msg) Model {
 
 func (m Model) View() string {
 	renderVoteCursor := !m.commandMode && (m.voteState == protocol.VotingState)
-	renderFinishCursor := !m.commandMode && (m.voteState == protocol.RevealedState)
+	renderFinishCursor := !m.commandMode && (m.voteState == protocol.RevealedState) && m.isDealer
 	cards := make([]string, 0, len(m.deck)*2)
 
 	for i, value := range m.deck {

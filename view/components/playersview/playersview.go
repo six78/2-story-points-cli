@@ -122,6 +122,5 @@ func handleNewState(m *Model, state *protocol.State) {
 		m.playersOnline = append(m.playersOnline, player.Online)
 		voteView := playervoteview.New(player.ID)
 		m.votes = append(m.votes, voteView)
-
 	}
 }

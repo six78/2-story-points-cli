@@ -139,9 +139,14 @@ func QuitApp(app *app.App) tea.Cmd {
 	}
 }
 
-func DelayMessage(timeout time.Duration, msg tea.Msg) tea.Cmd {
+func DelayMessage(timeout time.Duration, msg tea.Msg, restart chan struct{}) tea.Cmd {
 	return func() tea.Msg {
-		time.Sleep(timeout)
-		return msg
+		for {
+			select {
+			case <-time.After(timeout):
+				return msg
+			case <-restart:
+			}
+		}
 	}
 }
