@@ -79,16 +79,7 @@ func (m Model) View() string {
 		case states.ActiveIssueView:
 			row := text("Use ") + key(keys.PreviousCard) +
 				text(" and ") + key(keys.NextCard) +
-				text(" arrows to select card and press ") + key(keys.SelectCard)
-			switch m.voteState {
-			case protocol.VotingState:
-				row += text(" to vote, ") +
-					key(keys.RevokeVote) + text(" to revoke vote")
-			case protocol.RevealedState:
-				row += text(" to save estimation")
-			default:
-				row = ""
-			}
+				text(" arrows to select card")
 			rows = append(rows, row)
 
 		case states.IssuesListView:
@@ -97,19 +88,33 @@ func (m Model) View() string {
 				// Selecting issue is only available for dealer
 				row = text("Use ") + key(keys.PreviousIssue) +
 					text(" and ") + key(keys.NextIssue) +
-					text(" arrows to select issue and press ") + key(keys.SelectCard) + text(" to deal")
+					text(" arrows to select issue")
 			}
 			rows = append(rows, row)
 		}
 	}
 
-	if m.inRoom && m.isDealer { // Row 2 (optional, dealer-only)
+	if m.inRoom { // Row 2 (optional, dealer-only)
 		row := ""
-		if m.voteState == protocol.VotingState {
+		if m.voteState == protocol.VotingState && m.isDealer {
 			row += keyHelp(keys.RevealVotes) + separator2
 		}
-		//keyHelp(keys.FinishVote) + separator2 +
-		//keyHelp(keys.AddIssue) + separator2 +
+		row += key(keys.SelectCard)
+
+		switch m.roomView { // Row 1
+		case states.ActiveIssueView:
+			switch m.voteState {
+			case protocol.VotingState:
+				row += text(" Vote") + separator2 + keyHelp(keys.RevokeVote)
+			case protocol.RevealedState:
+				row += text(" to save estimation")
+			default:
+				row = ""
+			}
+		case states.IssuesListView:
+			row += text(" Deal issue")
+		}
+
 		rows = append(rows, row)
 	}
 
