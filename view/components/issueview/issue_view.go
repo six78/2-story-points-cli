@@ -169,7 +169,7 @@ func parseUrl(input string) (*githubIssueRequest, error) {
 		return nil, nil
 	}
 	if u.Host != "github.com" {
-		return nil, errors.New("only github links are supported")
+		return nil, errors.New("only github links are unfurled")
 	}
 	path := strings.Split(u.Path, "/")
 	if len(path) != 5 {
@@ -241,8 +241,9 @@ func labelStyle(input *string) lipgloss.Style {
 	}
 
 	color := lipgloss.Color("#" + *input)
+	dark := colorIsDark(color)
 
-	if lipgloss.DefaultRenderer().HasDarkBackground() == colorIsDark(color) {
+	if lipgloss.DefaultRenderer().HasDarkBackground() == dark {
 		return lipgloss.NewStyle().Background(color)
 	}
 
@@ -252,6 +253,8 @@ func labelStyle(input *string) lipgloss.Style {
 func colorIsDark(color lipgloss.Color) bool {
 	renderer := lipgloss.DefaultRenderer()
 	c := renderer.ColorProfile().Color(string(color))
-	_, _, lightness := termenv.ConvertToRGB(c).Hsl()
-	return lightness < 0.5
+	rgb := termenv.ConvertToRGB(c)
+	//_, _, lightness := rgb.Hsl()
+	perceivedLightness := 0.2126*rgb.R + 0.7152*rgb.G + 0.0722*rgb.B
+	return perceivedLightness < 0.453
 }

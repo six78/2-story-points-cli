@@ -263,30 +263,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		}
 
-		if !m.input.Focused() {
-			config.Logger.Debug("<<<",
-				zap.Any("roomID", m.roomID),
-				zap.Any("msg", msg),
-			)
-			if !m.roomID.Empty() {
-				switch {
-				case key.Matches(msg, commands.DefaultKeyMap.ExitRoom):
-					appendCommand(runExitAction(&m, nil))
-				case key.Matches(msg, commands.DefaultKeyMap.RevealVotes):
-					appendCommand(runRevealAction(&m, nil))
-				case key.Matches(msg, commands.DefaultKeyMap.FinishVote):
-					appendCommand(runFinishAction(&m, nil))
-				}
-			} else {
-				switch {
-				case key.Matches(msg, commands.DefaultKeyMap.NewRoom):
-					appendCommand(runNewAction(&m, nil))
-				}
-			}
-			message, command := m.handlePastedText(msg.String())
-			appendMessage(message)
-			appendCommand(command)
+		if m.input.Focused() {
+			break
 		}
+
+		if !m.roomID.Empty() {
+			switch {
+			case key.Matches(msg, commands.DefaultKeyMap.ExitRoom):
+				appendCommand(runExitAction(&m, nil))
+			case key.Matches(msg, commands.DefaultKeyMap.RevealVotes):
+				appendCommand(runRevealAction(&m, nil))
+			case key.Matches(msg, commands.DefaultKeyMap.FinishVote):
+				appendCommand(runFinishAction(&m, nil))
+			case key.Matches(msg, commands.DefaultKeyMap.RevokeVote):
+				appendCommand(commands.PublishVote(m.app, ""))
+			}
+		} else {
+			switch {
+			case key.Matches(msg, commands.DefaultKeyMap.NewRoom):
+				appendCommand(runNewAction(&m, nil))
+			}
+		}
+
+		message, command := m.handlePastedText(msg.String())
+		appendMessage(message)
+		appendCommand(command)
 	}
 
 	m.input, inputCommand = m.input.Update(msg)

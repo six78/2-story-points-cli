@@ -82,7 +82,8 @@ func (m Model) View() string {
 				text(" arrows to select card and press ") + key(keys.SelectCard)
 			switch m.voteState {
 			case protocol.VotingState:
-				row += text(" to vote")
+				row += text(" to vote, ") +
+					key(keys.RevokeVote) + text(" to revoke vote")
 			case protocol.RevealedState:
 				row += text(" to save estimation")
 			default:
@@ -105,7 +106,7 @@ func (m Model) View() string {
 	if m.inRoom && m.isDealer { // Row 2 (optional, dealer-only)
 		row := ""
 		if m.voteState == protocol.VotingState {
-			row += key(keys.RevealVotes) + text(" Reveal") + separator2
+			row += keyHelp(keys.RevealVotes) + separator2
 		}
 		//keyHelp(keys.FinishVote) + separator2 +
 		//keyHelp(keys.AddIssue) + separator2 +

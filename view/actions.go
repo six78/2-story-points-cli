@@ -22,6 +22,7 @@ const (
 	Join    Action = "join"
 	Exit    Action = "exit"
 	Vote    Action = "vote"
+	Unvote  Action = "unvote"
 	Deal    Action = "deal"
 	Add     Action = "add"
 	Reveal  Action = "reveal"
@@ -36,6 +37,7 @@ type actionFunc func(m *model, args []string) tea.Cmd
 var actions = map[Action]actionFunc{
 	Rename:  runRenameAction,
 	Vote:    runVoteAction,
+	Unvote:  runUnvoteAction,
 	Deal:    runDealAction,
 	Add:     runAddAction,
 	New:     runNewAction,
@@ -89,6 +91,12 @@ func runVoteAction(m *model, args []string) tea.Cmd {
 		}
 
 		return commands.PublishVote(m.app, vote)()
+	}
+}
+
+func runUnvoteAction(m *model, args []string) tea.Cmd {
+	return func() tea.Msg {
+		return commands.PublishVote(m.app, "")()
 	}
 }
 

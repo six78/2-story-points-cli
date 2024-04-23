@@ -16,6 +16,7 @@ type KeyMap struct {
 	NextCard     key.Binding
 	PreviousCard key.Binding
 	SelectCard   key.Binding
+	RevokeVote   key.Binding
 	// Dealer controls
 	RevealVotes key.Binding
 	FinishVote  key.Binding
@@ -61,6 +62,10 @@ var DefaultKeyMap = KeyMap{
 	SelectCard: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("Enter", "Select card"),
+	),
+	RevokeVote: key.NewBinding(
+		key.WithKeys("backspace"),
+		key.WithHelp("Backspace", "Revoke vote"),
 	),
 	// Dealer controls
 	RevealVotes: key.NewBinding(

@@ -195,7 +195,7 @@ func (g *Game) processMessage(payload []byte) {
 			return
 		}
 
-		if !slices.Contains(g.state.Deck, playerVote.VoteResult.Value) {
+		if playerVote.VoteResult.Value != "" && !slices.Contains(g.state.Deck, playerVote.VoteResult.Value) {
 			logger.Warn("player vote ignored as not found in deck",
 				zap.Any("playerID", playerVote.PlayerID),
 				zap.Any("vote", playerVote.VoteResult),
@@ -235,7 +235,12 @@ func (g *Game) processMessage(payload []byte) {
 			zap.Any("timestamp", playerVote.Timestamp),
 		)
 
-		item.Votes[playerVote.PlayerID] = playerVote.VoteResult
+		if playerVote.VoteResult.Value == "" {
+			delete(item.Votes, playerVote.PlayerID)
+		} else {
+			item.Votes[playerVote.PlayerID] = playerVote.VoteResult
+		}
+
 		g.notifyChangedState(true)
 
 	default:
@@ -392,7 +397,7 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 	if g.state.VoteState() != protocol.VotingState {
 		return errors.New("no voting in progress")
 	}
-	if !slices.Contains(g.state.Deck, vote) {
+	if vote != "" && !slices.Contains(g.state.Deck, vote) {
 		return fmt.Errorf("invalid vote")
 	}
 	g.logger.Debug("publishing vote", zap.Any("vote", vote))
@@ -407,6 +412,10 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 		VoteResult: g.myVote,
 	})
 	return nil
+}
+
+func (g *Game) RetrieveVote() error {
+	return g.PublishVote("")
 }
 
 func (g *Game) publishState(state *protocol.State) {
