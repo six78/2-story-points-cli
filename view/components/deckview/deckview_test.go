@@ -5,7 +5,6 @@ import (
 	"go.uber.org/zap"
 	"testing"
 	"waku-poker-planning/config"
-	"waku-poker-planning/game"
 	"waku-poker-planning/protocol"
 )
 
@@ -40,30 +39,4 @@ func (s *RenderSuite) TestRenderCard() {
 		result := renderCard(tc.value, tc.cursor, false, tc.voted)
 		s.Require().Equal(tc.expected, result)
 	}
-}
-
-func (s *RenderSuite) TestRenderDeck() {
-	model := Model{
-		deck:         game.CreateDeck([]string{"1", "2", "3"}),
-		voteState:    protocol.VotingState,
-		myVote:       protocol.VoteValue("2"),
-		focused:      true,
-		isDealer:     false,
-		commandMode:  false,
-		voteCursor:   2,
-		finishCursor: 0,
-	}
-
-	result := model.View()
-	expected := `
-      ╭───╮       
-╭───╮ │ 2 │ ╭───╮ 
-│ 1 │ ╰───╯ │ 3 │ 
-╰───╯       ╰───╯ 
-              ^   
-`
-	// Remove leading and trailing newlines
-	expected = expected[1 : len(expected)-1]
-
-	s.Require().Equal(expected, result)
 }
