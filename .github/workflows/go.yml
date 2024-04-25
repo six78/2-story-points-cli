@@ -4,6 +4,8 @@
 name: Go
 
 on:
+  push:
+    branches: [ "feat/actions" ]
   pull_request:
     branches: [ "feat/actions" ]
 
