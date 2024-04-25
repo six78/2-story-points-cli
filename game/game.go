@@ -131,7 +131,7 @@ func (g *Game) processMessage(payload []byte) {
 			logger.Error("failed to unmarshal message", zap.Error(err))
 			return
 		}
-		g.logger.Info("player is online", zap.Any("player", playerOnline.Player))
+		g.logger.Info("player online message received", zap.Any("player", playerOnline.Player))
 
 		// TODO: Store player pointers in a map
 
@@ -262,6 +262,7 @@ func (g *Game) notifyChangedState(publish bool) {
 	state := g.hiddenCurrentState()
 
 	g.logger.Debug("notifying state change",
+		zap.Bool("publish", publish),
 		zap.Int("subscribers", len(g.stateSubscribers)),
 		zap.Any("state", state),
 	)
@@ -290,16 +291,18 @@ func (g *Game) publishOnlineState() {
 }
 
 func (g *Game) publishStateLoop() {
-	g.logger.Debug("state publish loop started")
+	logger := g.logger.With(zap.String("source", "state publish loop"))
+	logger.Debug("started")
 	for {
 		select {
 		case <-time.After(config.StateMessagePeriod):
+			logger.Debug("tick")
 			g.notifyChangedState(true)
 		case <-g.exitRoom:
-			g.logger.Debug("state publish loop finished: room left")
+			logger.Debug("finished: room left")
 			return
 		case <-g.ctx.Done():
-			g.logger.Debug("state publish loop finished: ctx done")
+			logger.Debug("finished: ctx done")
 			return
 		}
 	}
@@ -331,7 +334,9 @@ func (g *Game) checkPlayersStateLoop() {
 }
 
 func (g *Game) processIncomingMessages(sub *MessagesSubscription) {
-	defer sub.Unsubscribe()
+	if sub.Unsubscribe != nil {
+		defer sub.Unsubscribe()
+	}
 	for {
 		select {
 		case payload, more := <-sub.Ch:

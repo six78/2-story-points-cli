@@ -1,4 +1,4 @@
-package view
+package deckview
 
 import (
 	"github.com/stretchr/testify/suite"
@@ -30,21 +30,31 @@ func (s *RenderSuite) TestRenderCard() {
 		voted    bool
 		expected string
 	}{
-		{protocol.VoteValue("1"), false, false, "     \n╭───╮\n│ 1 │\n╰───╯"},
+		{protocol.VoteValue("1"), false, false, "     \n╭───╮\n│ 1 │\n╰───╯\n     "},
 		{protocol.VoteValue("2"), true, false, "     \n╭───╮\n│ 2 │\n╰───╯\n  ^  "},
 		{protocol.VoteValue("3"), true, true, "╭───╮\n│ 3 │\n╰───╯\n     \n  ^  "},
-		{protocol.VoteValue("4"), false, true, "╭───╮\n│ 4 │\n╰───╯"},
+		{protocol.VoteValue("4"), false, true, "╭───╮\n│ 4 │\n╰───╯\n     "},
 	}
 
 	for _, tc := range testCases {
-		result := renderCard(tc.value, tc.cursor, tc.voted)
+		result := renderCard(tc.value, tc.cursor, false, tc.voted)
 		s.Require().Equal(tc.expected, result)
 	}
 }
 
 func (s *RenderSuite) TestRenderDeck() {
-	deck := game.CreateDeck([]string{"1", "2", "3"})
-	result := renderDeck(deck, 2, true, "2")
+	model := Model{
+		deck:         game.CreateDeck([]string{"1", "2", "3"}),
+		voteState:    protocol.VotingState,
+		myVote:       protocol.VoteValue("2"),
+		focused:      true,
+		isDealer:     false,
+		commandMode:  false,
+		voteCursor:   2,
+		finishCursor: 0,
+	}
+
+	result := model.View()
 	expected := `
       ╭───╮       
 ╭───╮ │ 2 │ ╭───╮ 

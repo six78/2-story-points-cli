@@ -67,8 +67,14 @@ func TestSimpleGame(t *testing.T) {
 	config.Logger, err = zap.NewDevelopment()
 	require.NoError(t, err)
 
+	player := &protocol.Player{
+		ID:   "player-1",
+		Name: "player-1",
+	}
 	transport := NewTransportMock(t)
-	game := NewGame(ctx, transport, "player-1")
+	game := NewGame(ctx, transport, player)
+
+	// FIXME: first subscribe to messages. And after creating room wait for initial state.
 
 	err = game.CreateNewRoom()
 	require.NoError(t, err)
@@ -94,7 +100,7 @@ func TestSimpleGame(t *testing.T) {
 		firstVoteItemID, err = game.Deal(firstItemText)
 		require.NoError(t, err)
 
-		state := expectState(t, sub, nil)
+		state := expectState(t, sub.Ch, nil)
 		item := checkVoteItems(t, state.Issues)
 		require.Nil(t, item.Result)
 		require.Len(t, item.Votes, 0)
@@ -108,13 +114,13 @@ func TestSimpleGame(t *testing.T) {
 		err = game.PublishVote(dealerVote)
 		require.NoError(t, err)
 
-		playerVote := expectPlayerVote(t, sub)
+		playerVote := expectPlayerVote(t, sub.Ch)
 		require.Equal(t, game.Player().ID, playerVote.PlayerID)
 		require.Equal(t, currentVoteItem.ID, playerVote.Issue)
 		require.Equal(t, dealerVote, playerVote.VoteResult.Value)
 		require.Greater(t, playerVote.VoteResult.Timestamp, int64(0))
 
-		state := expectState(t, sub, func(state *protocol.State) bool {
+		state := expectState(t, sub.Ch, func(state *protocol.State) bool {
 			item := state.Issues.Get(firstVoteItemID)
 			if item == nil {
 				return false
@@ -137,7 +143,7 @@ func TestSimpleGame(t *testing.T) {
 		err = game.Reveal()
 		require.NoError(t, err)
 
-		state := expectState(t, sub, nil)
+		state := expectState(t, sub.Ch, nil)
 		item := checkVoteItems(t, state.Issues)
 		require.Nil(t, item.Result)
 		require.Len(t, item.Votes, 1)
@@ -155,7 +161,7 @@ func TestSimpleGame(t *testing.T) {
 		err = game.Finish(votingResult)
 		require.NoError(t, err)
 
-		state := expectState(t, sub, nil)
+		state := expectState(t, sub.Ch, nil)
 		item := checkVoteItems(t, state.Issues)
 		require.NotNil(t, item.Result)
 		require.Equal(t, *item.Result, votingResult)
@@ -188,7 +194,7 @@ func TestSimpleGame(t *testing.T) {
 		secondVoteItemID, err = game.Deal(secondItemText)
 		require.NoError(t, err)
 
-		state := expectState(t, sub, nil)
+		state := expectState(t, sub.Ch, nil)
 		item := checkVoteItems(t, state.Issues)
 		require.Nil(t, item.Result)
 		require.Len(t, item.Votes, 0)

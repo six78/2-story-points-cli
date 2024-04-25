@@ -18,7 +18,7 @@ func NewTransportMock(t *testing.T) *TransportMock {
 	}
 }
 
-func (t *TransportMock) SubscribeToMessages(room *protocol.Room) (chan []byte, error) {
+func (t *TransportMock) SubscribeToMessages(room *protocol.Room) (*MessagesSubscription, error) {
 	roomID, err := room.ToRoomID()
 	require.NoError(t.t, err)
 
@@ -29,7 +29,10 @@ func (t *TransportMock) SubscribeToMessages(room *protocol.Room) (chan []byte, e
 	}
 	subs = append(subs, channel)
 	t.subscriptions[roomID] = subs
-	return channel, nil
+	return &MessagesSubscription{
+		Ch:          channel,
+		Unsubscribe: nil,
+	}, nil
 }
 
 func (t *TransportMock) PublishUnencryptedMessage(room *protocol.Room, payload []byte) error {
@@ -54,4 +57,12 @@ func (t *TransportMock) PublishPublicMessage(room *protocol.Room, payload []byte
 
 func (t *TransportMock) PublishPrivateMessage(room *protocol.Room, payload []byte) error {
 	return t.PublishUnencryptedMessage(room, payload)
+}
+
+func (t *TransportMock) subscribeToAll() {
+	for _, subs := range t.subscriptions {
+		for _, sub := range subs {
+			close(sub)
+		}
+	}
 }
