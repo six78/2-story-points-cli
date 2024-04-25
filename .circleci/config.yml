@@ -1,0 +1,48 @@
+version: 2.1
+
+#orbs:
+#  go: circleci/go@1.11.0
+
+jobs:
+  build:
+    docker:
+      - image: cimg/go:1.20.13
+    environment:
+      TEST_RESULTS_DIR: /tmp/test-results
+    steps:
+      - checkout
+      - run: mkdir -p ${TEST_RESULTS_DIR}
+      - restore_cache:
+          keys:
+            - go-mod-v4-{{ checksum "go.sum" }}
+            - cc-test-reporter-v1{{ checksum "cc-test-reporter" }}
+      - run:
+          name: Install Dependencies
+          command: go get -t -v ./...
+      - run:
+          name: Setup Code Climate test-reporter
+          command: |
+            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+            chmod +x ./cc-test-reporter
+      - save_cache:
+          key: go-mod-v4-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"
+      - run:
+          name: Run tests
+          command: |
+            ./cc-test-reporter before-build
+            gotestsum --junitfile ${TEST_RESULTS_DIR}/gotestsum-report.xml -- -failfast -covermode=atomic -coverprofile=c.out ./...
+            ./cc-test-reporter after-build --prefix=waku-poker-planning --exit-code $?
+
+      - store_artifacts:
+          path: /tmp/test-results
+          destination: raw-test-output
+
+      - store_test_results:
+          path: /tmp/test-results
+
+workflows:
+  main:
+    jobs:
+      - build
