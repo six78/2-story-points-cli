@@ -12,9 +12,16 @@ jobs:
     steps:
       - checkout
       - run: mkdir -p $TEST_RESULTS_DIR
-      - go/load-cache
-      - go/mod-download
-      - go/save-cache
+      - restore_cache:
+          keys:
+            - go-mod-v4-{{ checksum "go.sum" }}
+      - run:
+          name: Install Dependencies
+          command: go get ./...
+      - save_cache:
+          key: go-mod-v4-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"
 #      - go/test:
 #          covermode: atomic
 #          failfast: true
