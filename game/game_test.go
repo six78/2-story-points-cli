@@ -109,7 +109,7 @@ func TestSimpleGame(t *testing.T) {
 	{ // Deal first vote item
 		firstVoteItemID, err = game.Deal(firstItemText)
 		require.NoError(t, err)
-
+		
 		state := expectState(t, sub.Ch, nil)
 		item := checkVoteItems(t, state.Issues)
 		require.Nil(t, item.Result)

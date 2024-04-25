@@ -467,6 +467,8 @@ func (g *Game) Deal(input string) (protocol.IssueID, error) {
 	return issueID, err
 }
 
+// CreateNewRoom creates a new room and returns its ID and initial state.
+// Use the returned values to JoinRoom later.
 func (g *Game) CreateNewRoom() (*protocol.Room, *protocol.State, error) {
 	room, err := protocol.NewRoom()
 	if err != nil {
