@@ -74,14 +74,24 @@ func TestSimpleGame(t *testing.T) {
 	transport := NewTransportMock(t)
 	game := NewGame(ctx, transport, player)
 
-	// FIXME: first subscribe to messages. And after creating room wait for initial state.
+	room, initialState, err := game.CreateNewRoom()
+	require.NoError(t, err)
+	require.NotNil(t, room)
 
-	err = game.CreateNewRoom()
+	sub, err := transport.SubscribeToMessages(room)
 	require.NoError(t, err)
 
-	room := game.Room()
-	sub, err := transport.SubscribeToMessages(&room)
+	roomID, err := room.ToRoomID()
 	require.NoError(t, err)
+
+	err = game.JoinRoom(roomID, initialState)
+	require.NoError(t, err)
+
+	state := expectState(t, sub.Ch, nil)
+	require.NotNil(t, state)
+	require.False(t, state.VotesRevealed)
+	require.Empty(t, state.ActiveIssue)
+	require.Len(t, state.Players, 1)
 
 	const firstItemText = "a"
 	const dealerVote = protocol.VoteValue("1")

@@ -39,6 +39,7 @@ type State struct {
 	Issues        IssuesList `json:"issues"`
 	ActiveIssue   IssueID    `json:"activeIssue"`
 	VotesRevealed bool       `json:"votesRevealed"`
+	Timestamp     int64      `json:"-"` // TODO: Fix conflict with Message.Timestamp. Change type to time.Time.
 	Deck          Deck       `json:"-"`
 }
 

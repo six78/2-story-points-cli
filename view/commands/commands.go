@@ -25,10 +25,21 @@ func InitializeApp(a *app.App) tea.Cmd {
 
 func CreateNewRoom(a *app.App) tea.Cmd {
 	return func() tea.Msg {
-		err := a.Game.CreateNewRoom()
+		room, initialState, err := a.Game.CreateNewRoom()
 		if err != nil {
 			return messages.NewErrorMessage(err)
 		}
+
+		roomID, err := room.ToRoomID()
+		if err != nil {
+			return messages.NewErrorMessage(err)
+		}
+
+		err = a.Game.JoinRoom(roomID, initialState)
+		if err != nil {
+			return messages.NewErrorMessage(err)
+		}
+
 		return messages.RoomJoin{
 			RoomID:   a.Game.RoomID(),
 			IsDealer: a.Game.IsDealer(),

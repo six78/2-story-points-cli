@@ -467,56 +467,32 @@ func (g *Game) Deal(input string) (protocol.IssueID, error) {
 	return issueID, err
 }
 
-func (g *Game) CreateNewRoom() error {
-	if g.room != nil {
-		return errors.New("exit current room to create a new one")
-	}
-
+func (g *Game) CreateNewRoom() (*protocol.Room, *protocol.State, error) {
 	room, err := protocol.NewRoom()
 	if err != nil {
-		return errors.Wrap(err, "failed to create a new room")
+		return nil, nil, errors.Wrap(err, "failed to create a new room")
 	}
 
-	roomID, err := room.ToRoomID()
+	_, err = room.ToRoomID()
 	if err != nil {
-		return errors.Wrap(err, "failed to marshal room room")
+		return nil, nil, errors.Wrap(err, "failed to convert to room id")
 	}
 
-	g.exitRoom = make(chan struct{})
-
-	sub, err := g.transport.SubscribeToMessages(room)
-	if err != nil {
-		return errors.Wrap(err, "failed to subscribe to messages")
-	}
-
-	g.isDealer = true
-	g.room = room
-	g.roomID = roomID
-
-	deckName := Fibonacci
+	deckName := Fibonacci // FIXME: Remove hardcoded deck
 	deck, deckFound := GetDeck(deckName)
 	if !deckFound {
-		return errors.Wrap(err, fmt.Sprintf("unknown deck '%s'", deckName))
+		return nil, nil, errors.Wrap(err, fmt.Sprintf("unknown deck '%s'", deckName))
 	}
 
-	g.state = &protocol.State{
+	state := &protocol.State{
 		Players:     []protocol.Player{*g.player},
 		Deck:        deck,
 		ActiveIssue: "",
 		Issues:      make([]*protocol.Issue, 0),
+		Timestamp:   g.timestamp(),
 	}
-	g.stateTimestamp = g.timestamp()
-	g.resetMyVote()
 
-	g.notifyChangedState(true)
-	go g.processIncomingMessages(sub)
-	go g.publishOnlineState()
-	go g.publishStateLoop()
-	go g.checkPlayersStateLoop()
-
-	g.logger.Info("new room created", zap.String("roomID", roomID.String()))
-
-	return nil
+	return room, state, nil
 }
 
 func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
@@ -525,7 +501,7 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	}
 
 	if g.room != nil {
-		return errors.New("exit current room to create a new one")
+		return errors.New("exit current room to join another one")
 	}
 
 	if roomID.Empty() {
@@ -552,14 +528,18 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	g.roomID = roomID
 	g.state = state
 	g.stateTimestamp = 0
-	if state != nil {
+	if g.isDealer {
 		g.state.Deck, _ = GetDeck(Fibonacci) // FIXME: remove hardcoded deck
 	}
 	g.resetMyVote()
 
 	go g.processIncomingMessages(sub)
 	go g.publishOnlineState()
-	g.notifyChangedState(state != nil)
+	if g.isDealer {
+		go g.publishStateLoop()
+		go g.checkPlayersStateLoop()
+	}
+	g.notifyChangedState(g.isDealer)
 
 	if state == nil {
 		g.logger.Info("joined room", zap.Any("roomID", roomID))
