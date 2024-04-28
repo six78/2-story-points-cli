@@ -66,10 +66,10 @@ func (m Model) Update(msg tea.Msg) Model {
 		case tea.KeyLeft:
 			switch m.voteState {
 			case protocol.VotingState:
-				m.voteCursor = m.incrementCursor(m.voteCursor)
+				m.voteCursor = m.decrementCursor(m.voteCursor)
 			case protocol.RevealedState:
 				if m.isDealer {
-					m.finishCursor = m.incrementCursor(m.finishCursor)
+					m.finishCursor = m.decrementCursor(m.finishCursor)
 				}
 			default:
 			}
@@ -77,10 +77,10 @@ func (m Model) Update(msg tea.Msg) Model {
 		case tea.KeyRight:
 			switch m.voteState {
 			case protocol.VotingState:
-				m.voteCursor = m.decrementCursor(m.voteCursor)
+				m.voteCursor = m.incrementCursor(m.voteCursor)
 			case protocol.RevealedState:
 				if m.isDealer {
-					m.finishCursor = m.decrementCursor(m.finishCursor)
+					m.finishCursor = m.incrementCursor(m.finishCursor)
 				}
 			default:
 			}
@@ -160,15 +160,14 @@ func cardBorderStyle(voted bool, highlight bool) *lipgloss.Style {
 	}
 	if voted {
 		return &votedBorderStyle
-	} else {
-		return &defaultBorderStyle
 	}
-}
-
-func (m *Model) incrementCursor(cursor int) int {
-	return int(math.Max(float64(cursor-1), 0))
+	return &defaultBorderStyle
 }
 
 func (m *Model) decrementCursor(cursor int) int {
+	return int(math.Max(float64(cursor-1), 0))
+}
+
+func (m *Model) incrementCursor(cursor int) int {
 	return int(math.Min(float64(cursor+1), float64(len(m.deck)-1)))
 }

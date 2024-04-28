@@ -1,29 +1,32 @@
 package deckview
 
 import (
+	"fmt"
+	"github.com/brianvoe/gofakeit/v6"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"testing"
 	"waku-poker-planning/config"
 	"waku-poker-planning/game"
 	"waku-poker-planning/protocol"
+	"waku-poker-planning/view/messages"
 )
 
-func TestRenderSuite(t *testing.T) {
-	suite.Run(t, new(RenderSuite))
+func TestDeckView(t *testing.T) {
+	suite.Run(t, new(Suite))
 }
 
-type RenderSuite struct {
+type Suite struct {
 	suite.Suite
 }
 
-func (s *RenderSuite) SetupSuite() {
+func (s *Suite) SetupSuite() {
 	logger, err := zap.NewDevelopment()
 	s.Require().NoError(err)
 	config.Logger = logger
 }
 
-func (s *RenderSuite) TestRenderCard() {
+func (s *Suite) TestRenderCard() {
 	testCases := []struct {
 		value    protocol.VoteValue
 		cursor   bool
@@ -42,7 +45,7 @@ func (s *RenderSuite) TestRenderCard() {
 	}
 }
 
-func (s *RenderSuite) TestRenderDeck() {
+func (s *Suite) TestRenderDeck() {
 	model := Model{
 		deck:         game.CreateDeck([]string{"1", "2", "3"}),
 		voteState:    protocol.VotingState,
@@ -66,4 +69,137 @@ func (s *RenderSuite) TestRenderDeck() {
 	expected = expected[1 : len(expected)-1]
 
 	s.Require().Equal(expected, result)
+}
+
+func (s *Suite) TestModelInit() {
+	testCases := []struct {
+		name    string
+		focused bool
+	}{{
+		name:    "new model focused",
+		focused: true,
+	}, {
+		name:    "new model blurred",
+		focused: false,
+	},
+	}
+
+	for _, tc := range testCases {
+		s.T().Run(tc.name, func(t *testing.T) {
+			model := New(tc.focused)
+			cmd := model.Init()
+			s.Require().Nil(cmd)
+			s.Require().Equal(tc.focused, model.focused)
+			s.Require().Zero(model.VoteCursor())
+			s.Require().Zero(model.FinishCursor())
+		})
+	}
+}
+
+func (s *Suite) TestFocus() {
+	model := New(false)
+	model.Focus()
+	s.Require().True(model.focused)
+	model.Blur()
+	s.Require().False(model.focused)
+}
+
+func (s *Suite) TestDecrementCursor() {
+	testCases := []struct {
+		given    int
+		expected int
+	}{
+		{
+			given:    0,
+			expected: 0,
+		},
+		{
+			given:    1,
+			expected: 0,
+		},
+		{
+			given:    2,
+			expected: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		test := func(*testing.T) {
+			model := New(true)
+			result := model.decrementCursor(tc.given)
+			s.Require().Equal(tc.expected, result)
+		}
+		testName := fmt.Sprintf("test decrement %d", tc.given)
+		s.T().Run(testName, test)
+	}
+}
+
+func (s *Suite) TestIncrementCursor() {
+	testCases := []struct {
+		given    int
+		expected int
+	}{
+		{
+			given:    0,
+			expected: 1,
+		},
+		{
+			given:    1,
+			expected: 2,
+		},
+		{
+			given:    2,
+			expected: 2,
+		},
+	}
+
+	for _, tc := range testCases {
+		test := func(*testing.T) {
+			model := New(true)
+			model.deck = game.CreateDeck([]string{"a", "b", "c"})
+			result := model.incrementCursor(tc.given)
+			s.Require().Equal(tc.expected, result)
+		}
+		testName := fmt.Sprintf("test increment %d", tc.given)
+		s.T().Run(testName, test)
+	}
+}
+
+func (s *Suite) TestUpdate() {
+	deck := make(protocol.Deck, 3)
+	gofakeit.Slice(deck)
+
+	model := New(false)
+	_ = model.Init()
+
+	model = model.Update(messages.GameStateMessage{
+		State: nil,
+	})
+	
+	s.Require().Equal(protocol.Deck{}, model.deck)
+	s.Require().Equal(protocol.IdleState, model.voteState)
+
+	model = model.Update(messages.GameStateMessage{
+		State: &protocol.State{
+			Deck:          deck,
+			ActiveIssue:   "1",
+			VotesRevealed: false,
+		},
+	})
+
+	s.Require().Equal(deck, model.deck)
+	s.Require().Equal(protocol.VotingState, model.voteState)
+
+	model = model.Update(messages.RoomJoin{IsDealer: true})
+	s.Require().True(model.isDealer)
+
+	model = model.Update(messages.RoomJoin{IsDealer: false})
+	s.Require().False(model.isDealer)
+
+	model = model.Update(messages.CommandModeChange{CommandMode: true})
+	s.Require().True(model.commandMode)
+
+	model = model.Update(messages.CommandModeChange{CommandMode: false})
+	s.Require().False(model.commandMode)
+
 }
