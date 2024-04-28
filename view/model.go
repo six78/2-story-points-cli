@@ -322,27 +322,22 @@ func (m model) View() string {
 }
 
 func VoteOnCursor(m *model) tea.Cmd {
-	if m.gameState == nil {
-		return nil
-	}
-	cursor := m.deckView.VoteCursor()
-	if cursor < 0 || cursor > len(m.gameState.Deck) {
-		return nil
-	}
-	vote := m.gameState.Deck[cursor]
-	return commands.PublishVote(m.app, vote)
+	return cursorCommand(m, m.deckView.VoteCursor(), commands.PublishVote)
 }
 
 func FinishOnCursor(m *model) tea.Cmd {
+	return cursorCommand(m, m.deckView.FinishCursor(), commands.FinishVoting)
+}
+
+func cursorCommand(m *model, cursor int, command func(*app.App, protocol.VoteValue) tea.Cmd) tea.Cmd {
 	if m.gameState == nil {
 		return nil
 	}
-	cursor := m.deckView.FinishCursor()
 	if cursor < 0 || cursor > len(m.gameState.Deck) {
 		return nil
 	}
-	result := m.gameState.Deck[cursor]
-	return commands.FinishVoting(m.app, result)
+	cursorValue := m.gameState.Deck[cursor]
+	return command(m.app, cursorValue)
 }
 
 func MoveIssueCursorUp(m *model) {
