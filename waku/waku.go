@@ -41,7 +41,6 @@ type Node struct {
 	pubsubTopic          string
 	wakuConnectionStatus chan node.ConnStatus
 	roomCache            ContentTopicCache
-	stats                *Stats
 	lightMode            bool
 	statusSubscribers    []ConnectionStatusSubscription
 }
@@ -112,7 +111,6 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 		pubsubTopic:          relay.DefaultWakuTopic,
 		wakuConnectionStatus: wakuConnectionStatus,
 		roomCache:            NewRoomCache(logger),
-		stats:                NewStats(),
 		lightMode:            config.WakuLightMode(),
 	}, nil
 }
@@ -328,8 +326,6 @@ func (n *Node) publishWakuMessage(message *pb.WakuMessage) error {
 		return errors.Wrap(err, "failed to publish message")
 	}
 
-	n.stats.IncrementSentMessages()
-
 	n.logger.Info("message sent",
 		zap.String("messageID", hex.EncodeToString(messageID)))
 
@@ -459,7 +455,6 @@ func (n *Node) SubscribeToMessages(room *pp.Room) (*game.MessagesSubscription, e
 					n.logger.Warn("failed to decrypt message payload")
 				}
 
-				n.stats.IncrementReceivedMessages()
 				sub.Ch <- payload
 			}
 		}
@@ -485,10 +480,6 @@ func decryptMessage(room *pp.Room, message *pb.WakuMessage) ([]byte, error) {
 	}
 
 	return message.Payload, nil
-}
-
-func (n *Node) Stats() Stats {
-	return *n.stats
 }
 
 func (n *Node) SubscribeToConnectionStatus() ConnectionStatusSubscription {

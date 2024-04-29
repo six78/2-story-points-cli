@@ -87,7 +87,7 @@ func initialModel(a *app.App) model {
 		playersView:    playersview.New(),
 		shortcutsView:  shortcutsview.New(),
 		wakuStatusView: wakustatusview.New(),
-		deckView:       deckview.New(true),
+		deckView:       deckview.New(),
 		issueView:      issueview.New(),
 		// Other
 		disableEnterKey:     false,
@@ -102,6 +102,7 @@ func createSpinner() spinner.Model {
 }
 
 func (m model) Init() tea.Cmd {
+	m.deckView.Focus()
 	return tea.Batch(
 		m.input.Init(),
 		m.spinner.Tick,
