@@ -1,7 +1,6 @@
 package deckview
 
 import (
-	"fmt"
 	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/suite"
@@ -10,6 +9,7 @@ import (
 	"waku-poker-planning/config"
 	"waku-poker-planning/game"
 	"waku-poker-planning/protocol"
+	"waku-poker-planning/view/cursor"
 	"waku-poker-planning/view/messages"
 )
 
@@ -54,9 +54,14 @@ func (s *Suite) TestRenderDeck() {
 		focused:      true,
 		isDealer:     false,
 		commandMode:  false,
-		voteCursor:   2,
-		finishCursor: 0,
+		voteCursor:   cursor.New(false, false),
+		finishCursor: cursor.New(false, false),
 	}
+
+	model.voteCursor.SetPosition(2)
+	model.voteCursor.SetFocus(true)
+	model.finishCursor.SetPosition(0)
+	model.finishCursor.SetFocus(false)
 
 	result := model.View()
 	expected := `
@@ -74,23 +79,20 @@ func (s *Suite) TestRenderDeck() {
 
 func (s *Suite) TestModelInit() {
 	testCases := []struct {
-		name    string
-		focused bool
+		name string
 	}{{
-		name:    "new model focused",
-		focused: true,
+		name: "new model focused",
 	}, {
-		name:    "new model blurred",
-		focused: false,
+		name: "new model blurred",
 	},
 	}
 
 	for _, tc := range testCases {
 		s.T().Run(tc.name, func(t *testing.T) {
-			model := New(tc.focused)
+			model := New()
 			cmd := model.Init()
 			s.Require().Nil(cmd)
-			s.Require().Equal(tc.focused, model.focused)
+			s.Require().False(model.focused)
 			s.Require().Zero(model.VoteCursor())
 			s.Require().Zero(model.FinishCursor())
 		})
@@ -98,72 +100,11 @@ func (s *Suite) TestModelInit() {
 }
 
 func (s *Suite) TestFocus() {
-	model := New(false)
+	model := New()
 	model.Focus()
 	s.Require().True(model.focused)
 	model.Blur()
 	s.Require().False(model.focused)
-}
-
-func (s *Suite) TestDecrementCursor() {
-	testCases := []struct {
-		given    int
-		expected int
-	}{
-		{
-			given:    0,
-			expected: 0,
-		},
-		{
-			given:    1,
-			expected: 0,
-		},
-		{
-			given:    2,
-			expected: 1,
-		},
-	}
-
-	for _, tc := range testCases {
-		test := func(*testing.T) {
-			model := New(true)
-			result := model.decrementCursor(tc.given)
-			s.Require().Equal(tc.expected, result)
-		}
-		testName := fmt.Sprintf("test decrement %d", tc.given)
-		s.T().Run(testName, test)
-	}
-}
-
-func (s *Suite) TestIncrementCursor() {
-	testCases := []struct {
-		given    int
-		expected int
-	}{
-		{
-			given:    0,
-			expected: 1,
-		},
-		{
-			given:    1,
-			expected: 2,
-		},
-		{
-			given:    2,
-			expected: 2,
-		},
-	}
-
-	for _, tc := range testCases {
-		test := func(*testing.T) {
-			model := New(true)
-			model.deck = game.CreateDeck([]string{"a", "b", "c"})
-			result := model.incrementCursor(tc.given)
-			s.Require().Equal(tc.expected, result)
-		}
-		testName := fmt.Sprintf("test increment %d", tc.given)
-		s.T().Run(testName, test)
-	}
 }
 
 func (s *Suite) TestUpdate() {
@@ -171,7 +112,7 @@ func (s *Suite) TestUpdate() {
 	deck := make(protocol.Deck, 3)
 	gofakeit.Slice(deck)
 
-	model := New(false)
+	model := New()
 	_ = model.Init()
 
 	model = model.Update(messages.GameStateMessage{
@@ -217,8 +158,9 @@ func (s *Suite) TestCursor() {
 	deck := make(protocol.Deck, 3)
 	gofakeit.Slice(deck)
 
-	model := New(true)
+	model := New()
 	_ = model.Init()
+	model.Focus()
 
 	s.Require().True(model.focused)
 	s.Require().False(model.commandMode)
@@ -236,6 +178,8 @@ func (s *Suite) TestCursor() {
 	})
 	s.Require().True(model.isDealer)
 	s.Require().Equal(protocol.VotingState, model.voteState)
+	s.Require().True(model.voteCursor.Focused())
+	s.Require().False(model.finishCursor.Focused())
 
 	// Ensure initial positions
 	s.Require().Equal(0, model.VoteCursor())
@@ -284,8 +228,10 @@ func (s *Suite) TestCursor() {
 		},
 	})
 	s.Require().Equal(protocol.RevealedState, model.voteState)
+	s.Require().True(model.finishCursor.Focused())
+	s.Require().False(model.voteCursor.Focused())
 
-	// Move finish cursor to the middle to check no movement in both directions
+	// Move finish cursor to the middle to check no movement in both directions later
 	model = model.Update(keyRight)
 	s.Require().Equal(1, model.FinishCursor())
 

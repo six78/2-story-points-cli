@@ -4,10 +4,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"math"
 	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
 	"waku-poker-planning/view/components/voteview"
+	"waku-poker-planning/view/cursor"
 	"waku-poker-planning/view/messages"
 )
 
@@ -24,18 +24,22 @@ type Model struct {
 	focused      bool
 	isDealer     bool
 	commandMode  bool
-	voteCursor   int
-	finishCursor int
+	voteCursor   cursor.Model
+	finishCursor cursor.Model
 }
 
-func New(focused bool) Model {
+func New() Model {
 	return Model{
-		focused: focused,
+		voteCursor:   cursor.New(false, false),
+		finishCursor: cursor.New(false, false),
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return tea.Batch(
+		m.voteCursor.Init(),
+		m.finishCursor.Init(),
+	)
 }
 
 func (m Model) Update(msg tea.Msg) Model {
@@ -44,61 +48,41 @@ func (m Model) Update(msg tea.Msg) Model {
 		if msg.State == nil {
 			m.deck = protocol.Deck{}
 			m.voteState = protocol.IdleState
+			m.voteCursor.SetRange(0, 0)
 		} else {
 			m.deck = msg.State.Deck
 			m.voteState = msg.State.VoteState()
+			m.voteCursor.SetRange(0, len(m.deck)-1)
+			m.finishCursor.SetRange(0, len(m.deck)-1)
 		}
+		m.updateCursorsState()
 
 	case messages.RoomJoin:
 		m.isDealer = msg.IsDealer
+		m.updateCursorsState()
 
 	case messages.CommandModeChange:
 		m.commandMode = msg.CommandMode
+		m.updateCursorsState()
 
 	case messages.MyVote:
 		m.myVote = msg.Result.Value
-
-	case tea.KeyMsg:
-		if m.commandMode || !m.focused {
-			break
-		}
-		switch msg.Type {
-		case tea.KeyLeft:
-			switch m.voteState {
-			case protocol.VotingState:
-				m.voteCursor = m.decrementCursor(m.voteCursor)
-			case protocol.RevealedState:
-				if m.isDealer {
-					m.finishCursor = m.decrementCursor(m.finishCursor)
-				}
-			default:
-			}
-
-		case tea.KeyRight:
-			switch m.voteState {
-			case protocol.VotingState:
-				m.voteCursor = m.incrementCursor(m.voteCursor)
-			case protocol.RevealedState:
-				if m.isDealer {
-					m.finishCursor = m.incrementCursor(m.finishCursor)
-				}
-			default:
-			}
-		default:
-		}
 	}
+
+	m.voteCursor = m.voteCursor.Update(msg)
+	m.finishCursor = m.finishCursor.Update(msg)
+
 	return m
 }
 
 func (m Model) View() string {
-	renderVoteCursor := !m.commandMode && (m.voteState == protocol.VotingState)
-	renderFinishCursor := !m.commandMode && (m.voteState == protocol.RevealedState) && m.isDealer
 	cards := make([]string, 0, len(m.deck)*2)
 
 	for i, value := range m.deck {
-		card := renderCard(value,
-			renderVoteCursor && i == m.voteCursor,
-			renderFinishCursor && i == m.finishCursor,
+		card := renderCard(
+			value,
+			m.voteCursor.Targets(i),
+			m.finishCursor.Targets(i),
 			value == m.myVote,
 		)
 		cards = append(cards, card, " ") // Add a space between cards
@@ -107,20 +91,27 @@ func (m Model) View() string {
 	return lipgloss.JoinHorizontal(lipgloss.Left, cards...)
 }
 
+func (m *Model) updateCursorsState() {
+	m.voteCursor.SetFocus(!m.commandMode && m.focused && (m.voteState == protocol.VotingState))
+	m.finishCursor.SetFocus(!m.commandMode && m.focused && (m.voteState == protocol.RevealedState) && m.isDealer)
+}
+
 func (m *Model) Focus() {
 	m.focused = true
+	m.updateCursorsState()
 }
 
 func (m *Model) Blur() {
 	m.focused = false
+	m.updateCursorsState()
 }
 
 func (m *Model) VoteCursor() int {
-	return m.voteCursor
+	return m.voteCursor.Position()
 }
 
 func (m *Model) FinishCursor() int {
-	return m.finishCursor
+	return m.finishCursor.Position()
 }
 
 func renderCard(value protocol.VoteValue, voteCursor bool, finishCursor bool, voted bool) string {
@@ -162,12 +153,4 @@ func cardBorderStyle(voted bool, highlight bool) *lipgloss.Style {
 		return &votedBorderStyle
 	}
 	return &defaultBorderStyle
-}
-
-func (m *Model) decrementCursor(cursor int) int {
-	return int(math.Max(float64(cursor-1), 0))
-}
-
-func (m *Model) incrementCursor(cursor int) int {
-	return int(math.Min(float64(cursor+1), float64(len(m.deck)-1)))
 }

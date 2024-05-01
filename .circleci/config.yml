@@ -32,7 +32,13 @@ jobs:
           name: Run tests
           command: |
             ./cc-test-reporter before-build
-            gotestsum --junitfile ${TEST_RESULTS_DIR}/gotestsum-report.xml -- -failfast -covermode=atomic -coverprofile=c.out ./...
+            gotestsum \
+              --junitfile ${TEST_RESULTS_DIR}/gotestsum-report.xml \
+              -- \
+              -failfast \
+              -covermode=atomic \
+              -coverprofile=c.out \
+              ./...
             ./cc-test-reporter after-build --prefix=waku-poker-planning --exit-code $?
 
       - store_artifacts:
