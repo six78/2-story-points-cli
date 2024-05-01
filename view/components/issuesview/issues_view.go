@@ -1,0 +1,115 @@
+package issuesview
+
+import (
+	"fmt"
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"waku-poker-planning/config"
+	"waku-poker-planning/protocol"
+	"waku-poker-planning/view/components/voteview"
+	"waku-poker-planning/view/cursor"
+	"waku-poker-planning/view/messages"
+)
+
+const (
+	cursorSymbol = ">"
+)
+
+var (
+	highlightStyle = lipgloss.NewStyle().Foreground(config.UserColor)
+)
+
+type Model struct {
+	issues      protocol.IssuesList
+	activeIssue protocol.IssueID
+	commandMode bool
+	isDealer    bool
+
+	cursor  cursor.Model
+	spinner spinner.Model
+}
+
+func New() Model {
+	s := spinner.New()
+	s.Spinner = spinner.MiniDot
+
+	return Model{
+		cursor:  cursor.New(true, false),
+		spinner: s,
+	}
+}
+
+func (m Model) Init() tea.Cmd {
+	return m.spinner.Tick
+}
+
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case messages.GameStateMessage:
+		if msg.State == nil {
+			m.issues = nil
+			m.activeIssue = ""
+		} else {
+			m.issues = msg.State.Issues
+			m.activeIssue = msg.State.ActiveIssue
+		}
+		m.cursor.SetRange(0, len(m.issues)-1)
+		m.updateCursorFocus()
+
+	case messages.CommandModeChange:
+		m.commandMode = msg.CommandMode
+		m.updateCursorFocus()
+
+	case messages.RoomJoin:
+		m.isDealer = msg.IsDealer
+		m.updateCursorFocus()
+	}
+
+	var spinnerCommand tea.Cmd
+	m.spinner, spinnerCommand = m.spinner.Update(msg)
+	m.cursor = m.cursor.Update(msg)
+
+	return m, spinnerCommand
+}
+
+func (m Model) View() string {
+	issues := m.issues
+	activeIssue := m.activeIssue
+
+	var items []string
+
+	for i, issue := range issues {
+		result := "  - "
+		if issue.Result != nil {
+			vote := fmt.Sprintf("%2s", string(*issue.Result))
+			result = voteview.VoteStyle(*issue.Result).Render(vote)
+		} else if issue.ID == activeIssue {
+			result = fmt.Sprintf(" %2s ", m.spinner.View())
+		}
+
+		var item string
+		var style lipgloss.Style
+
+		if m.cursor.Matches(i) {
+			item += cursorSymbol
+			style = highlightStyle
+		} else {
+			item += " "
+		}
+
+		item += fmt.Sprintf("%s  %s", result, issue.TitleOrURL)
+		items = append(items, style.Render(item))
+	}
+
+	if len(items) == 0 {
+		items = append(items, "- No issues dealt yet")
+	}
+
+	fullBlock := lipgloss.JoinVertical(lipgloss.Top, items...)
+	return fmt.Sprintf("Issues:\n%s\n", fullBlock)
+}
+
+func (m *Model) updateCursorFocus() {
+	m.cursor.SetFocus(!m.commandMode && m.isDealer)
+}

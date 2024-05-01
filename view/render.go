@@ -5,7 +5,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"strings"
 	"waku-poker-planning/config"
-	"waku-poker-planning/view/components/voteview"
 	"waku-poker-planning/view/states"
 )
 
@@ -74,7 +73,7 @@ func (m model) renderRoomView() string {
 	case states.ActiveIssueView:
 		return m.renderRoomCurrentIssueView()
 	case states.IssuesListView:
-		return renderIssuesListView(&m)
+		return m.issuesListView.View()
 	default:
 		return fmt.Sprintf("unknown view: %d", m.roomViewState)
 	}
@@ -109,45 +108,4 @@ func (m model) renderActionInput() string {
 func renderLogPath() string {
 	path := strings.Replace(config.LogFilePath, " ", "%20", -1)
 	return fmt.Sprintf("Log: file:///%s", path)
-}
-
-func renderIssuesListView(m *model) string {
-	if m.gameState == nil {
-		return ""
-	}
-
-	showSelector := !m.commandMode && m.app.IsDealer()
-	issues := m.gameState.Issues
-	activeIssue := m.gameState.ActiveIssue
-
-	var items []string
-
-	for i, issue := range issues {
-		result := "  - "
-		if issue.Result != nil {
-			vote := fmt.Sprintf("%2s", string(*issue.Result))
-			result = voteview.VoteStyle(*issue.Result).Render(vote)
-		} else if issue.ID == activeIssue {
-			result = fmt.Sprintf(" %2s ", m.spinner.View())
-		}
-
-		var item string
-		var style lipgloss.Style
-		if showSelector && i == m.issueCursor {
-			item += ">"
-			style = lipgloss.NewStyle().Foreground(config.UserColor)
-		} else {
-			item += " "
-		}
-
-		item += fmt.Sprintf("%s  %s", result, issue.TitleOrURL)
-		items = append(items, style.Render(item))
-	}
-
-	if len(items) == 0 {
-		items = append(items, "- No issues dealt yet")
-	}
-
-	fullBlock := lipgloss.JoinVertical(lipgloss.Top, items...)
-	return fmt.Sprintf("Issues:\n%s\n", fullBlock)
 }
