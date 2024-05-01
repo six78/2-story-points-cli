@@ -63,6 +63,10 @@ func (m *Model) SetPosition(position int) {
 	m.position = position
 }
 
+func (m *Model) Vertical() bool {
+	return m.vertical
+}
+
 func (m *Model) Position() int {
 	return m.position
 }
@@ -78,6 +82,21 @@ func (m *Model) SetFocus(focused bool) {
 func (m *Model) SetRange(min int, max int) {
 	m.min = min
 	m.max = max
+	if m.position > m.max {
+		m.position = m.max
+	}
+	if m.position < m.min {
+		m.position = m.min
+	}
+}
+
+func (m *Model) Min() int {
+	return m.min
+}
+
+func (m *Model) Max() int {
+	return m.max
+
 }
 
 func (m *Model) decrementCursor(cursor int) {
