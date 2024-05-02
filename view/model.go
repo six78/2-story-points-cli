@@ -18,6 +18,7 @@ import (
 	"waku-poker-planning/view/commands"
 	"waku-poker-planning/view/components/deckview"
 	"waku-poker-planning/view/components/errorview"
+	"waku-poker-planning/view/components/issuesview"
 	"waku-poker-planning/view/components/issueview"
 	"waku-poker-planning/view/components/playersview"
 	"waku-poker-planning/view/components/shortcutsview"
@@ -58,6 +59,7 @@ type model struct {
 	wakuStatusView wakustatusview.Model
 	deckView       deckview.Model
 	issueView      issueview.Model
+	issuesListView issuesview.Model
 
 	// Workaround: Used to allow pasting multiline text (list of issues)
 	disableEnterKey     bool
@@ -89,6 +91,7 @@ func initialModel(a *app.App) model {
 		wakuStatusView: wakustatusview.New(),
 		deckView:       deckview.New(),
 		issueView:      issueview.New(),
+		issuesListView: issuesview.New(),
 		// Other
 		disableEnterKey:     false,
 		disableEnterRestart: nil,
@@ -112,16 +115,18 @@ func (m model) Init() tea.Cmd {
 		m.wakuStatusView.Init(),
 		m.deckView.Init(),
 		m.issueView.Init(),
+		m.issuesListView.Init(),
 		commands.InitializeApp(m.app),
 	)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
-		inputCommand     tea.Cmd
-		spinnerCommand   tea.Cmd
-		playersCommand   tea.Cmd
-		issueViewCommand tea.Cmd
+		inputCommand          tea.Cmd
+		spinnerCommand        tea.Cmd
+		playersCommand        tea.Cmd
+		issueViewCommand      tea.Cmd
+		issuesListViewCommand tea.Cmd
 	)
 
 	// TODO: Rendering could be cached inside components in most cases.
@@ -299,11 +304,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.wakuStatusView = m.wakuStatusView.Update(msg)
 	m.deckView = m.deckView.Update(msg)
 	m.issueView, issueViewCommand = m.issueView.Update(msg)
+	m.issuesListView, issuesListViewCommand = m.issuesListView.Update(msg)
 
 	appendCommand(inputCommand)
 	appendCommand(spinnerCommand)
 	appendCommand(playersCommand)
 	appendCommand(issueViewCommand)
+	appendCommand(issuesListViewCommand)
 
 	return m, tea.Batch(cmds...)
 }

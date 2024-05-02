@@ -55,7 +55,7 @@ func (m Model) Update(msg tea.Msg) Model {
 	return m
 }
 
-func (m *Model) Targets(position int) bool {
+func (m *Model) Matches(position int) bool {
 	return m.focused && m.position == position
 }
 
@@ -82,6 +82,9 @@ func (m *Model) SetFocus(focused bool) {
 func (m *Model) SetRange(min int, max int) {
 	m.min = min
 	m.max = max
+	if m.max < m.min {
+		m.max = m.min
+	}
 	if m.position > m.max {
 		m.position = m.max
 	}
