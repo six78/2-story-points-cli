@@ -25,6 +25,7 @@ type Model struct {
 	activeIssue protocol.IssueID
 	commandMode bool
 	isDealer    bool
+	focused     bool
 
 	cursor  cursor.Model
 	spinner spinner.Model
@@ -111,5 +112,19 @@ func (m Model) View() string {
 }
 
 func (m *Model) updateCursorFocus() {
-	m.cursor.SetFocus(!m.commandMode && m.isDealer)
+	m.cursor.SetFocus(!m.commandMode && m.isDealer && m.focused)
+}
+
+func (m *Model) Focus() {
+	m.focused = true
+	m.updateCursorFocus()
+}
+
+func (m *Model) Blur() {
+	m.focused = false
+	m.updateCursorFocus()
+}
+
+func (m *Model) CursorPosition() int {
+	return m.cursor.Position()
 }

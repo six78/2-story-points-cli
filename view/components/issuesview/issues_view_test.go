@@ -139,7 +139,7 @@ func (s *Suite) TestView() {
 	model.activeIssue = "2"
 	model.cursor.SetRange(0, 4)
 	model.cursor.SetPosition(4)
-	model.updateCursorFocus()
+	model.Focus()
 
 	view := model.View()
 	lines := strings.Split(view, "\n")
