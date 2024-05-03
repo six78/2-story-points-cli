@@ -15,8 +15,7 @@ type UpdateCommands struct {
 
 func NewUpdateCommands() *UpdateCommands {
 	return &UpdateCommands{
-		InputCommand: nil,
-		commands:     make([]tea.Cmd, 0, 8),
+		commands: make([]tea.Cmd, 0, 8),
 	}
 }
 
