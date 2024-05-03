@@ -3,11 +3,10 @@ package issuesview
 import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/stretchr/testify/suite"
-	"go.uber.org/zap"
 	"strings"
 	"testing"
-	"waku-poker-planning/config"
 	"waku-poker-planning/protocol"
+	"waku-poker-planning/testcommon"
 	"waku-poker-planning/view/messages"
 )
 
@@ -16,13 +15,7 @@ func TestIssuesView(t *testing.T) {
 }
 
 type Suite struct {
-	suite.Suite
-}
-
-func (s *Suite) SetupSuite() {
-	logger, err := zap.NewDevelopment()
-	s.Require().NoError(err)
-	config.Logger = logger
+	testcommon.Suite
 }
 
 func (s *Suite) TestInit() {
@@ -139,7 +132,7 @@ func (s *Suite) TestView() {
 	model.activeIssue = "2"
 	model.cursor.SetRange(0, 4)
 	model.cursor.SetPosition(4)
-	model.updateCursorFocus()
+	model.Focus()
 
 	view := model.View()
 	lines := strings.Split(view, "\n")

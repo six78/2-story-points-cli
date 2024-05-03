@@ -4,11 +4,10 @@ import (
 	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/suite"
-	"go.uber.org/zap"
 	"testing"
-	"waku-poker-planning/config"
 	"waku-poker-planning/game"
 	"waku-poker-planning/protocol"
+	"waku-poker-planning/testcommon"
 	"waku-poker-planning/view/cursor"
 	"waku-poker-planning/view/messages"
 )
@@ -18,13 +17,7 @@ func TestDeckView(t *testing.T) {
 }
 
 type Suite struct {
-	suite.Suite
-}
-
-func (s *Suite) SetupSuite() {
-	logger, err := zap.NewDevelopment()
-	s.Require().NoError(err)
-	config.Logger = logger
+	testcommon.Suite
 }
 
 func (s *Suite) TestRenderCard() {
@@ -58,8 +51,10 @@ func (s *Suite) TestRenderDeck() {
 		finishCursor: cursor.New(false, false),
 	}
 
+	model.voteCursor.SetRange(0, len(model.deck)-1)
 	model.voteCursor.SetPosition(2)
 	model.voteCursor.SetFocus(true)
+	model.finishCursor.SetRange(0, len(model.deck)-1)
 	model.finishCursor.SetPosition(0)
 	model.finishCursor.SetFocus(false)
 

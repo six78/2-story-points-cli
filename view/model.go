@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"math"
 	"net/url"
 	"strings"
 	"time"
@@ -26,6 +25,7 @@ import (
 	"waku-poker-planning/view/components/wakustatusview"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
+	update "waku-poker-planning/view/update"
 	"waku-poker-planning/waku"
 )
 
@@ -52,7 +52,6 @@ type model struct {
 	// UI components state
 	commandMode    bool
 	roomViewState  states.RoomView
-	issueCursor    int
 	errorView      errorview.Model
 	playersView    playersview.Model
 	shortcutsView  shortcutsview.Model
@@ -72,6 +71,10 @@ type model struct {
 }
 
 func initialModel(a *app.App) model {
+	const initialRoomViewState = states.ActiveIssueView
+	deckView := deckview.New()
+	deckView.Focus()
+
 	return model{
 		app: a,
 		// Initial model values
@@ -80,8 +83,7 @@ func initialModel(a *app.App) model {
 		roomID:    protocol.RoomID{},
 		// UI components state
 		commandMode:   false,
-		roomViewState: states.ActiveIssueView,
-		issueCursor:   0,
+		roomViewState: initialRoomViewState,
 		// View components
 		input:          userinput.New(false),
 		spinner:        createSpinner(),
@@ -89,7 +91,7 @@ func initialModel(a *app.App) model {
 		playersView:    playersview.New(),
 		shortcutsView:  shortcutsview.New(),
 		wakuStatusView: wakustatusview.New(),
-		deckView:       deckview.New(),
+		deckView:       deckView,
 		issueView:      issueview.New(),
 		issuesListView: issuesview.New(),
 		// Other
@@ -121,36 +123,18 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var (
-		inputCommand          tea.Cmd
-		spinnerCommand        tea.Cmd
-		playersCommand        tea.Cmd
-		issueViewCommand      tea.Cmd
-		issuesListViewCommand tea.Cmd
-	)
+	cmds := update.NewUpdateCommands()
+
+	switchToState := func(state states.AppState) {
+		m.state = state
+		cmds.AppendMessage(messages.AppStateMessage{State: state})
+	}
 
 	// TODO: Rendering could be cached inside components in most cases.
 	//		 This will require to only call Update when needed (because the object is copied).
 	//		 On Update() we would set `cache.valid = false`
 	//		 and then in View() the string could be cached and set `cache.valid = true`.
 	//		 Look shortcutsview for example.
-
-	cmds := make([]tea.Cmd, 0, 8)
-
-	appendCommand := func(command tea.Cmd) {
-		cmds = append(cmds, command)
-	}
-
-	appendMessage := func(injectedMessage tea.Msg) {
-		cmds = append(cmds, func() tea.Msg {
-			return injectedMessage
-		})
-	}
-
-	switchToState := func(state states.AppState) {
-		m.state = state
-		appendMessage(messages.AppStateMessage{State: state})
-	}
 
 	switch msg := msg.(type) {
 
@@ -161,7 +145,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.State {
 		case states.Initializing:
 			// Notify PlayerID generated
-			appendMessage(messages.PlayerIDMessage{
+			cmds.AppendMessage(messages.PlayerIDMessage{
 				PlayerID: m.app.Game.Player().ID,
 			})
 			// Determine next state
@@ -171,8 +155,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				switchToState(states.WaitingForPeers)
 			}
 			// Subscribe to states when app initialized
-			appendCommand(commands.WaitForConnectionStatus(m.app))
-			appendCommand(commands.WaitForGameState(m.app))
+			cmds.AppendCommand(commands.WaitForConnectionStatus(m.app))
+			cmds.AppendCommand(commands.WaitForGameState(m.app))
 
 		case states.InputPlayerName:
 			switchToState(states.WaitingForPeers)
@@ -182,7 +166,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if config.InitialAction() != "" {
 				m.input.SetValue(config.InitialAction())
 				cmd := ProcessInput(&m)
-				appendCommand(cmd)
+				cmds.AppendCommand(cmd)
 			}
 		case states.Playing:
 			break
@@ -190,7 +174,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.AppStateMessage:
 		// Immediately skip to next state if peers already connected
 		if m.state == states.WaitingForPeers && m.connectionStatus.PeersCount > 0 {
-			appendMessage(messages.AppStateFinishedMessage{
+			cmds.AppendMessage(messages.AppStateFinishedMessage{
 				State: states.WaitingForPeers,
 			})
 		}
@@ -198,18 +182,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.ConnectionStatus:
 		m.connectionStatus = msg.Status
 		if m.state == states.WaitingForPeers && m.connectionStatus.PeersCount > 0 {
-			appendMessage(messages.AppStateFinishedMessage{
+			cmds.AppendMessage(messages.AppStateFinishedMessage{
 				State: states.WaitingForPeers,
 			})
 		}
-		appendCommand(commands.WaitForConnectionStatus(m.app))
+		cmds.AppendCommand(commands.WaitForConnectionStatus(m.app))
 
 	case messages.GameStateMessage:
 		if m.gameState != nil && msg.State != nil && msg.State.ActiveIssue != m.gameState.ActiveIssue {
-			appendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
+			cmds.AppendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
 		}
 		m.gameState = msg.State
-		appendCommand(commands.WaitForGameState(m.app))
+		cmds.AppendCommand(commands.WaitForGameState(m.app))
 
 	case messages.CommandModeChange:
 		m.commandMode = msg.CommandMode
@@ -219,7 +203,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		config.Logger.Debug("room joined",
 			zap.String("roomID", msg.RoomID.String()),
 			zap.Bool("isDealer", msg.IsDealer))
-		appendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
+		cmds.AppendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
 
 	case messages.EnableEnterKey:
 		m.disableEnterKey = false
@@ -228,7 +212,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC:
-			appendCommand(commands.QuitApp(m.app))
+			cmds.AppendCommand(commands.QuitApp(m.app))
 		case tea.KeyEnter:
 			var cmd tea.Cmd
 			if m.disableEnterKey {
@@ -236,37 +220,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.input.Focused() {
 				cmd = ProcessUserInput(&m)
-				appendCommand(cmd)
+				cmds.AppendCommand(cmd)
 				break
 			}
 			switch m.roomViewState {
 			case states.ActiveIssueView:
+				// FIXME: https://github.com/six78/waku-poker-planning-go/issues/8
+				//		  Check `m.gameState == nil`
 				if m.gameState.VoteState() == protocol.VotingState {
 					cmd = VoteOnCursor(&m)
 				} else if m.gameState.VoteState() == protocol.RevealedState {
 					cmd = FinishOnCursor(&m)
 				}
 			case states.IssuesListView:
-				cmd = commands.SelectIssue(m.app, m.issueCursor)
+				cmd = commands.SelectIssue(m.app, m.issuesListView.CursorPosition())
 				toggleRoomView(&m)
 			}
-			appendCommand(cmd)
-		case tea.KeyUp:
-			if !m.commandMode && m.roomViewState == states.IssuesListView {
-				MoveIssueCursorUp(&m)
-			}
-		case tea.KeyDown:
-			if !m.commandMode && m.roomViewState == states.IssuesListView {
-				MoveIssueCursorDown(&m)
-			}
+			cmds.AppendCommand(cmd)
 		case tea.KeyTab:
 			if !m.roomID.Empty() {
 				toggleRoomView(&m)
 			}
 		case tea.KeyShiftTab:
-			appendMessage(messages.CommandModeChange{
+			cmds.AppendMessage(messages.CommandModeChange{
 				CommandMode: !m.commandMode,
 			})
+		default:
 		}
 
 		if m.input.Focused() {
@@ -276,43 +255,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.roomID.Empty() {
 			switch {
 			case key.Matches(msg, commands.DefaultKeyMap.ExitRoom):
-				appendCommand(runExitAction(&m, nil))
+				cmds.AppendCommand(runExitAction(&m, nil))
 			case key.Matches(msg, commands.DefaultKeyMap.RevealVotes):
-				appendCommand(runRevealAction(&m, nil))
+				cmds.AppendCommand(runRevealAction(&m, nil))
 			case key.Matches(msg, commands.DefaultKeyMap.FinishVote):
-				appendCommand(runFinishAction(&m, nil))
+				cmds.AppendCommand(runFinishAction(&m, nil))
 			case key.Matches(msg, commands.DefaultKeyMap.RevokeVote):
-				appendCommand(commands.PublishVote(m.app, ""))
+				cmds.AppendCommand(commands.PublishVote(m.app, ""))
 			}
 		} else {
 			switch {
 			case key.Matches(msg, commands.DefaultKeyMap.NewRoom):
-				appendCommand(runNewAction(&m, nil))
+				cmds.AppendCommand(runNewAction(&m, nil))
 			}
 		}
 
 		message, command := m.handlePastedText(msg.String())
-		appendMessage(message)
-		appendCommand(command)
+		cmds.AppendMessage(message)
+		cmds.AppendCommand(command)
 	}
 
-	m.input, inputCommand = m.input.Update(msg)
-	m.spinner, spinnerCommand = m.spinner.Update(msg)
+	m.input, cmds.InputCommand = m.input.Update(msg)
+	m.spinner, cmds.SpinnerCommand = m.spinner.Update(msg)
 	m.errorView = m.errorView.Update(msg)
-	m.playersView, playersCommand = m.playersView.Update(msg)
+	m.playersView, cmds.PlayersCommand = m.playersView.Update(msg)
 	m.shortcutsView = m.shortcutsView.Update(msg, m.roomViewState)
 	m.wakuStatusView = m.wakuStatusView.Update(msg)
 	m.deckView = m.deckView.Update(msg)
-	m.issueView, issueViewCommand = m.issueView.Update(msg)
-	m.issuesListView, issuesListViewCommand = m.issuesListView.Update(msg)
+	m.issueView, cmds.IssueViewCommand = m.issueView.Update(msg)
+	m.issuesListView, cmds.IssuesListViewCommand = m.issuesListView.Update(msg)
 
-	appendCommand(inputCommand)
-	appendCommand(spinnerCommand)
-	appendCommand(playersCommand)
-	appendCommand(issueViewCommand)
-	appendCommand(issuesListViewCommand)
-
-	return m, tea.Batch(cmds...)
+	return m, cmds.Batch()
 }
 
 func (m model) View() string {
@@ -348,25 +321,16 @@ func cursorCommand(m *model, cursor int, command func(*app.App, protocol.VoteVal
 	return command(m.app, cursorValue)
 }
 
-func MoveIssueCursorUp(m *model) {
-	m.issueCursor = int(math.Max(float64(m.issueCursor-1), 0))
-}
-
-func MoveIssueCursorDown(m *model) {
-	if m.gameState == nil {
-		return
-	}
-	m.issueCursor = int(math.Min(float64(m.issueCursor+1), float64(len(m.gameState.Issues)-1)))
-}
-
 func toggleRoomView(m *model) {
 	switch m.roomViewState {
 	case states.ActiveIssueView:
 		m.roomViewState = states.IssuesListView
 		m.deckView.Blur()
+		m.issuesListView.Focus()
 	case states.IssuesListView:
 		m.roomViewState = states.ActiveIssueView
 		m.deckView.Focus()
+		m.issuesListView.Blur()
 	}
 }
 
