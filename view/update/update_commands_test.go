@@ -1,4 +1,4 @@
-package view
+package update
 
 import (
 	"github.com/brianvoe/gofakeit/v6"

@@ -1,10 +1,10 @@
-package view
+package update
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type UpdateCommands struct {
+type Commands struct {
 	commands              []tea.Cmd
 	InputCommand          tea.Cmd
 	SpinnerCommand        tea.Cmd
@@ -13,23 +13,23 @@ type UpdateCommands struct {
 	IssuesListViewCommand tea.Cmd
 }
 
-func NewUpdateCommands() *UpdateCommands {
-	return &UpdateCommands{
+func NewUpdateCommands() *Commands {
+	return &Commands{
 		commands: make([]tea.Cmd, 0, 8),
 	}
 }
 
-func (u *UpdateCommands) AppendCommand(command tea.Cmd) {
+func (u *Commands) AppendCommand(command tea.Cmd) {
 	u.commands = append(u.commands, command)
 }
 
-func (u *UpdateCommands) AppendMessage(message tea.Msg) {
+func (u *Commands) AppendMessage(message tea.Msg) {
 	u.commands = append(u.commands, func() tea.Msg {
 		return message
 	})
 }
 
-func (u *UpdateCommands) Batch() tea.Cmd {
+func (u *Commands) Batch() tea.Cmd {
 	u.commands = append(u.commands,
 		u.InputCommand,
 		u.SpinnerCommand,

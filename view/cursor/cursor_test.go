@@ -189,8 +189,8 @@ func (s *Suite) TestAdjust() {
 
 	// Expect max to adjust to min
 	model.SetRange(3, 1)
-	s.Require().Equal(1, model.Min())
-	s.Require().Equal(1, model.Max())
+	s.Require().Equal(3, model.Min())
+	s.Require().Equal(3, model.Max())
 }
 
 func (s *Suite) TestMatch() {
