@@ -10,20 +10,20 @@ import (
 )
 
 func TestUpdateCommands(t *testing.T) {
-	suite.Run(t, new(Suite))
+	suite.Run(t, new(UpdateCommandsSuite))
 }
 
-type Suite struct {
+type UpdateCommandsSuite struct {
 	testcommon.Suite
 }
 
-func (s *Suite) TestEmpty() {
+func (s *UpdateCommandsSuite) TestEmpty() {
 	update := NewUpdateCommands()
 	batch := update.Batch()
 	s.Require().Nil(batch)
 }
 
-func (s *Suite) TestAppendCommand() {
+func (s *UpdateCommandsSuite) TestAppendCommand() {
 	sentMessage := gofakeit.LetterN(5)
 	sentCommand := func() tea.Msg {
 		return sentMessage
@@ -48,7 +48,7 @@ func (s *Suite) TestAppendCommand() {
 	s.Require().Equal(sentMessage, receivedMessage)
 }
 
-func (s *Suite) TestAppendMessage() {
+func (s *UpdateCommandsSuite) TestAppendMessage() {
 	sentMessage := gofakeit.LetterN(5)
 
 	update := NewUpdateCommands()
@@ -70,7 +70,7 @@ func (s *Suite) TestAppendMessage() {
 	s.Require().Equal(sentMessage, receivedMessage)
 }
 
-func (s *Suite) TestStandardCommands() {
+func (s *UpdateCommandsSuite) TestStandardCommands() {
 	var messages = make([]string, 5)
 	for i := 0; i < len(messages); i++ {
 		messages[i] = gofakeit.LetterN(5)
