@@ -51,8 +51,10 @@ func (s *Suite) TestRenderDeck() {
 		finishCursor: cursor.New(false, false),
 	}
 
+	model.voteCursor.SetRange(0, len(model.deck)-1)
 	model.voteCursor.SetPosition(2)
 	model.voteCursor.SetFocus(true)
+	model.finishCursor.SetRange(0, len(model.deck)-1)
 	model.finishCursor.SetPosition(0)
 	model.finishCursor.SetFocus(false)
 

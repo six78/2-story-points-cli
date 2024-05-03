@@ -81,8 +81,8 @@ func (m Model) View() string {
 	for i, value := range m.deck {
 		card := renderCard(
 			value,
-			m.voteCursor.Matches(i),
-			m.finishCursor.Matches(i),
+			m.voteCursor.Match(i),
+			m.finishCursor.Match(i),
 			value == m.myVote,
 		)
 		cards = append(cards, card, " ") // Add a space between cards

@@ -92,7 +92,7 @@ func (m Model) View() string {
 		var item string
 		var style lipgloss.Style
 
-		if m.cursor.Matches(i) {
+		if m.cursor.Match(i) {
 			item += cursorSymbol
 			style = highlightStyle
 		} else {

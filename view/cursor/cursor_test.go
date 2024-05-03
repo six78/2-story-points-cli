@@ -168,3 +168,43 @@ func (s *Suite) TestUpdate() {
 		s.T().Run(tc.name, test)
 	}
 }
+
+func (s *Suite) TestAdjust() {
+	model := New(true, true)
+	model.SetRange(0, 2)
+
+	// Expect position to adjust to min
+	model.SetPosition(1)
+	model.SetRange(2, 3)
+	s.Require().Equal(2, model.Min())
+	s.Require().Equal(3, model.Max())
+	s.Require().Equal(2, model.Position())
+
+	// Expect position to adjust to max
+	model.SetPosition(3)
+	model.SetRange(1, 2)
+	s.Require().Equal(1, model.Min())
+	s.Require().Equal(2, model.Max())
+	s.Require().Equal(2, model.Position())
+
+	// Expect max to adjust to min
+	model.SetRange(3, 1)
+	s.Require().Equal(1, model.Min())
+	s.Require().Equal(1, model.Max())
+}
+
+func (s *Suite) TestMatch() {
+	model := New(true, true)
+	model.SetRange(0, 2)
+	model.SetPosition(1)
+
+	model.SetFocus(true)
+	for _, v := range []int{0, 1, 2} {
+		s.Require().Equal(v == 1, model.Match(v))
+	}
+
+	model.SetFocus(false)
+	for _, v := range []int{0, 1, 2} {
+		s.Require().False(model.Match(v))
+	}
+}
