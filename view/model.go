@@ -25,7 +25,7 @@ import (
 	"waku-poker-planning/view/components/wakustatusview"
 	"waku-poker-planning/view/messages"
 	"waku-poker-planning/view/states"
-	update "waku-poker-planning/view/update"
+	"waku-poker-planning/view/update"
 	"waku-poker-planning/waku"
 )
 
@@ -122,6 +122,11 @@ func (m model) Init() tea.Cmd {
 	)
 }
 
+// TODO: Rendering could be cached inside components in most cases.
+//		 This will require to only call Update when needed (because the object is copied).
+//		 On Update() we would set `cache.valid = false`
+//		 and then in View() the string could be cached and set `cache.valid = true`.
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds := update.NewUpdateCommands()
 
@@ -130,14 +135,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds.AppendMessage(messages.AppStateMessage{State: state})
 	}
 
-	// TODO: Rendering could be cached inside components in most cases.
-	//		 This will require to only call Update when needed (because the object is copied).
-	//		 On Update() we would set `cache.valid = false`
-	//		 and then in View() the string could be cached and set `cache.valid = true`.
-	//		 Look shortcutsview for example.
-
 	switch msg := msg.(type) {
-
 	case messages.FatalErrorMessage:
 		m.fatalError = msg.Err
 

@@ -93,13 +93,8 @@ func (s *UpdateCommandsSuite) TestStandardCommands() {
 
 	batch := update.Batch()
 	s.Require().NotNil(batch)
-	s.Require().Equal(reflect.Func, reflect.TypeOf(batch).Kind())
 
-	result := batch()
-	s.Require().NotNil(result)
-
-	batchMessage := result.(tea.BatchMsg)
-	s.Require().NotNil(batchMessage)
+	batchMessage := s.SplitBatch(batch)
 	s.Require().Len(batchMessage, len(commands))
 
 	for i := 0; i < len(commands); i++ {

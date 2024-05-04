@@ -122,10 +122,6 @@ func (a *App) WaitForConnectionStatus() (waku.ConnectionStatus, bool, error) {
 	return status, more, nil
 }
 
-func (a *App) IsDealer() bool {
-	return a.Game != nil && a.Game.IsDealer()
-}
-
 func (a *App) RenamePlayer(name string) error {
 	a.Game.RenamePlayer(name)
 	if config.Anonymous() {
