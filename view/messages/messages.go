@@ -11,7 +11,6 @@ type FatalErrorMessage struct {
 }
 
 type AppStateFinishedMessage struct {
-	ErrorMessage
 	State states.AppState
 }
 
