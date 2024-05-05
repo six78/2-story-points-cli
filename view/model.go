@@ -221,6 +221,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds.AppendCommand(cmd)
 				break
 			}
+			if m.gameState == nil {
+				break
+			}
 			switch m.roomViewState {
 			case states.ActiveIssueView:
 				// FIXME: https://github.com/six78/waku-poker-planning-go/issues/8
