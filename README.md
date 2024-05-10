@@ -6,7 +6,10 @@
 ♠️ Poker Planning \
 ♥️ Console Application
 
-// TBD: demo
+<p align="center">
+  <img width="600" src="docs/demo.svg">
+</p>
+
 
 [//]: # (Fancy a web version? -> https://six78.github.io/lock-stock-2-story-points )
 
