@@ -7,18 +7,18 @@
 ♥️ Console Application
 
 <p align="center">
-  <img width="600" src="docs/demo.svg">
+  <img width="800" src="docs/demo.svg">
 </p>
-
 
 [//]: # (Fancy a web version? -> https://six78.github.io/lock-stock-2-story-points )
 
 # Description
 
-- We use [Waku](https://waku.org) for players communication.
+- This is a CLI app for poker planning
+- We use [Waku](https://waku.org) for players communication
 - Messages are end-to-end encrypted, the key is shared elsewhere as part of the room id
 
-# Get it
+[//]: # (# Get it)
 
 # Build it your own
  ```shell
