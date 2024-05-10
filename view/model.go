@@ -371,7 +371,7 @@ func (m *model) handlePastedText(text string) (tea.Msg, tea.Cmd) {
 	if m.disableEnterRestart != nil {
 		m.disableEnterRestart <- struct{}{}
 	} else {
-		m.disableEnterRestart = make(chan struct{})
+		m.disableEnterRestart = make(chan struct{}, 100)
 		cmd := commands.DelayMessage(
 			100*time.Millisecond,
 			messages.EnableEnterKey{},
