@@ -16,14 +16,14 @@ jobs:
       - name: Setup Code Climate test-reporter
         run: |
           echo $(pwd)
-          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
-          chmod +x ./cc-test-reporter
-          ./cc-test-reporter before-build
+          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > /tmp/cc-test-reporter
+          chmod +x /tmp/cc-test-reporter
+          /tmp/cc-test-reporter before-build
 
       - uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20'
 
@@ -49,5 +49,5 @@ jobs:
       - name: Report tests
         run: |
           echo $(pwd)
-          ./cc-test-reporter after-build --prefix=waku-poker-planning
+          /tmp/cc-test-reporter after-build --prefix=waku-poker-planning
         
