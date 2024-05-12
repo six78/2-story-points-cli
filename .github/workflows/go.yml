@@ -1,0 +1,50 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Go
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Code Climate test-reporter
+        run: |
+          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+          chmod +x ./cc-test-reporter
+          ./cc-test-reporter before-build
+
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Setup gotestsum
+        uses: autero1/action-gotestsum@v2
+        with:
+          gotestsum_version: 0.4.1
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: |
+          gotestsum \
+              --junitfile /tmp/test-results/gotestsum-report.xml \
+              -- \
+              -failfast \
+              -covermode=atomic \
+              -coverprofile=c.out \
+              ./...
+
+      - name: Report tests
+        run: |
+          ./cc-test-reporter after-build --prefix=waku-poker-planning
+        
