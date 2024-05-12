@@ -17,7 +17,9 @@ jobs:
         run: |
           curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > /tmp/cc-test-reporter
           chmod +x /tmp/cc-test-reporter
-          /tmp/cc-test-reporter before-build
+          /tmp/cc-test-reporter before-build --debug
+          echo $(git rev-parse HEAD)
+          echo $(git branch --show-current)
 
       - uses: actions/checkout@v4
 
@@ -47,5 +49,8 @@ jobs:
           /tmp/cc-test-reporter after-build \
             --id ${{ secrets.CC_TEST_REPORTER_ID }} \
             --prefix waku-poker-planning \
-            --exit-code $?
+            --exit-code $? \
+            --debug
+          echo $(git rev-parse HEAD)
+          echo $(git branch --show-current)
         
