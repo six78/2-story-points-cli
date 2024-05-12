@@ -43,12 +43,14 @@ jobs:
               -- \
               -failfast \
               -covermode=atomic \
-              -coverprofile=c.out \
+              -coverprofile=/tmp/test-results/c.out \
               -r ${{ secrets.CC_TEST_REPORTER_ID }} \
               ./...
 
       - name: Report tests
         run: |
           echo $(pwd)
-          /tmp/cc-test-reporter after-build --prefix=waku-poker-planning
+          /tmp/cc-test-reporter after-build \
+            --prefix=waku-poker-planning \
+            --input=/tmp/test-results/c.out
         
