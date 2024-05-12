@@ -44,6 +44,7 @@ jobs:
               -failfast \
               -covermode=atomic \
               -coverprofile=c.out \
+              -r ${{ secrets.CC_TEST_REPORTER_ID }} \
               ./...
 
       - name: Report tests
