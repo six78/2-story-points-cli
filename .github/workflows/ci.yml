@@ -15,18 +15,18 @@ jobs:
     steps:
       - name: Set environment variables
         run: |
-          echo "GIT_COMMIT_SHA=${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "GIT_COMMIT_SHA=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_ENV"
           echo "GIT_BRANCH=${GITHUB_HEAD_REF}" >> "$GITHUB_ENV"
           echo "GITHUB_SHA=${GITHUB_SHA}, GITHUB_HEAD_REF=${GITHUB_HEAD_REF}"
           echo "GIT_COMMIT_SHA=${GIT_COMMIT_SHA}, GIT_BRANCH=${GIT_BRANCH}"
+          echo $(git rev-parse HEAD)
+          echo $(git branch --show-current)
 
       - name: Setup Code Climate test-reporter
         run: |
           curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > /tmp/cc-test-reporter
           chmod +x /tmp/cc-test-reporter
           /tmp/cc-test-reporter before-build --debug
-          echo $(git rev-parse HEAD)
-          echo $(git branch --show-current)
           echo "GITHUB_SHA=${GITHUB_SHA}, GITHUB_HEAD_REF=${GITHUB_HEAD_REF}"
           echo "GIT_COMMIT_SHA=${GIT_COMMIT_SHA}, GIT_BRANCH=${GIT_BRANCH}"
 
