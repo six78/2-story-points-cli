@@ -61,7 +61,7 @@ jobs:
 
       - name: Print
         run: |
-          whereis libdl.so.2
+          where libdl.so.2
 
 #      - name: Setup dlfcn-win32
 #        run: |
