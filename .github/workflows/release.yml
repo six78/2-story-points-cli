@@ -63,6 +63,7 @@ jobs:
         run: |
           git clone https://github.com/dlfcn-win32/dlfcn-win32.git
           cd dlfcn-win32/
+          chmod u+x configure
           ./configure
           make
           make install
