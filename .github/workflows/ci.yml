@@ -1,0 +1,52 @@
+name: ci
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set environment variables
+        run: |
+          echo "GIT_COMMIT_SHA=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_ENV"
+          echo "GIT_BRANCH=${GITHUB_HEAD_REF}" >> "$GITHUB_ENV"
+
+      - name: Setup Code Climate test-reporter
+        run: |
+          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > /tmp/cc-test-reporter
+          chmod +x /tmp/cc-test-reporter
+          /tmp/cc-test-reporter before-build
+
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+
+      - name: Setup gotestsum
+        uses: autero1/action-gotestsum@v2.0.0
+        with:
+          gotestsum_version: 1.11.0
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: |
+          mkdir -p /tmp/test-results
+          gotestsum \
+              --junitfile /tmp/test-results/gotestsum-report.xml \
+              -- \
+              -failfast \
+              -covermode atomic \
+              -coverprofile c.out \
+              ./...
+          /tmp/cc-test-reporter after-build \
+            --id ${{ secrets.CC_TEST_REPORTER_ID }} \
+            --prefix waku-poker-planning \
+            --exit-code $?
