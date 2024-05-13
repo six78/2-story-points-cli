@@ -23,8 +23,8 @@ jobs:
         with:
           distribution: goreleaser
           args: build --clean --config=.goreleaser-darwin.yml
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 #  linux:
 #    runs-on: ubuntu-latest
