@@ -8,6 +8,8 @@ on:
 
 jobs:
 
+#  TODO: rewrite with matrix?
+
   macos:
     runs-on: macos-latest
     steps:
@@ -30,6 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install compiler
+        run: sudo apt-get -y install gcc-aarch64-linux-gnu
 
       - name: Set up Go
         uses: actions/setup-go@v5
