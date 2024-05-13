@@ -40,7 +40,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
-          args: build --clean --config=.goreleaser-linux.yml
+          args: build --clean --snapshot --config=.goreleaser-linux.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
