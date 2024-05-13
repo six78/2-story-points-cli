@@ -59,6 +59,10 @@ jobs:
         with:
           go-version: '1.20'
 
+      - name: Print
+        run: |
+          whereis libdl.so.2
+
 #      - name: Setup dlfcn-win32
 #        run: |
 #          git clone https://github.com/dlfcn-win32/dlfcn-win32.git
