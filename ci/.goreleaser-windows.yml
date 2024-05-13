@@ -6,16 +6,14 @@ before:
 
 builds:
   - goos:
-#      - windows
-      - darwin
+      - windows
     goarch:
       - amd64
-      - arm64
     env:
       - CGO_ENABLED=1
 
 archives:
-  - format: tar.gz
+  - format: zip
     # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
       {{ .ProjectName }}_
@@ -24,7 +22,3 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    # use zip for windows archives
-    format_overrides:
-      - goos: windows
-        format: zip
