@@ -68,6 +68,11 @@ jobs:
         shell: msys2 {0}
         run: |
           pacman -S --noconfirm mingw-w64-x86_64-dlfcn
+          if exist C:/mingw64/lib (
+            echo "<<< dlfcn FOUND"
+          ) else (
+            echo "<<< dlfcn not found"
+          )
 
 #      - name: Print
 #        run: |
