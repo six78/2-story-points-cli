@@ -107,6 +107,6 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
-          args: build --clean --snapshot --config=ci/.goreleaser-windows.yml
+          args: build --clean --snapshot --config=ci/.goreleaser-windows.yml --debug
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
