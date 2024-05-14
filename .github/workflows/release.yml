@@ -83,7 +83,7 @@ jobs:
 #          make install
 
       - name: Run GoReleaser
-        shell: msys2 {0}
+#        shell: msys2 {0}
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
