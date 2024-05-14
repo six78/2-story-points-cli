@@ -68,7 +68,7 @@ jobs:
         shell: msys2 {0}
         run: |
           pacman -S --noconfirm mingw-w64-x86_64-dlfcn
-          if [ -e "C:/mingw64/lib" ]
+          if [ -e "C:/mingw64/lib/libdl.dll" ]
           then
             echo "<<< dlfcn FOUND"
           else
