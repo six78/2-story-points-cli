@@ -51,6 +51,9 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
 
@@ -59,9 +62,16 @@ jobs:
         with:
           go-version: '1.20'
 
-      - name: Print
+      - uses: msys2/setup-msys2@v2
+
+      - name: Set up MSYS packages
+        shell: msys2 {0}
         run: |
-          where libdl.so.2
+          pacman -S mingw-w64-x86_64-dlfcn
+
+#      - name: Print
+#        run: |
+#          where libdl.so.2
 
 #      - name: Setup dlfcn-win32
 #        run: |
@@ -73,6 +83,7 @@ jobs:
 #          make install
 
       - name: Run GoReleaser
+        shell: msys2 {0}
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
