@@ -6,6 +6,10 @@ on:
 #      - v*.*.*
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
 
 #  TODO: rewrite with matrix?
@@ -69,11 +73,20 @@ jobs:
         run: |
           pacman -S --noconfirm mingw-w64-x86_64-dlfcn
           where libdl.dll
-          if [ -e "C:/mingw64/lib/libdl.dll" ]
+          if [ -e "D:\a\_temp\msys64\mingw64\bin\libdl.dll" ]
           then
-            echo "<<< dlfcn FOUND"
+            echo "<<<1 dlfcn FOUND"
           else
-            echo "<<< dlfcn not found"
+            echo "<<<1 dlfcn not found"
+          fi
+
+      - name: Check MSYS packages
+        run: |
+          if [ -e "D:\a\_temp\msys64\mingw64\bin\libdl.dll" ]
+          then
+            echo "<<<2 dlfcn FOUND"
+          else
+            echo "<<<2 dlfcn not found"
           fi
 
 #      - name: Print

@@ -11,7 +11,7 @@ builds:
       - amd64
     env:
       - CGO_ENABLED=1
-      - CGO_LDFLAGS="-L D:/a/_temp/msys64/mingw64/bin/"
+      - CGO_LDFLAGS="-L=D:\a\_temp\msys64\mingw64\bin"
 #      - CC=x86_64-w64-mingw32-gcc
 #      - CXX=x86_64-w64-mingw32-g++
 
