@@ -67,7 +67,7 @@ jobs:
       - name: Set up MSYS packages
         shell: msys2 {0}
         run: |
-          pacman -S mingw-w64-x86_64-dlfcn
+          pacman -S --noconfirm mingw-w64-x86_64-dlfcn
 
 #      - name: Print
 #        run: |
