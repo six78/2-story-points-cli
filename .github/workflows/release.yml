@@ -88,6 +88,7 @@ jobs:
           else
             echo "<<<2 dlfcn not found"
           fi
+          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 
 #      - name: Print
 #        run: |
@@ -107,6 +108,6 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
-          args: build --clean --snapshot --config=ci/.goreleaser-windows.yml --debug
+          args: build --clean --snapshot --config=ci/.goreleaser-windows.yml --debug --verbose --fail-fast
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
