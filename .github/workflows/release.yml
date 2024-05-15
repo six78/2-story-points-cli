@@ -70,8 +70,7 @@ jobs:
         with:
           install: >-
             mingw-w64-x86_64-dlfcn
-            x86_64-w64-mingw32-gcc
-            x86_64-w64-mingw32-g++
+            mingw-w64-x86_64-gcc
 
 #      - name: Set up MSYS packages
 #        shell: msys2 {0}
