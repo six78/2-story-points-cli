@@ -67,12 +67,16 @@ jobs:
           go-version: '1.20'
 
       - uses: msys2/setup-msys2@v2
+        with:
+          install: >-
+            mingw-w64-x86_64-dlfcn
+            x86_64-w64-mingw32-gcc
+            x86_64-w64-mingw32-g++
 
-      - name: Set up MSYS packages
-        shell: msys2 {0}
-        run: |
-          pacman -S --noconfirm mingw-w64-x86_64-dlfcn
-          where libdl.dll
+#      - name: Set up MSYS packages
+#        shell: msys2 {0}
+#        run: |
+#          where libdl.dll
 
       - name: Check MSYS packages
         shell: pwsh
