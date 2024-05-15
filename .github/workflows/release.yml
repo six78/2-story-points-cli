@@ -73,12 +73,6 @@ jobs:
         run: |
           pacman -S --noconfirm mingw-w64-x86_64-dlfcn
           where libdl.dll
-          if [ -e "D:\a\_temp\msys64\mingw64\bin\libdl.dll" ]
-          then
-            echo "<<<1 dlfcn FOUND"
-          else
-            echo "<<<1 dlfcn not found"
-          fi
 
       - name: Check MSYS packages
         run: |
@@ -90,6 +84,7 @@ jobs:
           fi
           LD_LIBRARY_PATH="D:\\a\\_temp\\msys64\\mingw64\\bin;$LD_LIBRARY_PATH"
           echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
+          tree D:\a\_temp\msys64\mingw64\bin\
 
 #      - name: Print
 #        run: |
@@ -104,11 +99,11 @@ jobs:
 #          make
 #          make install
 
-      - name: Run GoReleaser
-#        shell: msys2 {0}
-        uses: goreleaser/goreleaser-action@v5
-        with:
-          distribution: goreleaser
-          args: build --clean --snapshot --config=ci/.goreleaser-windows.yml --debug --verbose
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      - name: Run GoReleaser
+##        shell: msys2 {0}
+#        uses: goreleaser/goreleaser-action@v5
+#        with:
+#          distribution: goreleaser
+#          args: build --clean --snapshot --config=ci/.goreleaser-windows.yml
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
