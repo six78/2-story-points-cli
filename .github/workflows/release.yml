@@ -12,102 +12,102 @@ concurrency:
 
 jobs:
 
-#  TODO: rewrite with matrix?
+#  TODO: refactor with matrix strategy?
 
-#  macos:
-#    runs-on: macos-latest
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Set up Go
-#        uses: actions/setup-go@v5
-#        with:
-#          go-version: '1.20'
-#
-#      - name: Run GoReleaser
-#        uses: goreleaser/goreleaser-action@v5
-#        with:
-#          distribution: goreleaser
-#          args: build --clean --snapshot --config=ci/.goreleaser-darwin.yml
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#
-#  linux:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Install compiler
-#        run: sudo apt-get -y install gcc-aarch64-linux-gnu
-#
-#      - name: Set up Go
-#        uses: actions/setup-go@v5
-#        with:
-#          go-version: '1.20'
-#
-#      - name: Run GoReleaser
-#        uses: goreleaser/goreleaser-action@v5
-#        with:
-#          distribution: goreleaser
-#          args: build --clean --snapshot --config=ci/.goreleaser-linux.yml
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  windows:
-    runs-on: windows-latest
-#    defaults:
-#      run:
-#        shell: msys2 {0}
+  darwin:
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.20'
 
-      - uses: msys2/setup-msys2@v2
-        with:
-          install: >-
-            mingw-w64-x86_64-dlfcn
-            mingw-w64-x86_64-gcc
-
-#      - name: Set up MSYS packages
-#        shell: msys2 {0}
-#        run: |
-#          where libdl.dll
-
-      - name: Check MSYS packages
-        shell: pwsh
-        run: |
-          Tree "D:/a/_temp/msys64/mingw64/bin" /F
-#          if [ -e "D:\a\_temp\msys64\mingw64\bin\libdl.dll" ]
-#          then
-#            echo "<<<2 dlfcn FOUND"
-#          else
-#            echo "<<<2 dlfcn not found"
-#          fi
-#          LD_LIBRARY_PATH="D:\\a\\_temp\\msys64\\mingw64\\bin;$LD_LIBRARY_PATH"
-#          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
-
-#      - name: Print
-#        run: |
-#          where libdl.so.2
-
-#      - name: Setup dlfcn-win32
-#        run: |
-#          git clone https://github.com/dlfcn-win32/dlfcn-win32.git
-#          cd dlfcn-win32/
-#          chmod u+x configure
-#          ./configure
-#          make
-#          make install
-
       - name: Run GoReleaser
-#        shell: msys2 {0}
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
-          args: build --clean --snapshot --config=ci/.goreleaser-windows.yml
+          args: build --clean --snapshot --config=ci/.goreleaser-darwin.yml
+
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: ls2sp-darwin
+          path: dist/waku-poker-planning-go*
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install compiler
+        run: sudo apt-get -y install gcc-aarch64-linux-gnu
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          args: build --clean --snapshot --config=ci/.goreleaser-linux.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: ls2sp-darwin
+          path: dist/waku-poker-planning-go*
+
+#  windows:
+#    runs-on: windows-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#        with:
+#          fetch-depth: 0
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v5
+#        with:
+#          go-version: '1.20'
+#
+#      - name: Run GoReleaser
+#        uses: goreleaser/goreleaser-action@v5
+#        with:
+#          distribution: goreleaser
+#          args: build --clean --snapshot --config=ci/.goreleaser-windows.yml
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  draft-release:
+    needs: [darwin, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Make directories
+        run: |
+          mkdir -p ./ls2sp-build/linux
+          mkdir -p ./ls2sp-build/darwin
+      - name: Download linux binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: ls2sp-linux
+          path: ./ls2sp-build/linux
+      - name: Download darwin binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: ls2sp-darwin
+          path: ./ls2sp-build/darwin
+      - name: Release
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          args: release --config .goreleaser-release.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

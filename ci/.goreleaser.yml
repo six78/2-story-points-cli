@@ -1,0 +1,11 @@
+version: 1
+
+builds:
+  - skip
+
+
+release:
+  draft: true
+  mode: append
+  extra_files:
+    - glob:
