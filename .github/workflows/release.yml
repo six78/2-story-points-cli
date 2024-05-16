@@ -64,7 +64,7 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v3
         with:
-          name: ls2sp-darwin
+          name: ls2sp-linux
           path: dist/waku-poker-planning-go*
 
 #  windows:
