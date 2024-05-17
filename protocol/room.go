@@ -1,10 +1,10 @@
 package protocol
 
 import (
+	"2sp/config"
 	"crypto/rand"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
-	"waku-poker-planning/config"
 )
 
 type Room struct {

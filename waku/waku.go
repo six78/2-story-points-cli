@@ -1,6 +1,9 @@
 package waku
 
 import (
+	"2sp/config"
+	"2sp/game"
+	pp "2sp/protocol"
 	"context"
 	"encoding/hex"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -21,9 +24,6 @@ import (
 	"net"
 	"strings"
 	"time"
-	"waku-poker-planning/config"
-	"waku-poker-planning/game"
-	pp "waku-poker-planning/protocol"
 )
 
 var fleets = map[string]string{

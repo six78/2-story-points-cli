@@ -1,11 +1,11 @@
 package waku
 
 import (
+	pp "2sp/protocol"
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"testing"
-	pp "waku-poker-planning/protocol"
 )
 
 func TestEncryptionSuite(t *testing.T) {

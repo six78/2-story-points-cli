@@ -1,13 +1,13 @@
 package userinput
 
 import (
+	"2sp/config"
+	"2sp/view/messages"
+	"2sp/view/states"
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"waku-poker-planning/config"
-	"waku-poker-planning/view/messages"
-	"waku-poker-planning/view/states"
 )
 
 var style = lipgloss.NewStyle().Foreground(config.UserColor)

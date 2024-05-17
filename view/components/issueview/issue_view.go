@@ -1,6 +1,9 @@
 package issueview
 
 import (
+	"2sp/config"
+	"2sp/protocol"
+	"2sp/view/messages"
 	"context"
 	"fmt"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -14,9 +17,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"waku-poker-planning/config"
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/view/messages"
 )
 
 var (

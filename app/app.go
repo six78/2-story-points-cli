@@ -1,13 +1,13 @@
 package app
 
 import (
+	"2sp/config"
+	"2sp/game"
+	"2sp/protocol"
+	"2sp/waku"
 	"context"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"waku-poker-planning/config"
-	"waku-poker-planning/game"
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/waku"
 )
 
 type App struct {

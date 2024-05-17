@@ -1,6 +1,8 @@
 package game
 
 import (
+	"2sp/config"
+	"2sp/protocol"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,8 +10,6 @@ import (
 	"go.uber.org/zap"
 	"testing"
 	"time"
-	"waku-poker-planning/config"
-	"waku-poker-planning/protocol"
 )
 
 func TestStateSize(t *testing.T) {

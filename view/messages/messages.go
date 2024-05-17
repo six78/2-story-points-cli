@@ -1,9 +1,9 @@
 package messages
 
 import (
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/view/states"
-	"waku-poker-planning/waku"
+	"2sp/protocol"
+	"2sp/view/states"
+	"2sp/waku"
 )
 
 type FatalErrorMessage struct {

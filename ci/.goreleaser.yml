@@ -7,4 +7,4 @@ release:
   draft: true
   mode: append
   extra_files:
-    - glob: ./ls2sp-build/**/*
+    - glob: ./2sp-build/**/*

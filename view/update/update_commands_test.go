@@ -1,12 +1,12 @@
 package update
 
 import (
+	"2sp/testcommon"
 	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/suite"
 	"reflect"
 	"testing"
-	"waku-poker-planning/testcommon"
 )
 
 func TestUpdateCommands(t *testing.T) {

@@ -1,14 +1,14 @@
 package deckview
 
 import (
+	"2sp/config"
+	"2sp/protocol"
+	"2sp/view/components/voteview"
+	"2sp/view/cursor"
+	"2sp/view/messages"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"waku-poker-planning/config"
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/view/components/voteview"
-	"waku-poker-planning/view/cursor"
-	"waku-poker-planning/view/messages"
 )
 
 var (

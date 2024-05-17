@@ -1,15 +1,15 @@
 package deckview
 
 import (
+	"2sp/game"
+	"2sp/protocol"
+	"2sp/testcommon"
+	"2sp/view/cursor"
+	"2sp/view/messages"
 	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/suite"
 	"testing"
-	"waku-poker-planning/game"
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/testcommon"
-	"waku-poker-planning/view/cursor"
-	"waku-poker-planning/view/messages"
 )
 
 func TestDeckView(t *testing.T) {

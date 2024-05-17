@@ -1,8 +1,8 @@
 package game
 
 import (
+	"2sp/protocol"
 	"github.com/google/uuid"
-	"waku-poker-planning/protocol"
 )
 
 func GeneratePlayerID() (protocol.PlayerID, error) {

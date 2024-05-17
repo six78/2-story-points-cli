@@ -1,6 +1,8 @@
 package game
 
 import (
+	"2sp/config"
+	"2sp/protocol"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,8 +10,6 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"time"
-	"waku-poker-planning/config"
-	"waku-poker-planning/protocol"
 )
 
 type StateSubscription chan *protocol.State

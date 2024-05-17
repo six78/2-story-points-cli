@@ -37,7 +37,7 @@ package view
   Room:   238mvM91TbC9UJdUqKwtWFb
 
   Issues:  
-    13  https://github.com/six78/waku-poker-planning/issues/1                                
+    13  https://github.com/six78/2-story-points-cli/issues/1                                
   > -   https://github.com/golang/go/issues/19412                                                          
     -   https://github.com/protocolbuffers/protobuf/issues/2224                                
     -   https://github.com/vim/vim/issues/2034                                
@@ -53,10 +53,10 @@ package view
 ## Header info
 
 ```shell
-  Log:	  file:////Users/igorsirotin/Library/Application%20Support/six78/waku-poker-planning/logs/waku-pp-2024-03-28T09:01:16Z.log
+  Log:	  file:////~/Library/Application%20Support/six78/2sp/logs/waku-pp-2024-03-28T09:01:16Z.log
   Room:   238mvM91TbC9UJdUqKwtWFb
   
-  Issue:  https://github.com/six78/waku-poker-planning-go/issues/42
+  Issue:  https://github.com/six78/2-story-points-cli/issues/42
   Title:  Implement room encryption
 ```
 
@@ -236,10 +236,10 @@ For example for a Fibbonacci deck
 ## Issues list view
 
 ```shell
-  13  https://github.com/six78/waku-poker-planning-go/issues/42
-  3   https://github.com/six78/waku-poker-planning-go/issues/19
-> -   https://github.com/six78/waku-poker-planning-go/issues/12
-  -   https://github.com/six78/waku-poker-planning-go/issues/1 
-  -   https://github.com/six78/waku-poker-planning-go/issues/34
+  13  https://github.com/six78/2-story-points-cli/issues/42
+  3   https://github.com/six78/2-story-points-cli/issues/19
+> -   https://github.com/six78/2-story-points-cli/issues/12
+  -   https://github.com/six78/2-story-points-cli/issues/1 
+  -   https://github.com/six78/2-story-points-cli/issues/34
   ... 7 more issues
 ```

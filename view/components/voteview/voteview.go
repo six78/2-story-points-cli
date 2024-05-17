@@ -1,11 +1,11 @@
 package voteview
 
 import (
+	"2sp/protocol"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"strconv"
-	"waku-poker-planning/protocol"
 )
 
 var (
