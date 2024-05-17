@@ -99,16 +99,9 @@ jobs:
         run: |
           mkdir -p ./ls2sp-build
 
-      - name: Download linux binaries
-        uses: actions/download-artifact@v3
+      - name: Download binaries
+        uses: actions/download-artifact@v4
         with:
-          name: ls2sp-linux
-          path: ./ls2sp-build
-
-      - name: Download darwin binaries
-        uses: actions/download-artifact@v3
-        with:
-          name: ls2sp-darwin
           path: ./ls2sp-build
 
       - name: Release
