@@ -8,4 +8,4 @@ release:
   draft: true
   mode: append
   extra_files:
-    - glob: ./2sp-build/**/*
+    - glob: ./.goreleaser-artifacts/**/*
