@@ -111,10 +111,10 @@ jobs:
         with:
           name: ls2sp-darwin
           path: ./ls2sp-build/darwin
-          
+
       - name: Release
         uses: goreleaser/goreleaser-action@v2
         with:
-          args: release --config .goreleaser-release.yaml
+          args: release --config ci/.goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
