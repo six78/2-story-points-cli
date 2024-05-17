@@ -25,7 +25,7 @@
  git clone https://github.io/six78/2-story-points-cli
  cd 2-story-points
  go build
- ./ls2sp
+ ./2sp
  ```
  
 Or just run the code with a shadow build:
