@@ -2,10 +2,10 @@ package issuesview
 
 import (
 	"2sp/internal/config"
+	"2sp/internal/view/components/voteview"
+	"2sp/internal/view/cursor"
+	"2sp/internal/view/messages"
 	protocol2 "2sp/pkg/protocol"
-	"2sp/view/components/voteview"
-	"2sp/view/cursor"
-	"2sp/view/messages"
 	"fmt"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"

@@ -1,9 +1,9 @@
 package messages
 
 import (
+	"2sp/internal/view/states"
 	"2sp/internal/waku"
 	protocol2 "2sp/pkg/protocol"
-	"2sp/view/states"
 )
 
 type FatalErrorMessage struct {

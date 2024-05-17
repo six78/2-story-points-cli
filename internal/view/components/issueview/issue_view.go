@@ -2,8 +2,8 @@ package issueview
 
 import (
 	"2sp/internal/config"
+	"2sp/internal/view/messages"
 	"2sp/pkg/protocol"
-	"2sp/view/messages"
 	"context"
 	"fmt"
 	"github.com/charmbracelet/bubbles/spinner"

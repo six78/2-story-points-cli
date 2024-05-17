@@ -2,8 +2,8 @@ package issuesview
 
 import (
 	"2sp/internal/testcommon"
+	"2sp/internal/view/messages"
 	protocol2 "2sp/pkg/protocol"
-	"2sp/view/messages"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/stretchr/testify/suite"
 	"strings"

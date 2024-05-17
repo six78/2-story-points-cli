@@ -2,8 +2,8 @@ package view
 
 import (
 	"2sp/internal/config"
-	"2sp/view/messages"
-	"2sp/view/states"
+	"2sp/internal/view/messages"
+	"2sp/internal/view/states"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"go.uber.org/zap"

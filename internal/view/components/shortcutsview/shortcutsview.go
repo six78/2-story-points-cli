@@ -1,10 +1,10 @@
 package shortcutsview
 
 import (
+	"2sp/internal/view/commands"
+	"2sp/internal/view/messages"
+	"2sp/internal/view/states"
 	"2sp/pkg/protocol"
-	"2sp/view/commands"
-	"2sp/view/messages"
-	"2sp/view/states"
 	"fmt"
 	bubblekey "github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"

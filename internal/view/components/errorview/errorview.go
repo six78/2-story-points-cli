@@ -1,7 +1,7 @@
 package errorview
 
 import (
-	"2sp/view/messages"
+	"2sp/internal/view/messages"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )

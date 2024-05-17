@@ -1,9 +1,9 @@
 package playervoteview
 
 import (
+	"2sp/internal/view/components/voteview"
+	"2sp/internal/view/messages"
 	"2sp/pkg/protocol"
-	"2sp/view/components/voteview"
-	"2sp/view/messages"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )

@@ -2,8 +2,8 @@ package userinput
 
 import (
 	"2sp/internal/config"
-	"2sp/view/messages"
-	"2sp/view/states"
+	"2sp/internal/view/messages"
+	"2sp/internal/view/states"
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbletea"

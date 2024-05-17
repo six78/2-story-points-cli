@@ -3,7 +3,7 @@ package main
 import (
 	"2sp/internal/app"
 	"2sp/internal/config"
-	"2sp/view"
+	"2sp/internal/view"
 	"os"
 )
 

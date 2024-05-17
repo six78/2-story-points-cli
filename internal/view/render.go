@@ -2,7 +2,7 @@ package view
 
 import (
 	"2sp/internal/config"
-	"2sp/view/states"
+	"2sp/internal/view/states"
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
 	"strings"

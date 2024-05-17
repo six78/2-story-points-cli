@@ -1,8 +1,8 @@
 package wakustatusview
 
 import (
+	"2sp/internal/view/messages"
 	"2sp/internal/waku"
-	"2sp/view/messages"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

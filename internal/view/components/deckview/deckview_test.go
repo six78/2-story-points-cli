@@ -2,10 +2,10 @@ package deckview
 
 import (
 	"2sp/internal/testcommon"
+	"2sp/internal/view/cursor"
+	"2sp/internal/view/messages"
 	"2sp/pkg/game"
 	protocol2 "2sp/pkg/protocol"
-	"2sp/view/cursor"
-	"2sp/view/messages"
 	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/suite"

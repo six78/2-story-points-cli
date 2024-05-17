@@ -2,9 +2,9 @@ package commands
 
 import (
 	"2sp/internal/app"
+	"2sp/internal/view/messages"
+	"2sp/internal/view/states"
 	protocol2 "2sp/pkg/protocol"
-	"2sp/view/messages"
-	"2sp/view/states"
 	tea "github.com/charmbracelet/bubbletea"
 	"time"
 )

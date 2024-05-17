@@ -1,11 +1,11 @@
 package view
 
 import (
+	"2sp/internal/view/commands"
+	"2sp/internal/view/messages"
+	"2sp/internal/view/states"
 	"2sp/pkg/game"
 	protocol2 "2sp/pkg/protocol"
-	"2sp/view/commands"
-	"2sp/view/messages"
-	"2sp/view/states"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pkg/errors"
