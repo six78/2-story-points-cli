@@ -91,20 +91,27 @@ jobs:
     needs: [darwin, linux]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Make directories
         run: |
           mkdir -p ./ls2sp-build/linux
           mkdir -p ./ls2sp-build/darwin
+
       - name: Download linux binaries
         uses: actions/download-artifact@v3
         with:
           name: ls2sp-linux
           path: ./ls2sp-build/linux
+
       - name: Download darwin binaries
         uses: actions/download-artifact@v3
         with:
           name: ls2sp-darwin
           path: ./ls2sp-build/darwin
+          
       - name: Release
         uses: goreleaser/goreleaser-action@v2
         with:
