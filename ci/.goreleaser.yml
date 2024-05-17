@@ -1,7 +1,7 @@
 version: 1
 
 builds:
-  - skip
+  - skip: true
 
 release:
   draft: true

@@ -33,10 +33,10 @@ jobs:
           args: release --skip-publish --clean --snapshot --config=ci/.goreleaser-darwin.yml
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ls2sp-darwin
-          path: dist/waku-poker-planning-go*
+          path: dist/waku-poker-planning-go*.tar.gz
 
   linux:
     runs-on: ubuntu-latest
@@ -62,10 +62,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ls2sp-linux
-          path: dist/waku-poker-planning-go*
+          path: dist/waku-poker-planning-go*.tar.gz
 
 #  windows:
 #    runs-on: windows-latest
@@ -97,20 +97,19 @@ jobs:
 
       - name: Make directories
         run: |
-          mkdir -p ./ls2sp-build/linux
-          mkdir -p ./ls2sp-build/darwin
+          mkdir -p ./ls2sp-build
 
       - name: Download linux binaries
         uses: actions/download-artifact@v3
         with:
           name: ls2sp-linux
-          path: ./ls2sp-build/linux
+          path: ./ls2sp-build
 
       - name: Download darwin binaries
         uses: actions/download-artifact@v3
         with:
           name: ls2sp-darwin
-          path: ./ls2sp-build/darwin
+          path: ./ls2sp-build
 
       - name: Release
         uses: goreleaser/goreleaser-action@v2
