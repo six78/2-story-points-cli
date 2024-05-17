@@ -1,0 +1,10 @@
+version: 1
+
+builds:
+  - skip: true
+
+release:
+  draft: true
+  mode: append
+  extra_files:
+    - glob: ./ls2sp-build/**/*

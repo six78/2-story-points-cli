@@ -1,0 +1,111 @@
+name: release
+
+on:
+  push:
+    tags:
+      - v*.*.*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+#  TODO: refactor with matrix strategy?
+
+  darwin:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          args: release --skip-publish --clean --config=ci/.goreleaser-darwin.yml
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ls2sp-darwin
+          path: dist/waku-poker-planning-go*.tar.gz
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install compiler
+        run: sudo apt-get -y install gcc-aarch64-linux-gnu
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          args: release --skip-publish --clean --config=ci/.goreleaser-linux.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ls2sp-linux
+          path: dist/waku-poker-planning-go*.tar.gz
+
+#  windows:
+#    runs-on: windows-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#        with:
+#          fetch-depth: 0
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v5
+#        with:
+#          go-version: '1.20'
+#
+#      - name: Run GoReleaser
+#        uses: goreleaser/goreleaser-action@v5
+#        with:
+#          distribution: goreleaser
+#          args: build --clean --config=ci/.goreleaser-windows.yml
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  draft-release:
+    needs: [darwin, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Make directories
+        run: |
+          mkdir -p ./ls2sp-build
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: ./ls2sp-build
+
+      - name: Release
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          args: release --config=ci/.goreleaser.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
