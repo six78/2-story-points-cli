@@ -9,6 +9,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
 
 #  TODO: refactor with matrix strategy?
@@ -57,8 +60,6 @@ jobs:
         with:
           distribution: goreleaser
           args: release --skip-publish --clean --config=ci/.goreleaser-linux.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -83,8 +84,6 @@ jobs:
 #        with:
 #          distribution: goreleaser
 #          args: build --clean --config=ci/.goreleaser-windows.yml
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   draft-release:
     needs: [darwin, linux]
@@ -104,7 +103,7 @@ jobs:
           path: ./2sp-build
 
       - name: Release
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@v5
         with:
           args: release --config=ci/.goreleaser.yml
         env:
