@@ -7,7 +7,7 @@
 ♥️ Console Application
 
 <p align="center">
-  <img width="800" src="docs/demo.svg">
+  <img width="800" src="docs/demo.gif">
 </p>
 
 [//]: # (Fancy a web version? -> https://six78.github.io/2-story-points )
