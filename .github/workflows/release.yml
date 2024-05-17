@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - v*.*.*
-  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -33,7 +32,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
-          args: release --skip=publish --clean --config=ci/.goreleaser-darwin.yml --snapshot
+          args: release --skip=publish --clean --config=ci/.goreleaser-darwin.yml
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -60,7 +59,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
-          args: release --skip=publish --clean --config=ci/.goreleaser-linux.yml --snapshot
+          args: release --skip=publish --clean --config=ci/.goreleaser-linux.yml
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -106,6 +105,6 @@ jobs:
       - name: Release
         uses: goreleaser/goreleaser-action@v5
         with:
-          args: release --config=ci/.goreleaser.yml --snapshot
+          args: release --config=ci/.goreleaser.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
