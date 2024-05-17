@@ -30,7 +30,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
-          args: build --clean --snapshot --config=ci/.goreleaser-darwin.yml
+          args: release --skip-publish --clean --snapshot --config=ci/.goreleaser-darwin.yml
 
       - name: Upload
         uses: actions/upload-artifact@v3
@@ -57,7 +57,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
-          args: build --clean --snapshot --config=ci/.goreleaser-linux.yml
+          args: release --skip-publish --clean --snapshot --config=ci/.goreleaser-linux.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -115,6 +115,6 @@ jobs:
       - name: Release
         uses: goreleaser/goreleaser-action@v2
         with:
-          args: release --config ci/.goreleaser.yaml
+          args: release --config=ci/.goreleaser.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
