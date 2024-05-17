@@ -1,3 +1,6 @@
 .idea/
 dist
 .DS_Store
+
+# Used in ci for goreleaser
+.goreleaser-artifacts

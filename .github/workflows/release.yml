@@ -95,12 +95,12 @@ jobs:
 
       - name: Make directories
         run: |
-          mkdir -p ./2sp-build
+          mkdir -p ./.goreleaser-artifacts
 
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
-          path: ./2sp-build
+          path: ./.goreleaser-artifacts
 
       - name: Release
         uses: goreleaser/goreleaser-action@v5
