@@ -1,17 +1,17 @@
 package view
 
 import (
+	"2sp/game"
+	"2sp/protocol"
+	"2sp/view/commands"
+	"2sp/view/messages"
+	"2sp/view/states"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 	"strconv"
 	"strings"
-	"waku-poker-planning/game"
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/view/commands"
-	"waku-poker-planning/view/messages"
-	"waku-poker-planning/view/states"
 )
 
 type Action string

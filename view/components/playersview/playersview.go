@@ -1,12 +1,12 @@
 package playersview
 
 import (
+	"2sp/protocol"
+	"2sp/view/components/playervoteview"
+	"2sp/view/messages"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/view/components/playervoteview"
-	"waku-poker-planning/view/messages"
 )
 
 const textColor = lipgloss.Color("#FAFAFA")

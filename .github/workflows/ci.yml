@@ -52,5 +52,5 @@ jobs:
               ./...
           /tmp/cc-test-reporter after-build \
             --id ${{ secrets.CC_TEST_REPORTER_ID }} \
-            --prefix waku-poker-planning \
+            --prefix 2sp \
             --exit-code $?

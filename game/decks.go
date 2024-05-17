@@ -1,8 +1,8 @@
 package game
 
 import (
+	"2sp/protocol"
 	"golang.org/x/exp/maps"
-	"waku-poker-planning/protocol"
 )
 
 var fibonacciDeck = protocol.Deck{"1", "2", "3", "5", "8", "13", "21", "?"}

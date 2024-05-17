@@ -1,11 +1,11 @@
 package testcommon
 
 import (
+	"2sp/config"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"reflect"
-	"waku-poker-planning/config"
 )
 
 type Suite struct {

@@ -1,14 +1,14 @@
 package app
 
 import (
+	"2sp/config"
+	"2sp/game"
+	"2sp/protocol"
 	"encoding/json"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"path"
 	"sync"
-	"waku-poker-planning/config"
-	"waku-poker-planning/game"
-	"waku-poker-planning/protocol"
 
 	"github.com/shibukawa/configdir"
 )

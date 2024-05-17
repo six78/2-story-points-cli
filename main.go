@@ -1,10 +1,10 @@
 package main
 
 import (
+	"2sp/app"
+	"2sp/config"
+	"2sp/view"
 	"os"
-	"waku-poker-planning/app"
-	"waku-poker-planning/config"
-	"waku-poker-planning/view"
 )
 
 func main() {

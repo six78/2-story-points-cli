@@ -1,10 +1,10 @@
 package view
 
 import (
+	"2sp/app"
+	"2sp/config"
 	tea "github.com/charmbracelet/bubbletea"
 	"go.uber.org/zap"
-	"waku-poker-planning/app"
-	"waku-poker-planning/config"
 )
 
 func Run(a *app.App) int {

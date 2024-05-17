@@ -1,12 +1,12 @@
 package commands
 
 import (
+	"2sp/app"
+	"2sp/protocol"
+	"2sp/view/messages"
+	"2sp/view/states"
 	tea "github.com/charmbracelet/bubbletea"
 	"time"
-	"waku-poker-planning/app"
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/view/messages"
-	"waku-poker-planning/view/states"
 )
 
 // Any command here must:

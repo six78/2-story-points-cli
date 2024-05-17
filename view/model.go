@@ -1,6 +1,22 @@
 package view
 
 import (
+	"2sp/app"
+	"2sp/config"
+	"2sp/protocol"
+	"2sp/view/commands"
+	"2sp/view/components/deckview"
+	"2sp/view/components/errorview"
+	"2sp/view/components/issuesview"
+	"2sp/view/components/issueview"
+	"2sp/view/components/playersview"
+	"2sp/view/components/shortcutsview"
+	"2sp/view/components/userinput"
+	"2sp/view/components/wakustatusview"
+	"2sp/view/messages"
+	"2sp/view/states"
+	"2sp/view/update"
+	"2sp/waku"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -11,22 +27,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	"waku-poker-planning/app"
-	"waku-poker-planning/config"
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/view/commands"
-	"waku-poker-planning/view/components/deckview"
-	"waku-poker-planning/view/components/errorview"
-	"waku-poker-planning/view/components/issuesview"
-	"waku-poker-planning/view/components/issueview"
-	"waku-poker-planning/view/components/playersview"
-	"waku-poker-planning/view/components/shortcutsview"
-	"waku-poker-planning/view/components/userinput"
-	"waku-poker-planning/view/components/wakustatusview"
-	"waku-poker-planning/view/messages"
-	"waku-poker-planning/view/states"
-	"waku-poker-planning/view/update"
-	"waku-poker-planning/waku"
 )
 
 type model struct {
@@ -226,7 +226,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			switch m.roomViewState {
 			case states.ActiveIssueView:
-				// FIXME: https://github.com/six78/waku-poker-planning-go/issues/8
+				// FIXME: https://github.com/six78/2-story-points-cli/issues/8
 				//		  Check `m.gameState == nil`
 				if m.gameState.VoteState() == protocol.VotingState {
 					cmd = VoteOnCursor(&m)

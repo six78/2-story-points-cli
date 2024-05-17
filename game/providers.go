@@ -1,6 +1,6 @@
 package game
 
-import "waku-poker-planning/protocol"
+import "2sp/protocol"
 
 type Transport interface {
 	SubscribeToMessages(room *protocol.Room) (*MessagesSubscription, error)

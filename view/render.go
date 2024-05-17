@@ -1,11 +1,11 @@
 package view
 
 import (
+	"2sp/config"
+	"2sp/view/states"
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
 	"strings"
-	"waku-poker-planning/config"
-	"waku-poker-planning/view/states"
 )
 
 /*

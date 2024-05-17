@@ -1,9 +1,9 @@
 package errorview
 
 import (
+	"2sp/view/messages"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"waku-poker-planning/view/messages"
 )
 
 const color = lipgloss.Color("#d78700")

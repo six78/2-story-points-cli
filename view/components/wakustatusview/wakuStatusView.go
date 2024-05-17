@@ -1,11 +1,11 @@
 package wakustatusview
 
 import (
+	"2sp/view/messages"
+	"2sp/waku"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"waku-poker-planning/view/messages"
-	"waku-poker-planning/waku"
 )
 
 var (

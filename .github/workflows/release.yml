@@ -35,7 +35,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ls2sp-darwin
-          path: dist/waku-poker-planning-go*.tar.gz
+          path: dist/2sp*.tar.gz
 
   linux:
     runs-on: ubuntu-latest
@@ -64,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ls2sp-linux
-          path: dist/waku-poker-planning-go*.tar.gz
+          path: dist/2sp*.tar.gz
 
 #  windows:
 #    runs-on: windows-latest

@@ -1,14 +1,14 @@
 package shortcutsview
 
 import (
+	"2sp/protocol"
+	"2sp/view/commands"
+	"2sp/view/messages"
+	"2sp/view/states"
 	"fmt"
 	bubblekey "github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/view/commands"
-	"waku-poker-planning/view/messages"
-	"waku-poker-planning/view/states"
 )
 
 const (

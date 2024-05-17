@@ -19,7 +19,7 @@ const SymmetricKeyLength = 32
 const EnableSymmetricEncryption = true
 
 const VendorName = "six78"
-const ApplicationName = "waku-poker-planning"
+const ApplicationName = "2sp"
 
 const UserColor = lipgloss.Color("#7D56F4")
 const ForegroundShadeColor = lipgloss.Color("#555555")

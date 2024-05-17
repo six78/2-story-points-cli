@@ -1,13 +1,13 @@
 package issuesview
 
 import (
+	"2sp/protocol"
+	"2sp/testcommon"
+	"2sp/view/messages"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/stretchr/testify/suite"
 	"strings"
 	"testing"
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/testcommon"
-	"waku-poker-planning/view/messages"
 )
 
 func TestIssuesView(t *testing.T) {

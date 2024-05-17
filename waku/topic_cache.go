@@ -1,13 +1,13 @@
 package waku
 
 import (
+	pp "2sp/protocol"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 	"github.com/waku-org/go-waku/waku/v2/protocol"
 	"go.uber.org/zap"
 	"strconv"
-	pp "waku-poker-planning/protocol"
 )
 
 type ContentTopicCache struct {

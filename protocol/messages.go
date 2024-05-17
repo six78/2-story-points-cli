@@ -1,8 +1,8 @@
 package protocol
 
 import (
+	"2sp/config"
 	"time"
-	"waku-poker-planning/config"
 )
 
 const Version byte = 1

@@ -1,13 +1,13 @@
 package view
 
 import (
+	"2sp/config"
+	"2sp/view/messages"
+	"2sp/view/states"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"go.uber.org/zap"
 	"strings"
-	"waku-poker-planning/config"
-	"waku-poker-planning/view/messages"
-	"waku-poker-planning/view/states"
 )
 
 // Any command here must:

@@ -1,9 +1,9 @@
 package game
 
 import (
+	"2sp/protocol"
 	"github.com/stretchr/testify/require"
 	"testing"
-	"waku-poker-planning/protocol"
 )
 
 type TransportMock struct {

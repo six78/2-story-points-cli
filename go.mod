@@ -1,4 +1,4 @@
-module waku-poker-planning
+module 2sp
 
 go 1.20
 

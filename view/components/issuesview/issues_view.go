@@ -1,15 +1,15 @@
 package issuesview
 
 import (
+	"2sp/config"
+	"2sp/protocol"
+	"2sp/view/components/voteview"
+	"2sp/view/cursor"
+	"2sp/view/messages"
 	"fmt"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"waku-poker-planning/config"
-	"waku-poker-planning/protocol"
-	"waku-poker-planning/view/components/voteview"
-	"waku-poker-planning/view/cursor"
-	"waku-poker-planning/view/messages"
 )
 
 const (
