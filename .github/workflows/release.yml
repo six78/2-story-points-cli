@@ -33,7 +33,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
-          args: release --skip-publish --clean --config=ci/.goreleaser-darwin.yml
+          args: release --skip=publish --snapshot --clean --config=ci/.goreleaser-darwin.yml
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -60,7 +60,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
-          args: release --skip-publish --clean --config=ci/.goreleaser-linux.yml
+          args: release --skip=publish --clean --snapshot --config=ci/.goreleaser-linux.yml
 
       - name: Upload
         uses: actions/upload-artifact@v4
