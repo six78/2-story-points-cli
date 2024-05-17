@@ -1,4 +1,4 @@
-[![CircleCI](https://dl.circleci.com/status-badge/img/circleci/Y2kLo8L9kXZuvx3BjnwECN/CdjQighQjTLBLQrie3Rokz/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/circleci/Y2kLo8L9kXZuvx3BjnwECN/CdjQighQjTLBLQrie3Rokz/tree/main) [![Maintainability](https://api.codeclimate.com/v1/badges/beab51e49b25d45342bb/maintainability)](https://codeclimate.com/github/six78/2-story-points-cli/maintainability) [![Test Coverage](https://api.codeclimate.com/v1/badges/beab51e49b25d45342bb/test_coverage)](https://codeclimate.com/github/six78/2-story-points-cli/test_coverage)
+[![ci](https://github.com/six78/2-story-points-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/six78/2-story-points-cli/actions/workflows/ci.yml) [![Maintainability](https://api.codeclimate.com/v1/badges/beab51e49b25d45342bb/maintainability)](https://codeclimate.com/github/six78/2-story-points-cli/maintainability) [![Test Coverage](https://api.codeclimate.com/v1/badges/beab51e49b25d45342bb/test_coverage)](https://codeclimate.com/github/six78/2-story-points-cli/test_coverage)
 
 # Lock, Stock and Two Story Points
 
