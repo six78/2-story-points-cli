@@ -17,37 +17,35 @@ import (
 type Action string
 
 const (
-	Rename  Action = "rename"
-	New     Action = "new"
-	Join    Action = "join"
-	Exit    Action = "exit"
-	Vote    Action = "vote"
-	Unvote  Action = "unvote"
-	Deal    Action = "deal"
-	Add     Action = "add"
-	Reveal  Action = "reveal"
-	Finish  Action = "finish"
-	Deck    Action = "deck"
-	Select  Action = "select"
-	Restore Action = "restore"
+	Rename Action = "rename"
+	New    Action = "new"
+	Join   Action = "join"
+	Exit   Action = "exit"
+	Vote   Action = "vote"
+	Unvote Action = "unvote"
+	Deal   Action = "deal"
+	Add    Action = "add"
+	Reveal Action = "reveal"
+	Finish Action = "finish"
+	Deck   Action = "deck"
+	Select Action = "select"
 )
 
 type actionFunc func(m *model, args []string) tea.Cmd
 
 var actions = map[Action]actionFunc{
-	Rename:  runRenameAction,
-	Vote:    runVoteAction,
-	Unvote:  runUnvoteAction,
-	Deal:    runDealAction,
-	Add:     runAddAction,
-	New:     runNewAction,
-	Join:    runJoinAction,
-	Exit:    runExitAction,
-	Reveal:  runRevealAction,
-	Finish:  runFinishAction,
-	Deck:    runDeckAction,
-	Select:  runSelectAction,
-	Restore: runRestoreAction,
+	Rename: runRenameAction,
+	Vote:   runVoteAction,
+	Unvote: runUnvoteAction,
+	Deal:   runDealAction,
+	Add:    runAddAction,
+	New:    runNewAction,
+	Join:   runJoinAction,
+	Exit:   runExitAction,
+	Reveal: runRevealAction,
+	Finish: runFinishAction,
+	Deck:   runDeckAction,
+	Select: runSelectAction,
 }
 
 func processPlayerNameInput(m *model, playerName string) tea.Cmd {
@@ -134,7 +132,7 @@ func runJoinAction(m *model, args []string) tea.Cmd {
 			return messages.NewErrorMessage(err)
 		}
 		roomID := protocol2.NewRoomID(args[0])
-		return commands.JoinRoom(m.app, roomID, nil)()
+		return commands.JoinRoom(m.app, roomID)()
 	}
 }
 
@@ -230,25 +228,5 @@ func runSelectAction(m *model, args []string) tea.Cmd {
 		}
 
 		return commands.SelectIssue(m.app, index)()
-	}
-}
-
-func runRestoreAction(m *model, args []string) tea.Cmd {
-	return func() tea.Msg {
-		if len(args) == 0 {
-			err := errors.New("no room id argument provided")
-			return messages.NewErrorMessage(err)
-		}
-
-		roomID := protocol2.NewRoomID(args[0])
-		state, err := m.app.LoadRoomState(roomID)
-		if err != nil {
-			return messages.NewErrorMessage(err)
-		}
-		if state == nil {
-			err = errors.New("room not found in storage")
-			return messages.NewErrorMessage(err)
-		}
-		return commands.JoinRoom(m.app, roomID, state)()
 	}
 }

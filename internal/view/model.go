@@ -350,7 +350,7 @@ func (m *model) handlePastedText(text string) (tea.Msg, tea.Cmd) {
 			return messages.NewErrorMessage(err), nil
 		}
 		roomID := protocol2.NewRoomID(text)
-		return nil, commands.JoinRoom(m.app, roomID, nil)
+		return nil, commands.JoinRoom(m.app, roomID)
 	}
 
 	// Try to parse as issues list
