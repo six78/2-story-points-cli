@@ -36,13 +36,6 @@ func NewApp() *App {
 	}
 }
 
-func (a *App) GameState() *protocol.State {
-	if a.Game == nil {
-		return &protocol.State{}
-	}
-	return a.Game.CurrentState()
-}
-
 func (a *App) Initialize() error {
 	var err error
 
@@ -121,8 +114,4 @@ func (a *App) WaitForConnectionStatus() (waku.ConnectionStatus, bool, error) {
 		a.wakuStatusSubscription = nil
 	}
 	return status, more, nil
-}
-
-func (a *App) RenamePlayer(name string) error {
-	return a.Game.RenamePlayer(name)
 }

@@ -50,7 +50,7 @@ var actions = map[Action]actionFunc{
 
 func processPlayerNameInput(m *model, playerName string) tea.Cmd {
 	return func() tea.Msg {
-		err := m.app.RenamePlayer(playerName)
+		err := m.app.Game.RenamePlayer(playerName)
 		if err != nil {
 			return messages.NewErrorMessage(err)
 		}
@@ -66,7 +66,7 @@ func runRenameAction(m *model, args []string) tea.Cmd {
 			err := errors.New("empty user")
 			return messages.NewErrorMessage(err)
 		}
-		err := m.app.RenamePlayer(args[0])
+		err := m.app.Game.RenamePlayer(args[0])
 		return messages.NewErrorMessage(err)
 	}
 }
