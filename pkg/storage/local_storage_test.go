@@ -17,13 +17,14 @@ func TestLocalStorage(t *testing.T) {
 
 type Suite struct {
 	testcommon.Suite
-	storage *LocalStorage
+	storage  *LocalStorage
+	tempPath string
 }
 
 func (s *Suite) SetupTest() {
 	var err error
-	localPath := s.T().TempDir()
-	s.storage, err = NewStorage(localPath)
+	s.tempPath = s.T().TempDir()
+	s.storage, err = NewStorage(s.tempPath)
 	s.Require().NoError(err)
 }
 
@@ -97,4 +98,48 @@ func (s *Suite) TestRoomStorage() {
 
 	s.Require().NoError(err)
 	s.Require().Equal(state, loadedState)
+}
+
+func (s *Suite) TestResetPlayer() {
+	id := protocol.PlayerID(gofakeit.LetterN(5))
+	name := gofakeit.LetterN(6)
+
+	err := s.storage.SetPlayerID(id)
+	s.Require().NoError(err)
+	s.Require().Equal(id, s.storage.PlayerID())
+
+	err = s.storage.SetPlayerName(name)
+	s.Require().NoError(err)
+	s.Require().Equal(name, s.storage.PlayerName())
+
+	err = s.storage.ResetPlayer()
+	s.Require().NoError(err)
+	s.Require().Empty(s.storage.PlayerID())
+	s.Require().Empty(s.storage.PlayerName())
+}
+
+func (s *Suite) TestResetPlayerOnUnmarshalFailure() {
+	// Set up a valid player storage
+	id := protocol.PlayerID(gofakeit.LetterN(5))
+	name := gofakeit.LetterN(6)
+
+	err := s.storage.SetPlayerID(id)
+	s.Require().NoError(err)
+	err = s.storage.SetPlayerName(name)
+	s.Require().NoError(err)
+
+	// Check that the player storage is valid
+	s.Require().Equal(id, s.storage.PlayerID())
+	s.Require().Equal(name, s.storage.PlayerName())
+
+	// Write invalid JSON to the player storage file
+	err = s.storage.folder.WriteFile(playerStorageFileName, []byte("{invalid json"))
+	s.Require().NoError(err)
+
+	// Create a new storage (with same path) to ensure that the player storage was reset
+	newStorage, err := NewStorage(s.tempPath)
+	s.Require().NoError(err)
+	s.Require().NotNil(newStorage)
+	s.Require().Empty(newStorage.PlayerID())
+	s.Require().Empty(newStorage.PlayerName())
 }

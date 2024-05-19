@@ -17,6 +17,10 @@ const (
 	roomsDirectory        = "rooms"
 )
 
+var (
+	ErrStorageUnmarshalFailed = errors.New("failed to unmarshal storage")
+)
+
 type LocalStorage struct {
 	player playerStorage
 
@@ -51,10 +55,16 @@ func NewStorage(localPath string) (*LocalStorage, error) {
 }
 
 func (s *LocalStorage) initialize() error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	err := s.readPlayer()
+
+	if errors.Is(err, ErrStorageUnmarshalFailed) {
+		config.Logger.Error("failed to parse player storage, clearing storage", zap.Error(err))
+
+		err = s.ResetPlayer()
+		if err != nil {
+			config.Logger.Error("failed to reset player storage", zap.Error(err))
+		}
+	}
 
 	config.Logger.Info("storage initialized",
 		zap.Any("player", s.player),
@@ -66,6 +76,9 @@ func (s *LocalStorage) initialize() error {
 }
 
 func (s *LocalStorage) readPlayer() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	if !s.folder.Exists(playerStorageFileName) {
 		config.Logger.Info("no player storage found")
 		return nil
@@ -77,15 +90,8 @@ func (s *LocalStorage) readPlayer() error {
 	}
 
 	err = json.Unmarshal(data, &s.player)
-	if err == nil {
-		return nil
-	}
-
-	config.Logger.Error("failed to parse player storage, clearing storage", zap.Error(err))
-
-	err = s.ResetPlayer()
 	if err != nil {
-		config.Logger.Error("failed to reset player storage", zap.Error(err))
+		return ErrStorageUnmarshalFailed
 	}
 
 	return nil
@@ -157,9 +163,6 @@ func (s *LocalStorage) LoadRoomState(roomID protocol.RoomID) (*protocol.State, e
 }
 
 func (s *LocalStorage) SaveRoomState(roomID protocol.RoomID, state *protocol.State) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	room := roomStorage{
 		State: state,
 	}
