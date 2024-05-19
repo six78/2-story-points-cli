@@ -5,7 +5,7 @@ import (
 	"2sp/internal/waku"
 	game2 "2sp/pkg/game"
 	protocol2 "2sp/pkg/protocol"
-	storage2 "2sp/pkg/storage"
+	storage "2sp/pkg/storage"
 	"context"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -14,7 +14,7 @@ import (
 type App struct {
 	Game    *game2.Game
 	waku    *waku.Node
-	storage *storage2.LocalStorage
+	storage *storage.LocalStorage
 
 	ctx  context.Context
 	quit context.CancelFunc
@@ -47,7 +47,7 @@ func (a *App) Initialize() error {
 	var err error
 
 	if !config.Anonymous() {
-		a.storage, err = storage2.NewStorage()
+		a.storage, err = storage.NewStorage("")
 		if err != nil {
 			return errors.Wrap(err, "failed to create storage")
 		}

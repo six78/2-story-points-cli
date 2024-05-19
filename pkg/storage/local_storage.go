@@ -2,7 +2,7 @@ package storage
 
 import (
 	"2sp/internal/config"
-	protocol2 "2sp/pkg/protocol"
+	"2sp/pkg/protocol"
 	"encoding/json"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -20,48 +20,58 @@ const (
 type LocalStorage struct {
 	player playerStorage
 
-	configDirs configdir.ConfigDir
-	mutex      *sync.RWMutex
+	folder *configdir.Config
+	mutex  *sync.RWMutex
 }
 
 type playerStorage struct {
-	ID   protocol2.PlayerID `json:"id"`
-	Name string             `json:"name"`
+	ID   protocol.PlayerID `json:"id"`
+	Name string            `json:"name"`
 }
 
 type roomStorage struct {
 	// TODO: PrivateKey string
-	State *protocol2.State `json:"state"`
+	State *protocol.State `json:"state"`
 }
 
-func NewStorage() (*LocalStorage, error) {
+func NewStorage(localPath string) (*LocalStorage, error) {
+	configDirs := configdir.New(config.VendorName, config.ApplicationName)
+	configDirs.LocalPath = localPath
+
 	s := &LocalStorage{
-		configDirs: configdir.New(config.VendorName, config.ApplicationName),
-		mutex:      &sync.RWMutex{},
+		folder: queryFolder(&configDirs),
+		mutex:  &sync.RWMutex{},
 	}
+
+	if s.folder == nil {
+		return nil, errors.New("failed to find storage folder")
+	}
+
 	return s, s.initialize()
 }
 
 func (s *LocalStorage) initialize() error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
 	err := s.readPlayer()
+
 	config.Logger.Info("storage initialized",
 		zap.Any("player", s.player),
-		zap.String("configDir", s.configDirs.QueryFolderContainsFile(playerStorageFileName).Path),
+		zap.String("path", s.folder.Path),
 		zap.Error(err),
 	)
+
 	return err
 }
 
 func (s *LocalStorage) readPlayer() error {
-	folder := s.configDirs.QueryFolderContainsFile(playerStorageFileName)
-	if folder == nil {
+	if !s.folder.Exists(playerStorageFileName) {
 		config.Logger.Info("no player storage found")
 		return nil
 	}
 
-	data, err := folder.ReadFile(playerStorageFileName)
+	data, err := s.folder.ReadFile(playerStorageFileName)
 	if err != nil {
 		return errors.Wrap(err, "failed to read player data")
 	}
@@ -87,8 +97,7 @@ func (s *LocalStorage) savePlayerStorage() error {
 		return errors.Wrap(err, "failed to marshal player storage")
 	}
 
-	folders := s.configDirs.QueryFolders(configdir.Global)
-	err = folders[0].WriteFile(playerStorageFileName, playerJson)
+	err = s.folder.WriteFile(playerStorageFileName, playerJson)
 	if err != nil {
 		return errors.Wrap(err, "failed to save player storage")
 	}
@@ -104,13 +113,13 @@ func (s *LocalStorage) ResetPlayer() error {
 	return s.savePlayerStorage()
 }
 
-func (s *LocalStorage) PlayerID() protocol2.PlayerID {
+func (s *LocalStorage) PlayerID() protocol.PlayerID {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.player.ID
 }
 
-func (s *LocalStorage) SetPlayerID(id protocol2.PlayerID) error {
+func (s *LocalStorage) SetPlayerID(id protocol.PlayerID) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.player.ID = id
@@ -130,14 +139,10 @@ func (s *LocalStorage) SetPlayerName(name string) error {
 	return s.savePlayerStorage()
 }
 
-func (s *LocalStorage) LoadRoomState(roomID protocol2.RoomID) (*protocol2.State, error) {
+func (s *LocalStorage) LoadRoomState(roomID protocol.RoomID) (*protocol.State, error) {
 	filePath := roomFilePath(roomID)
-	folder := s.configDirs.QueryFolderContainsFile(filePath)
-	if folder == nil {
-		return nil, nil
-	}
 
-	data, err := folder.ReadFile(filePath)
+	data, err := s.folder.ReadFile(filePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read room storage file")
 	}
@@ -151,7 +156,7 @@ func (s *LocalStorage) LoadRoomState(roomID protocol2.RoomID) (*protocol2.State,
 	return room.State, nil
 }
 
-func (s *LocalStorage) SaveRoomState(roomID protocol2.RoomID, state *protocol2.State) error {
+func (s *LocalStorage) SaveRoomState(roomID protocol.RoomID, state *protocol.State) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -165,9 +170,8 @@ func (s *LocalStorage) SaveRoomState(roomID protocol2.RoomID, state *protocol2.S
 	}
 
 	filePath := roomFilePath(roomID)
-	folders := s.configDirs.QueryFolders(configdir.Global)
 
-	err = folders[0].WriteFile(filePath, roomJson)
+	err = s.folder.WriteFile(filePath, roomJson)
 	if err != nil {
 		return errors.Wrap(err, "failed to write room storage")
 	}
@@ -175,6 +179,20 @@ func (s *LocalStorage) SaveRoomState(roomID protocol2.RoomID, state *protocol2.S
 	return nil
 }
 
-func roomFilePath(roomID protocol2.RoomID) string {
+func roomFilePath(roomID protocol.RoomID) string {
 	return path.Join(roomsDirectory, roomID.String()+".json")
+}
+
+func queryFolder(configDirs *configdir.ConfigDir) *configdir.Config {
+	configType := configdir.Global
+	if configDirs.LocalPath != "" {
+		configType = configdir.Local
+	}
+
+	folders := configDirs.QueryFolders(configType)
+	if len(folders) == 0 {
+		return nil
+	}
+
+	return folders[0]
 }
