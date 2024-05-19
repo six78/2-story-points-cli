@@ -3,7 +3,7 @@ package issuesview
 import (
 	"2sp/internal/testcommon"
 	"2sp/internal/view/messages"
-	protocol2 "2sp/pkg/protocol"
+	"2sp/pkg/protocol"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/stretchr/testify/suite"
 	"strings"
@@ -57,17 +57,17 @@ func (s *Suite) TestUpdateRoomJoin() {
 func (s *Suite) TestUpdateGameState() {
 	model := New()
 
-	state := protocol2.State{
-		Issues: protocol2.IssuesList{
-			&protocol2.Issue{
+	state := protocol.State{
+		Issues: protocol.IssuesList{
+			&protocol.Issue{
 				ID:         "1",
 				TitleOrURL: "issue-1",
 			},
-			&protocol2.Issue{
+			&protocol.Issue{
 				ID:         "2",
 				TitleOrURL: "issue-2",
 			},
-			&protocol2.Issue{
+			&protocol.Issue{
 				ID:         "3",
 				TitleOrURL: "issue-3",
 			},
@@ -99,30 +99,30 @@ func (s *Suite) TestEmptyView() {
 }
 
 func (s *Suite) TestView() {
-	result8 := protocol2.VoteValue("8")
-	result13 := protocol2.VoteValue("13")
+	result8 := protocol.VoteValue("8")
+	result13 := protocol.VoteValue("13")
 
 	model := New()
-	model.issues = protocol2.IssuesList{
-		&protocol2.Issue{
+	model.issues = protocol.IssuesList{
+		&protocol.Issue{
 			ID:         "1",
 			TitleOrURL: "issue-1",
 		},
-		&protocol2.Issue{
+		&protocol.Issue{
 			ID:         "2",
 			TitleOrURL: "issue-2",
 		},
-		&protocol2.Issue{
+		&protocol.Issue{
 			ID:         "3",
 			TitleOrURL: "issue-3",
 			Result:     &result13,
 		},
-		&protocol2.Issue{
+		&protocol.Issue{
 			ID:         "4",
 			TitleOrURL: "issue-4",
 			Result:     &result8,
 		},
-		&protocol2.Issue{
+		&protocol.Issue{
 			ID:         "5",
 			TitleOrURL: "issue-5",
 		},

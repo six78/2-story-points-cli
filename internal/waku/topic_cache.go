@@ -1,18 +1,18 @@
 package waku
 
 import (
-	protocol2 "2sp/pkg/protocol"
+	"2sp/pkg/protocol"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
-	"github.com/waku-org/go-waku/waku/v2/protocol"
+	waku "github.com/waku-org/go-waku/waku/v2/protocol"
 	"go.uber.org/zap"
 	"strconv"
 )
 
 type ContentTopicCache struct {
 	logger       *zap.Logger
-	roomID       *protocol2.RoomID
+	roomID       *protocol.RoomID
 	contentTopic string
 	err          error
 }
@@ -25,7 +25,7 @@ func NewRoomCache(logger *zap.Logger) ContentTopicCache {
 	}
 }
 
-func (r *ContentTopicCache) Get(room *protocol2.Room) (string, error) {
+func (r *ContentTopicCache) Get(room *protocol.Room) (string, error) {
 	roomID, err := room.ToRoomID()
 	if err != nil {
 		return "", err
@@ -42,16 +42,16 @@ func (r *ContentTopicCache) Get(room *protocol2.Room) (string, error) {
 	return r.contentTopic, r.err
 }
 
-func (r *ContentTopicCache) roomContentTopic(room *protocol2.Room) (string, error) {
+func (r *ContentTopicCache) roomContentTopic(room *protocol.Room) (string, error) {
 	roomID, err := room.ToRoomID()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create room ID")
 	}
 
-	version := strconv.Itoa(int(protocol2.Version))
+	version := strconv.Itoa(int(protocol.Version))
 	hash := crypto.Keccak256(room.Bytes())
 	contentTopicName := hexutil.Encode(hash[:4])[2:]
-	contentTopic, err := protocol.NewContentTopic("six78", version, contentTopicName, "json") // WARNING: "six78" is not the name of the app
+	contentTopic, err := waku.NewContentTopic("six78", version, contentTopicName, "json") // WARNING: "six78" is not the name of the app
 
 	r.logger.Debug("content topic details",
 		zap.String("version", version),

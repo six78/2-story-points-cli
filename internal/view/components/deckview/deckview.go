@@ -5,7 +5,7 @@ import (
 	"2sp/internal/view/components/voteview"
 	"2sp/internal/view/cursor"
 	"2sp/internal/view/messages"
-	protocol2 "2sp/pkg/protocol"
+	"2sp/pkg/protocol"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
@@ -18,9 +18,9 @@ var (
 )
 
 type Model struct {
-	deck         protocol2.Deck
-	voteState    protocol2.VoteState
-	myVote       protocol2.VoteValue
+	deck         protocol.Deck
+	voteState    protocol.VoteState
+	myVote       protocol.VoteValue
 	focused      bool
 	isDealer     bool
 	commandMode  bool
@@ -46,8 +46,8 @@ func (m Model) Update(msg tea.Msg) Model {
 	switch msg := msg.(type) {
 	case messages.GameStateMessage:
 		if msg.State == nil {
-			m.deck = protocol2.Deck{}
-			m.voteState = protocol2.IdleState
+			m.deck = protocol.Deck{}
+			m.voteState = protocol.IdleState
 			m.voteCursor.SetRange(0, 0)
 		} else {
 			m.deck = msg.State.Deck
@@ -92,8 +92,8 @@ func (m Model) View() string {
 }
 
 func (m *Model) updateCursorsState() {
-	m.voteCursor.SetFocus(!m.commandMode && m.focused && (m.voteState == protocol2.VotingState))
-	m.finishCursor.SetFocus(!m.commandMode && m.focused && (m.voteState == protocol2.RevealedState) && m.isDealer)
+	m.voteCursor.SetFocus(!m.commandMode && m.focused && (m.voteState == protocol.VotingState))
+	m.finishCursor.SetFocus(!m.commandMode && m.focused && (m.voteState == protocol.RevealedState) && m.isDealer)
 }
 
 func (m *Model) Focus() {
@@ -114,7 +114,7 @@ func (m *Model) FinishCursor() int {
 	return m.finishCursor.Position()
 }
 
-func renderCard(value protocol2.VoteValue, voteCursor bool, finishCursor bool, voted bool) string {
+func renderCard(value protocol.VoteValue, voteCursor bool, finishCursor bool, voted bool) string {
 	card := table.New().
 		Border(lipgloss.RoundedBorder()).
 		BorderStyle(*cardBorderStyle(voted, finishCursor)).

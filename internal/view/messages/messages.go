@@ -3,7 +3,7 @@ package messages
 import (
 	"2sp/internal/view/states"
 	"2sp/internal/waku"
-	protocol2 "2sp/pkg/protocol"
+	"2sp/pkg/protocol"
 )
 
 type FatalErrorMessage struct {
@@ -19,7 +19,7 @@ type AppStateMessage struct {
 }
 
 type GameStateMessage struct {
-	State *protocol2.State
+	State *protocol.State
 }
 
 type ErrorMessage struct {
@@ -31,7 +31,7 @@ func NewErrorMessage(err error) ErrorMessage {
 }
 
 type PlayerIDMessage struct {
-	PlayerID protocol2.PlayerID
+	PlayerID protocol.PlayerID
 }
 
 type RoomViewChange struct {
@@ -47,14 +47,14 @@ type CommandModeChange struct {
 }
 
 type RoomJoin struct {
-	RoomID   protocol2.RoomID
+	RoomID   protocol.RoomID
 	IsDealer bool
 }
 
 // TODO: Try to find a better solution, probably game.subscribeToMyVote().
 // With this message the logic is duplicated in Game and Model.
 type MyVote struct {
-	Result protocol2.VoteResult
+	Result protocol.VoteResult
 }
 
 type EnableEnterKey struct {

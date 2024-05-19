@@ -5,7 +5,7 @@ import (
 	"2sp/internal/view/cursor"
 	"2sp/internal/view/messages"
 	"2sp/pkg/game"
-	protocol2 "2sp/pkg/protocol"
+	"2sp/pkg/protocol"
 	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/suite"
@@ -22,15 +22,15 @@ type Suite struct {
 
 func (s *Suite) TestRenderCard() {
 	testCases := []struct {
-		value    protocol2.VoteValue
+		value    protocol.VoteValue
 		cursor   bool
 		voted    bool
 		expected string
 	}{
-		{protocol2.VoteValue("1"), false, false, "     \n╭───╮\n│ 1 │\n╰───╯\n     "},
-		{protocol2.VoteValue("2"), true, false, "     \n╭───╮\n│ 2 │\n╰───╯\n  ^  "},
-		{protocol2.VoteValue("3"), true, true, "╭───╮\n│ 3 │\n╰───╯\n     \n  ^  "},
-		{protocol2.VoteValue("4"), false, true, "╭───╮\n│ 4 │\n╰───╯\n     "},
+		{protocol.VoteValue("1"), false, false, "     \n╭───╮\n│ 1 │\n╰───╯\n     "},
+		{protocol.VoteValue("2"), true, false, "     \n╭───╮\n│ 2 │\n╰───╯\n  ^  "},
+		{protocol.VoteValue("3"), true, true, "╭───╮\n│ 3 │\n╰───╯\n     \n  ^  "},
+		{protocol.VoteValue("4"), false, true, "╭───╮\n│ 4 │\n╰───╯\n     "},
 	}
 
 	for _, tc := range testCases {
@@ -42,8 +42,8 @@ func (s *Suite) TestRenderCard() {
 func (s *Suite) TestRenderDeck() {
 	model := Model{
 		deck:         game.CreateDeck([]string{"1", "2", "3"}),
-		voteState:    protocol2.VotingState,
-		myVote:       protocol2.VoteValue("2"),
+		voteState:    protocol.VotingState,
+		myVote:       protocol.VoteValue("2"),
 		focused:      true,
 		isDealer:     false,
 		commandMode:  false,
@@ -103,8 +103,8 @@ func (s *Suite) TestFocus() {
 }
 
 func (s *Suite) TestUpdate() {
-	issueID := protocol2.IssueID(gofakeit.Letter())
-	deck := make(protocol2.Deck, 3)
+	issueID := protocol.IssueID(gofakeit.Letter())
+	deck := make(protocol.Deck, 3)
 	gofakeit.Slice(deck)
 
 	model := New()
@@ -114,11 +114,11 @@ func (s *Suite) TestUpdate() {
 		State: nil,
 	})
 
-	s.Require().Equal(protocol2.Deck{}, model.deck)
-	s.Require().Equal(protocol2.IdleState, model.voteState)
+	s.Require().Equal(protocol.Deck{}, model.deck)
+	s.Require().Equal(protocol.IdleState, model.voteState)
 
 	model = model.Update(messages.GameStateMessage{
-		State: &protocol2.State{
+		State: &protocol.State{
 			Deck:          deck,
 			ActiveIssue:   issueID,
 			VotesRevealed: false,
@@ -126,7 +126,7 @@ func (s *Suite) TestUpdate() {
 	})
 
 	s.Require().Equal(deck, model.deck)
-	s.Require().Equal(protocol2.VotingState, model.voteState)
+	s.Require().Equal(protocol.VotingState, model.voteState)
 
 	model = model.Update(messages.RoomJoin{IsDealer: true})
 	s.Require().True(model.isDealer)
@@ -140,8 +140,8 @@ func (s *Suite) TestUpdate() {
 	model = model.Update(messages.CommandModeChange{CommandMode: false})
 	s.Require().False(model.commandMode)
 
-	value := protocol2.VoteValue(gofakeit.Letter())
-	model = model.Update(messages.MyVote{Result: protocol2.VoteResult{
+	value := protocol.VoteValue(gofakeit.Letter())
+	model = model.Update(messages.MyVote{Result: protocol.VoteResult{
 		Value: value,
 	}})
 	s.Require().Equal(value, model.myVote)
@@ -149,8 +149,8 @@ func (s *Suite) TestUpdate() {
 }
 
 func (s *Suite) TestCursor() {
-	issueID := protocol2.IssueID(gofakeit.Letter())
-	deck := make(protocol2.Deck, 3)
+	issueID := protocol.IssueID(gofakeit.Letter())
+	deck := make(protocol.Deck, 3)
 	gofakeit.Slice(deck)
 
 	model := New()
@@ -165,14 +165,14 @@ func (s *Suite) TestCursor() {
 		IsDealer: true,
 	})
 	model = model.Update(messages.GameStateMessage{
-		State: &protocol2.State{
+		State: &protocol.State{
 			Deck:          deck,
 			ActiveIssue:   issueID,
 			VotesRevealed: false,
 		},
 	})
 	s.Require().True(model.isDealer)
-	s.Require().Equal(protocol2.VotingState, model.voteState)
+	s.Require().Equal(protocol.VotingState, model.voteState)
 	s.Require().True(model.voteCursor.Focused())
 	s.Require().False(model.finishCursor.Focused())
 
@@ -213,16 +213,16 @@ func (s *Suite) TestCursor() {
 
 	// Switch to revealed state
 	model = model.Update(messages.GameStateMessage{
-		State: &protocol2.State{
+		State: &protocol.State{
 			Deck:          deck,
 			ActiveIssue:   issueID,
 			VotesRevealed: true,
-			Issues: protocol2.IssuesList{
-				&protocol2.Issue{ID: issueID},
+			Issues: protocol.IssuesList{
+				&protocol.Issue{ID: issueID},
 			},
 		},
 	})
-	s.Require().Equal(protocol2.RevealedState, model.voteState)
+	s.Require().Equal(protocol.RevealedState, model.voteState)
 	s.Require().True(model.finishCursor.Focused())
 	s.Require().False(model.voteCursor.Focused())
 
@@ -235,7 +235,7 @@ func (s *Suite) TestCursor() {
 
 	// Switch to non-dealer
 	model = model.Update(messages.RoomJoin{IsDealer: false})
-	s.Require().Equal(protocol2.RevealedState, model.voteState)
+	s.Require().Equal(protocol.RevealedState, model.voteState)
 
 	// Check both cursors stay in place
 	testCursors(false, false)
@@ -251,7 +251,7 @@ func (s *Suite) TestCursor() {
 
 	// Change vote state to not voting or revealed
 	model = model.Update(messages.GameStateMessage{
-		State: &protocol2.State{
+		State: &protocol.State{
 			Deck: deck,
 		},
 	})

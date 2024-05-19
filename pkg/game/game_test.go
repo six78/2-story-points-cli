@@ -2,7 +2,7 @@ package game
 
 import (
 	"2sp/internal/config"
-	protocol2 "2sp/pkg/protocol"
+	"2sp/pkg/protocol"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,12 +16,12 @@ func TestStateSize(t *testing.T) {
 	const playersCount = 20
 	const issuesCount = 30
 
-	state := protocol2.State{
-		Players: make([]protocol2.Player, 0, playersCount),
-		Issues:  make(protocol2.IssuesList, 0, issuesCount),
+	state := protocol.State{
+		Players: make([]protocol.Player, 0, playersCount),
+		Issues:  make(protocol.IssuesList, 0, issuesCount),
 	}
 
-	votes := make(map[protocol2.PlayerID]protocol2.VoteResult, playersCount)
+	votes := make(map[protocol.PlayerID]protocol.VoteResult, playersCount)
 	deck, deckFound := GetDeck(Fibonacci)
 	require.True(t, deckFound)
 
@@ -31,20 +31,20 @@ func TestStateSize(t *testing.T) {
 		playerID, err := GeneratePlayerID()
 		require.NoError(t, err)
 
-		state.Players = append(state.Players, protocol2.Player{
+		state.Players = append(state.Players, protocol.Player{
 			ID:   playerID,
 			Name: fmt.Sprintf("player-%d", i),
 		})
 
 		vote := fmt.Sprintf("%d", i%len(deck))
-		votes[playerID] = *protocol2.NewVoteResult(protocol2.VoteValue(vote))
+		votes[playerID] = *protocol.NewVoteResult(protocol.VoteValue(vote))
 	}
 
 	for i := 0; i < issuesCount; i++ {
 		voteItemID, err := GenerateIssueID()
 		require.NoError(t, err)
 
-		state.Issues = append(state.Issues, &protocol2.Issue{
+		state.Issues = append(state.Issues, &protocol.Issue{
 			ID:         voteItemID,
 			TitleOrURL: fmt.Sprintf("https://github.com/six78/waku-poker-planing/issues/%d", i),
 			Votes:      votes, // same votes for each issue, whatever
@@ -91,11 +91,11 @@ func TestSimpleGame(t *testing.T) {
 	require.Len(t, state.Players, 1)
 
 	const firstItemText = "a"
-	const dealerVote = protocol2.VoteValue("1")
+	const dealerVote = protocol.VoteValue("1")
 
-	var firstVoteItemID protocol2.IssueID
+	var firstVoteItemID protocol.IssueID
 
-	checkVoteItems := func(t *testing.T, issuesList protocol2.IssuesList) *protocol2.Issue {
+	checkVoteItems := func(t *testing.T, issuesList protocol.IssuesList) *protocol.Issue {
 		require.Len(t, issuesList, 1)
 		item := issuesList.Get(firstVoteItemID)
 		require.NotNil(t, item)
@@ -127,7 +127,7 @@ func TestSimpleGame(t *testing.T) {
 		require.Equal(t, dealerVote, playerVote.VoteResult.Value)
 		require.Greater(t, playerVote.VoteResult.Timestamp, int64(0))
 
-		state := expectState(t, sub.Ch, func(state *protocol2.State) bool {
+		state := expectState(t, sub.Ch, func(state *protocol.State) bool {
 			item := state.Issues.Get(firstVoteItemID)
 			if item == nil {
 				return false
@@ -162,7 +162,7 @@ func TestSimpleGame(t *testing.T) {
 		require.Greater(t, vote.Timestamp, int64(0))
 	}
 
-	const votingResult = protocol2.VoteValue("1")
+	const votingResult = protocol.VoteValue("1")
 
 	{ // Finish voting
 		err = game.Finish(votingResult)
@@ -181,9 +181,9 @@ func TestSimpleGame(t *testing.T) {
 	}
 
 	const secondItemText = "b"
-	var secondVoteItemID protocol2.IssueID
+	var secondVoteItemID protocol.IssueID
 
-	checkVoteItems = func(t *testing.T, voteList protocol2.IssuesList) *protocol2.Issue {
+	checkVoteItems = func(t *testing.T, voteList protocol.IssuesList) *protocol.Issue {
 		require.Len(t, voteList, 2)
 
 		item := voteList.Get(firstVoteItemID)
@@ -208,7 +208,7 @@ func TestSimpleGame(t *testing.T) {
 	}
 }
 
-func expectState(t *testing.T, sub chan []byte, cb func(*protocol2.State) bool) *protocol2.State {
+func expectState(t *testing.T, sub chan []byte, cb func(*protocol.State) bool) *protocol.State {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -221,14 +221,14 @@ func expectState(t *testing.T, sub chan []byte, cb func(*protocol2.State) bool) 
 			require.True(t, more)
 			require.NotNil(t, payload)
 
-			message, err := protocol2.UnmarshalMessage(payload)
+			message, err := protocol.UnmarshalMessage(payload)
 			require.NoError(t, err)
 
-			if message.Type != protocol2.MessageTypeState {
+			if message.Type != protocol.MessageTypeState {
 				continue
 			}
 
-			state, err := protocol2.UnmarshalState(payload)
+			state, err := protocol.UnmarshalState(payload)
 			require.NoError(t, err)
 
 			if cb == nil {
@@ -242,7 +242,7 @@ func expectState(t *testing.T, sub chan []byte, cb func(*protocol2.State) bool) 
 	}
 }
 
-func expectPlayerVote(t *testing.T, sub chan []byte) *protocol2.PlayerVoteMessage {
+func expectPlayerVote(t *testing.T, sub chan []byte) *protocol.PlayerVoteMessage {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -255,14 +255,14 @@ func expectPlayerVote(t *testing.T, sub chan []byte) *protocol2.PlayerVoteMessag
 			require.True(t, more)
 			require.NotNil(t, payload)
 
-			message, err := protocol2.UnmarshalMessage(payload)
+			message, err := protocol.UnmarshalMessage(payload)
 			require.NoError(t, err)
 
-			if message.Type != protocol2.MessageTypePlayerVote {
+			if message.Type != protocol.MessageTypePlayerVote {
 				continue
 			}
 
-			vote, err := protocol2.UnmarshalPlayerVote(payload)
+			vote, err := protocol.UnmarshalPlayerVote(payload)
 			require.NoError(t, err)
 
 			return vote

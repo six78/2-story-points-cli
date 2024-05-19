@@ -4,7 +4,7 @@ import (
 	"2sp/internal/app"
 	"2sp/internal/view/messages"
 	"2sp/internal/view/states"
-	protocol2 "2sp/pkg/protocol"
+	"2sp/pkg/protocol"
 	tea "github.com/charmbracelet/bubbletea"
 	"time"
 )
@@ -47,7 +47,7 @@ func CreateNewRoom(a *app.App) tea.Cmd {
 	}
 }
 
-func JoinRoom(a *app.App, roomID protocol2.RoomID) tea.Cmd {
+func JoinRoom(a *app.App, roomID protocol.RoomID) tea.Cmd {
 	return func() tea.Msg {
 		err := a.Game.JoinRoom(roomID, nil)
 		if err != nil {
@@ -101,7 +101,7 @@ func WaitForConnectionStatus(app *app.App) tea.Cmd {
 	}
 }
 
-func PublishVote(app *app.App, vote protocol2.VoteValue) tea.Cmd {
+func PublishVote(app *app.App, vote protocol.VoteValue) tea.Cmd {
 	return func() tea.Msg {
 		err := app.Game.PublishVote(vote)
 		if err != nil {
@@ -114,7 +114,7 @@ func PublishVote(app *app.App, vote protocol2.VoteValue) tea.Cmd {
 	}
 }
 
-func FinishVoting(app *app.App, result protocol2.VoteValue) tea.Cmd {
+func FinishVoting(app *app.App, result protocol.VoteValue) tea.Cmd {
 	return func() tea.Msg {
 		err := app.Game.Finish(result)
 		return messages.NewErrorMessage(err)
