@@ -5,6 +5,7 @@ import (
 	"2sp/internal/waku"
 	game2 "2sp/pkg/game"
 	protocol2 "2sp/pkg/protocol"
+	storage2 "2sp/pkg/storage"
 	"context"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -13,7 +14,7 @@ import (
 type App struct {
 	Game    *game2.Game
 	waku    *waku.Node
-	storage *Storage
+	storage *storage2.LocalStorage
 
 	ctx  context.Context
 	quit context.CancelFunc
@@ -44,10 +45,12 @@ func (a *App) GameState() *protocol2.State {
 
 func (a *App) Initialize() error {
 	var err error
-	a.storage, err = NewStorage()
 
-	if err != nil {
-		return errors.Wrap(err, "failed to create storage")
+	if !config.Anonymous() {
+		a.storage, err = storage2.NewStorage()
+		if err != nil {
+			return errors.Wrap(err, "failed to create storage")
+		}
 	}
 
 	a.waku, err = waku.NewNode(a.ctx, config.Logger)
@@ -66,13 +69,11 @@ func (a *App) Initialize() error {
 		return printedErr
 	}
 
-	player, err := a.loadPlayer()
+	a.Game, err = game2.NewGame(a.ctx, a.waku, a.storage)
 	if err != nil {
 		return err
 	}
 
-	a.Game = game2.NewGame(a.ctx, a.waku, player)
-	//a.Game.RenamePlayer(a.storage.GetPlayerName())
 	a.gameStateSubscription = a.Game.SubscribeToStateChanges()
 
 	return nil
@@ -123,40 +124,5 @@ func (a *App) WaitForConnectionStatus() (waku.ConnectionStatus, bool, error) {
 }
 
 func (a *App) RenamePlayer(name string) error {
-	a.Game.RenamePlayer(name)
-	if config.Anonymous() {
-		return nil
-	}
-	return a.storage.SetPlayerName(name)
-}
-
-func (a *App) LoadRoomState(roomID protocol2.RoomID) (*protocol2.State, error) {
-	if config.Anonymous() {
-		return nil, nil
-	}
-	return a.storage.LoadRoomState(roomID)
-}
-
-func (a *App) loadPlayer() (*protocol2.Player, error) {
-	var err error
-	var player protocol2.Player
-
-	// Load ID
-	if !config.Anonymous() {
-		player.ID = a.storage.PlayerID()
-	} else {
-		player.ID, err = game2.GeneratePlayerID()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to generate player ID")
-		}
-	}
-
-	// Load Name
-	if config.PlayerName() != "" {
-		player.Name = config.PlayerName()
-	} else if !config.Anonymous() {
-		player.Name = a.storage.PlayerName()
-	}
-
-	return &player, nil
+	return a.Game.RenamePlayer(name)
 }

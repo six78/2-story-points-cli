@@ -1,8 +1,7 @@
-package app
+package storage
 
 import (
 	"2sp/internal/config"
-	"2sp/pkg/game"
 	protocol2 "2sp/pkg/protocol"
 	"encoding/json"
 	"github.com/pkg/errors"
@@ -18,7 +17,7 @@ const (
 	roomsDirectory        = "rooms"
 )
 
-type Storage struct {
+type LocalStorage struct {
 	player playerStorage
 
 	configDirs configdir.ConfigDir
@@ -35,30 +34,31 @@ type roomStorage struct {
 	State *protocol2.State `json:"state"`
 }
 
-func NewStorage() (*Storage, error) {
-	s := &Storage{
+func NewStorage() (*LocalStorage, error) {
+	s := &LocalStorage{
 		configDirs: configdir.New(config.VendorName, config.ApplicationName),
 		mutex:      &sync.RWMutex{},
 	}
 	return s, s.initialize()
 }
 
-func (s *Storage) initialize() error {
+func (s *LocalStorage) initialize() error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	err := s.readPlayer()
 	config.Logger.Info("storage initialized",
 		zap.Any("player", s.player),
 		zap.String("configDir", s.configDirs.QueryFolderContainsFile(playerStorageFileName).Path),
+		zap.Error(err),
 	)
 	return err
 }
 
-func (s *Storage) readPlayer() error {
+func (s *LocalStorage) readPlayer() error {
 	folder := s.configDirs.QueryFolderContainsFile(playerStorageFileName)
 	if folder == nil {
-		config.Logger.Info("no player UUID found, creating a new one")
-		return s.createPlayerID()
+		config.Logger.Info("no player storage found")
+		return nil
 	}
 
 	data, err := folder.ReadFile(playerStorageFileName)
@@ -71,23 +71,17 @@ func (s *Storage) readPlayer() error {
 		return nil
 	}
 
-	config.Logger.Error("failed to parse player storage, creating a new one", zap.Error(err))
-	return s.createPlayerID()
-}
+	config.Logger.Error("failed to parse player storage, clearing storage", zap.Error(err))
 
-func (s *Storage) createPlayerID() error {
-	playerUUID, err := game.GeneratePlayerID()
+	err = s.ResetPlayer()
 	if err != nil {
-		return errors.Wrap(err, "failed to generate player id")
+		config.Logger.Error("failed to reset player storage", zap.Error(err))
 	}
 
-	s.player.ID = playerUUID
-	s.player.Name = ""
-
-	return s.savePlayerStorage()
+	return nil
 }
 
-func (s *Storage) savePlayerStorage() error {
+func (s *LocalStorage) savePlayerStorage() error {
 	playerJson, err := json.Marshal(s.player)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal player storage")
@@ -102,26 +96,41 @@ func (s *Storage) savePlayerStorage() error {
 	return nil
 }
 
-func (s *Storage) PlayerID() protocol2.PlayerID {
+func (s *LocalStorage) ResetPlayer() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.player.ID = ""
+	s.player.Name = ""
+	return s.savePlayerStorage()
+}
+
+func (s *LocalStorage) PlayerID() protocol2.PlayerID {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.player.ID
 }
 
-func (s *Storage) PlayerName() string {
+func (s *LocalStorage) SetPlayerID(id protocol2.PlayerID) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.player.ID = id
+	return s.savePlayerStorage()
+}
+
+func (s *LocalStorage) PlayerName() string {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.player.Name
 }
 
-func (s *Storage) SetPlayerName(name string) error {
+func (s *LocalStorage) SetPlayerName(name string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.player.Name = name
 	return s.savePlayerStorage()
 }
 
-func (s *Storage) LoadRoomState(roomID protocol2.RoomID) (*protocol2.State, error) {
+func (s *LocalStorage) LoadRoomState(roomID protocol2.RoomID) (*protocol2.State, error) {
 	filePath := roomFilePath(roomID)
 	folder := s.configDirs.QueryFolderContainsFile(filePath)
 	if folder == nil {
@@ -142,7 +151,7 @@ func (s *Storage) LoadRoomState(roomID protocol2.RoomID) (*protocol2.State, erro
 	return room.State, nil
 }
 
-func (s *Storage) SaveRoomState(roomID protocol2.RoomID, state *protocol2.State) error {
+func (s *LocalStorage) SaveRoomState(roomID protocol2.RoomID, state *protocol2.State) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

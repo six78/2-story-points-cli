@@ -47,17 +47,9 @@ func CreateNewRoom(a *app.App) tea.Cmd {
 	}
 }
 
-func JoinRoom(a *app.App, roomID protocol2.RoomID, state *protocol2.State) tea.Cmd {
+func JoinRoom(a *app.App, roomID protocol2.RoomID) tea.Cmd {
 	return func() tea.Msg {
-		var err error
-		if state == nil {
-			// Check storage for state
-			state, err = a.LoadRoomState(roomID)
-			if err != nil {
-				return messages.NewErrorMessage(err)
-			}
-		}
-		err = a.Game.JoinRoom(roomID, state)
+		err := a.Game.JoinRoom(roomID, nil)
 		if err != nil {
 			return messages.NewErrorMessage(err)
 		}

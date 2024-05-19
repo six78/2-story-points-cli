@@ -67,12 +67,9 @@ func TestSimpleGame(t *testing.T) {
 	config.Logger, err = zap.NewDevelopment()
 	require.NoError(t, err)
 
-	player := &protocol2.Player{
-		ID:   "player-1",
-		Name: "player-1",
-	}
 	transport := NewTransportMock(t)
-	game := NewGame(ctx, transport, player)
+	game, err := NewGame(ctx, transport, nil)
+	require.NoError(t, err)
 
 	room, initialState, err := game.CreateNewRoom()
 	require.NoError(t, err)
