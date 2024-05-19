@@ -5,7 +5,7 @@ import (
 	"2sp/internal/view/components/voteview"
 	"2sp/internal/view/cursor"
 	"2sp/internal/view/messages"
-	protocol2 "2sp/pkg/protocol"
+	"2sp/pkg/protocol"
 	"fmt"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -21,8 +21,8 @@ var (
 )
 
 type Model struct {
-	issues      protocol2.IssuesList
-	activeIssue protocol2.IssueID
+	issues      protocol.IssuesList
+	activeIssue protocol.IssueID
 	commandMode bool
 	isDealer    bool
 	focused     bool

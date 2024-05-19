@@ -16,7 +16,7 @@ import (
 	"2sp/internal/view/states"
 	"2sp/internal/view/update"
 	"2sp/internal/waku"
-	protocol2 "2sp/pkg/protocol"
+	"2sp/pkg/protocol"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -45,8 +45,8 @@ type model struct {
 	// This is filled from app during Update stage.
 	state            states.AppState
 	fatalError       error
-	gameState        *protocol2.State
-	roomID           protocol2.RoomID
+	gameState        *protocol.State
+	roomID           protocol.RoomID
 	connectionStatus waku.ConnectionStatus
 
 	// UI components state
@@ -80,7 +80,7 @@ func initialModel(a *app.App) model {
 		// Initial model values
 		state:     states.Initializing,
 		gameState: nil,
-		roomID:    protocol2.RoomID{},
+		roomID:    protocol.RoomID{},
 		// UI components state
 		commandMode:   false,
 		roomViewState: initialRoomViewState,
@@ -228,9 +228,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case states.ActiveIssueView:
 				// FIXME: https://github.com/six78/2-story-points-cli/issues/8
 				//		  Check `m.gameState == nil`
-				if m.gameState.VoteState() == protocol2.VotingState {
+				if m.gameState.VoteState() == protocol.VotingState {
 					cmd = VoteOnCursor(&m)
-				} else if m.gameState.VoteState() == protocol2.RevealedState {
+				} else if m.gameState.VoteState() == protocol.RevealedState {
 					cmd = FinishOnCursor(&m)
 				}
 			case states.IssuesListView:
@@ -311,7 +311,7 @@ func FinishOnCursor(m *model) tea.Cmd {
 	return cursorCommand(m, m.deckView.FinishCursor(), commands.FinishVoting)
 }
 
-func cursorCommand(m *model, cursor int, command func(*app.App, protocol2.VoteValue) tea.Cmd) tea.Cmd {
+func cursorCommand(m *model, cursor int, command func(*app.App, protocol.VoteValue) tea.Cmd) tea.Cmd {
 	if m.gameState == nil {
 		return nil
 	}
@@ -343,13 +343,13 @@ func (m *model) handlePastedText(text string) (tea.Msg, tea.Cmd) {
 	config.Logger.Debug("handlePastedText", zap.String("text", text))
 
 	// Try to parse as room id
-	room, err := protocol2.ParseRoomID(text)
+	room, err := protocol.ParseRoomID(text)
 	if err == nil {
 		if !room.VersionSupported() {
 			err = errors.Wrap(err, fmt.Sprintf("this room has unsupported version %d", room.Version))
 			return messages.NewErrorMessage(err), nil
 		}
-		roomID := protocol2.NewRoomID(text)
+		roomID := protocol.NewRoomID(text)
 		return nil, commands.JoinRoom(m.app, roomID)
 	}
 

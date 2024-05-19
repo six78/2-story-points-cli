@@ -3,23 +3,23 @@ package app
 import (
 	"2sp/internal/config"
 	"2sp/internal/waku"
-	game2 "2sp/pkg/game"
-	protocol2 "2sp/pkg/protocol"
-	storage "2sp/pkg/storage"
+	"2sp/pkg/game"
+	"2sp/pkg/protocol"
+	"2sp/pkg/storage"
 	"context"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
 type App struct {
-	Game    *game2.Game
+	Game    *game.Game
 	waku    *waku.Node
 	storage *storage.LocalStorage
 
 	ctx  context.Context
 	quit context.CancelFunc
 
-	gameStateSubscription  game2.StateSubscription
+	gameStateSubscription  game.StateSubscription
 	wakuStatusSubscription waku.ConnectionStatusSubscription
 }
 
@@ -36,9 +36,9 @@ func NewApp() *App {
 	}
 }
 
-func (a *App) GameState() *protocol2.State {
+func (a *App) GameState() *protocol.State {
 	if a.Game == nil {
-		return &protocol2.State{}
+		return &protocol.State{}
 	}
 	return a.Game.CurrentState()
 }
@@ -69,7 +69,7 @@ func (a *App) Initialize() error {
 		return printedErr
 	}
 
-	a.Game, err = game2.NewGame(a.ctx, a.waku, a.storage)
+	a.Game, err = game.NewGame(a.ctx, a.waku, a.storage)
 	if err != nil {
 		return err
 	}
@@ -89,10 +89,10 @@ func (a *App) Stop() {
 	a.quit()
 }
 
-func (a *App) WaitForGameState() (*protocol2.State, bool, error) {
+func (a *App) WaitForGameState() (*protocol.State, bool, error) {
 	if a.gameStateSubscription == nil {
 		config.Logger.Error("Game state subscription not created")
-		return &protocol2.State{}, false, errors.New("Game state subscription not created")
+		return &protocol.State{}, false, errors.New("Game state subscription not created")
 	}
 
 	state, more := <-a.gameStateSubscription

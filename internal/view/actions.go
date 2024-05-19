@@ -5,7 +5,7 @@ import (
 	"2sp/internal/view/messages"
 	"2sp/internal/view/states"
 	"2sp/pkg/game"
-	protocol2 "2sp/pkg/protocol"
+	"2sp/pkg/protocol"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pkg/errors"
@@ -71,8 +71,8 @@ func runRenameAction(m *model, args []string) tea.Cmd {
 	}
 }
 
-func parseVote(input string) (protocol2.VoteValue, error) {
-	return protocol2.VoteValue(input), nil
+func parseVote(input string) (protocol.VoteValue, error) {
+	return protocol.VoteValue(input), nil
 }
 
 func runVoteAction(m *model, args []string) tea.Cmd {
@@ -131,7 +131,7 @@ func runJoinAction(m *model, args []string) tea.Cmd {
 			err := errors.New("no room id argument provided")
 			return messages.NewErrorMessage(err)
 		}
-		roomID := protocol2.NewRoomID(args[0])
+		roomID := protocol.NewRoomID(args[0])
 		return commands.JoinRoom(m.app, roomID)()
 	}
 }
@@ -172,7 +172,7 @@ func runFinishAction(m *model, args []string) tea.Cmd {
 	}
 }
 
-func parseDeck(args []string) (protocol2.Deck, error) {
+func parseDeck(args []string) (protocol.Deck, error) {
 	if len(args) == 0 {
 		return nil, errors.New("deck can't be empty")
 	}
@@ -188,7 +188,7 @@ func parseDeck(args []string) (protocol2.Deck, error) {
 		return deck, nil
 	}
 
-	deck := protocol2.Deck{}
+	deck := protocol.Deck{}
 	cards := map[string]struct{}{}
 
 	for _, card := range args {
@@ -196,7 +196,7 @@ func parseDeck(args []string) (protocol2.Deck, error) {
 			return nil, fmt.Errorf("duplicate card: '%s'", card)
 		}
 		cards[card] = struct{}{}
-		deck = append(deck, protocol2.VoteValue(card))
+		deck = append(deck, protocol.VoteValue(card))
 	}
 
 	return deck, nil
