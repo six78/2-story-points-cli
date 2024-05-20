@@ -1,7 +1,6 @@
 package gameeventhandler
 
 import (
-	"2sp/internal/config"
 	"2sp/internal/view/messages"
 	"2sp/pkg/game"
 	tea "github.com/charmbracelet/bubbletea"
@@ -36,6 +35,7 @@ func (m Model) Init() tea.Cmd {
 		return nil
 	}
 	m.subscription.sub = m.game.SubscribeToStateChanges()
+	m.subscription.sub <- m.game.CurrentState() // Force notify current state after subscribing
 	return WaitForGameState(m.subscription)
 }
 
@@ -54,7 +54,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func WaitForGameState(subscription *subscription) tea.Cmd {
 	return func() tea.Msg {
 		if subscription.sub == nil {
-			config.Logger.Error("game state subscription is not created")
 			return nil
 		}
 		state, more := <-subscription.sub

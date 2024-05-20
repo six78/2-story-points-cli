@@ -96,7 +96,6 @@ func initialModel(a *app.App) model {
 		deckView:       deckView,
 		issueView:      issueview.New(),
 		issuesListView: issuesview.New(),
-		//gameEventHandler: gameeventhandler.New(a.Game),
 		// Other
 		disableEnterKey:     false,
 		disableEnterRestart: nil,
@@ -121,7 +120,6 @@ func (m model) Init() tea.Cmd {
 		m.deckView.Init(),
 		m.issueView.Init(),
 		m.issuesListView.Init(),
-		//m.gameEventHandler.Init(),
 		commands.InitializeApp(m.app),
 	)
 }
@@ -158,7 +156,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			// Subscribe to states when app initialized
 			cmds.AppendCommand(commands.WaitForConnectionStatus(m.app))
-			//cmds.AppendCommand(commands.WaitForGameState(m.app))
 
 			m.gameEventHandler = gameeventhandler.New(m.app.Game)
 			cmds.AppendCommand(m.gameEventHandler.Init())
@@ -198,7 +195,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds.AppendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
 		}
 		m.gameState = msg.State
-		//cmds.AppendCommand(commands.WaitForGameState(m.app))
 
 	case messages.CommandModeChange:
 		m.commandMode = msg.CommandMode
