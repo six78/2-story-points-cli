@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
+	"reflect"
 	"time"
 )
 
@@ -442,6 +443,13 @@ func (g *Game) publishState(state *protocol.State) {
 		return
 	}
 
+	if g.HasStorage() && g.IsDealer() {
+		err := g.storage.SaveRoomState(g.RoomID(), state)
+		if err != nil {
+			g.logger.Error("failed to save room state", zap.Error(err))
+		}
+	}
+
 	g.logger.Debug("publishing state")
 	g.publishMessage(protocol.GameStateMessage{
 		Message: protocol.Message{
@@ -524,7 +532,7 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 		return errors.Wrap(err, fmt.Sprintf("this room has unsupported version %d", room.Version))
 	}
 
-	if state == nil && g.storage != nil {
+	if state == nil && g.HasStorage() {
 		state, err = g.storage.LoadRoomState(roomID)
 		g.logger.Info("room not found in storage", zap.Error(err))
 	}
@@ -588,7 +596,7 @@ func (g *Game) MyVote() protocol.VoteResult {
 }
 
 func (g *Game) RenamePlayer(name string) error {
-	if g.storage != nil {
+	if g.HasStorage() {
 		err := g.storage.SetPlayerName(name)
 		if err != nil {
 			return errors.Wrap(err, "failed to save player name")
@@ -759,7 +767,7 @@ func loadPlayer(s storage.Service) (*protocol.Player, error) {
 	var player protocol.Player
 
 	// Load ID
-	if s != nil {
+	if !nilStorage(s) {
 		player.ID = s.PlayerID()
 	}
 
@@ -769,7 +777,7 @@ func loadPlayer(s storage.Service) (*protocol.Player, error) {
 			return nil, errors.Wrap(err, "failed to generate player ID")
 		}
 
-		if s != nil {
+		if !nilStorage(s) {
 			err = s.SetPlayerID(player.ID)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to save player ID")
@@ -780,9 +788,17 @@ func loadPlayer(s storage.Service) (*protocol.Player, error) {
 	// Load Name
 	if config.PlayerName() != "" {
 		player.Name = config.PlayerName()
-	} else if s != nil {
+	} else if !nilStorage(s) {
 		player.Name = s.PlayerName()
 	}
 
 	return &player, nil
+}
+
+func nilStorage(s storage.Service) bool {
+	return s == nil || reflect.ValueOf(s).IsNil()
+}
+
+func (g *Game) HasStorage() bool {
+	return !nilStorage(g.storage)
 }
