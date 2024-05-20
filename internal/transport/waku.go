@@ -1,8 +1,7 @@
-package waku
+package transport
 
 import (
 	"2sp/internal/config"
-	"2sp/pkg/game"
 	pp "2sp/pkg/protocol"
 	"context"
 	"encoding/hex"
@@ -350,7 +349,7 @@ func (n *Node) watchConnectionStatus() {
 	}
 }
 
-func (n *Node) SubscribeToMessages(room *pp.Room) (*game.MessagesSubscription, error) {
+func (n *Node) SubscribeToMessages(room *pp.Room) (*MessagesSubscription, error) {
 	n.logger.Debug("subscribing to room")
 
 	contentTopic, err := n.roomCache.Get(room)
@@ -428,7 +427,7 @@ func (n *Node) SubscribeToMessages(room *pp.Room) (*game.MessagesSubscription, e
 	}
 
 	leaveRoom := make(chan struct{})
-	sub := &game.MessagesSubscription{
+	sub := &MessagesSubscription{
 		Ch: make(chan []byte, 10),
 		Unsubscribe: func() {
 			close(leaveRoom)

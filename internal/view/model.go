@@ -3,6 +3,7 @@ package view
 import (
 	"2sp/internal/app"
 	"2sp/internal/config"
+	"2sp/internal/transport"
 	"2sp/internal/view/commands"
 	"2sp/internal/view/components/deckview"
 	"2sp/internal/view/components/errorview"
@@ -16,7 +17,6 @@ import (
 	"2sp/internal/view/messages"
 	"2sp/internal/view/states"
 	"2sp/internal/view/update"
-	"2sp/internal/waku"
 	"2sp/pkg/protocol"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
@@ -48,7 +48,7 @@ type model struct {
 	fatalError       error
 	gameState        *protocol.State
 	roomID           protocol.RoomID
-	connectionStatus waku.ConnectionStatus
+	connectionStatus transport.ConnectionStatus
 
 	// UI components state
 	commandMode      bool

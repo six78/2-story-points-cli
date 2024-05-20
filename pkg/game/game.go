@@ -2,6 +2,7 @@ package game
 
 import (
 	"2sp/internal/config"
+	"2sp/internal/transport"
 	"2sp/pkg/protocol"
 	"2sp/pkg/storage"
 	"context"
@@ -19,7 +20,7 @@ type StateSubscription chan *protocol.State
 type Game struct {
 	logger    *zap.Logger
 	ctx       context.Context
-	transport Transport
+	transport transport.Service
 	storage   storage.Service
 	exitRoom  chan struct{}
 	features  FeatureFlags
@@ -35,7 +36,7 @@ type Game struct {
 	stateSubscribers []StateSubscription
 }
 
-func NewGame(ctx context.Context, transport Transport, storage storage.Service) (*Game, error) {
+func NewGame(ctx context.Context, transport transport.Service, storage storage.Service) (*Game, error) {
 	player, err := loadPlayer(storage)
 	if err != nil {
 		return nil, err
@@ -342,7 +343,7 @@ func (g *Game) checkPlayersStateLoop() {
 	}
 }
 
-func (g *Game) processIncomingMessages(sub *MessagesSubscription) {
+func (g *Game) processIncomingMessages(sub *transport.MessagesSubscription) {
 	if sub.Unsubscribe != nil {
 		defer sub.Unsubscribe()
 	}

@@ -2,7 +2,7 @@ package app
 
 import (
 	"2sp/internal/config"
-	"2sp/internal/waku"
+	"2sp/internal/transport"
 	"2sp/pkg/game"
 	"2sp/pkg/storage"
 	"context"
@@ -12,13 +12,13 @@ import (
 
 type App struct {
 	Game    *game.Game
-	waku    *waku.Node
+	waku    *transport.Node
 	storage *storage.LocalStorage
 
 	ctx  context.Context
 	quit context.CancelFunc
 
-	wakuStatusSubscription waku.ConnectionStatusSubscription
+	wakuStatusSubscription transport.ConnectionStatusSubscription
 }
 
 func NewApp() *App {
@@ -43,7 +43,7 @@ func (a *App) Initialize() error {
 		}
 	}
 
-	a.waku, err = waku.NewNode(a.ctx, config.Logger)
+	a.waku, err = transport.NewNode(a.ctx, config.Logger)
 	if err != nil {
 		printedErr := errors.New("failed to create waku node")
 		config.Logger.Error(printedErr.Error(), zap.Error(err))
@@ -77,10 +77,10 @@ func (a *App) Stop() {
 	a.quit()
 }
 
-func (a *App) WaitForConnectionStatus() (waku.ConnectionStatus, bool, error) {
+func (a *App) WaitForConnectionStatus() (transport.ConnectionStatus, bool, error) {
 	if a.wakuStatusSubscription == nil {
 		config.Logger.Error("Waku connection status subscription not created")
-		return waku.ConnectionStatus{}, false, errors.New("Waku connection status subscription not created")
+		return transport.ConnectionStatus{}, false, errors.New("Waku connection status subscription not created")
 	}
 
 	status, more := <-a.wakuStatusSubscription
