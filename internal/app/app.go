@@ -4,7 +4,6 @@ import (
 	"2sp/internal/config"
 	"2sp/internal/waku"
 	"2sp/pkg/game"
-	"2sp/pkg/protocol"
 	"2sp/pkg/storage"
 	"context"
 	"github.com/pkg/errors"
@@ -19,7 +18,6 @@ type App struct {
 	ctx  context.Context
 	quit context.CancelFunc
 
-	gameStateSubscription  game.StateSubscription
 	wakuStatusSubscription waku.ConnectionStatusSubscription
 }
 
@@ -27,12 +25,11 @@ func NewApp() *App {
 	ctx, quit := context.WithCancel(context.Background())
 
 	return &App{
-		Game:                  nil,
-		waku:                  nil,
-		storage:               nil,
-		ctx:                   ctx,
-		quit:                  quit,
-		gameStateSubscription: nil,
+		Game:    nil,
+		waku:    nil,
+		storage: nil,
+		ctx:     ctx,
+		quit:    quit,
 	}
 }
 
@@ -67,8 +64,6 @@ func (a *App) Initialize() error {
 		return err
 	}
 
-	a.gameStateSubscription = a.Game.SubscribeToStateChanges()
-
 	return nil
 }
 
@@ -80,20 +75,6 @@ func (a *App) Stop() {
 		a.waku.Stop()
 	}
 	a.quit()
-}
-
-func (a *App) WaitForGameState() (*protocol.State, bool, error) {
-	if a.gameStateSubscription == nil {
-		config.Logger.Error("Game state subscription not created")
-		return &protocol.State{}, false, errors.New("Game state subscription not created")
-	}
-
-	state, more := <-a.gameStateSubscription
-	if !more {
-		a.gameStateSubscription = nil
-	}
-
-	return state, more, nil
 }
 
 func (a *App) WaitForConnectionStatus() (waku.ConnectionStatus, bool, error) {
