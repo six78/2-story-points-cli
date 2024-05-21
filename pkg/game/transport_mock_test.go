@@ -60,6 +60,14 @@ func (t *TransportMock) PublishPrivateMessage(room *protocol.Room, payload []byt
 	return t.PublishUnencryptedMessage(room, payload)
 }
 
+func (t *TransportMock) ConnectionStatus() transport.ConnectionStatus {
+	return transport.ConnectionStatus{}
+}
+
+func (t *TransportMock) SubscribeToConnectionStatus() transport.ConnectionStatusSubscription {
+	return nil
+}
+
 func (t *TransportMock) subscribeToAll() {
 	for _, subs := range t.subscriptions {
 		for _, sub := range subs {

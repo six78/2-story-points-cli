@@ -12,6 +12,7 @@ import (
 	"2sp/internal/view/components/issueview"
 	"2sp/internal/view/components/playersview"
 	"2sp/internal/view/components/shortcutsview"
+	"2sp/internal/view/components/transporteventhandler"
 	"2sp/internal/view/components/userinput"
 	"2sp/internal/view/components/wakustatusview"
 	"2sp/internal/view/messages"
@@ -51,16 +52,17 @@ type model struct {
 	connectionStatus transport.ConnectionStatus
 
 	// UI components state
-	commandMode      bool
-	roomViewState    states.RoomView
-	errorView        errorview.Model
-	playersView      playersview.Model
-	shortcutsView    shortcutsview.Model
-	wakuStatusView   wakustatusview.Model
-	deckView         deckview.Model
-	issueView        issueview.Model
-	issuesListView   issuesview.Model
-	gameEventHandler gameeventhandler.Model
+	commandMode           bool
+	roomViewState         states.RoomView
+	errorView             errorview.Model
+	playersView           playersview.Model
+	shortcutsView         shortcutsview.Model
+	wakuStatusView        wakustatusview.Model
+	deckView              deckview.Model
+	issueView             issueview.Model
+	issuesListView        issuesview.Model
+	gameEventHandler      gameeventhandler.Model
+	transportEventHandler transporteventhandler.Model
 
 	// Workaround: Used to allow pasting multiline text (list of issues)
 	disableEnterKey     bool
@@ -154,8 +156,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				switchToState(states.WaitingForPeers)
 			}
+
 			// Subscribe to states when app initialized
-			cmds.AppendCommand(commands.WaitForConnectionStatus(m.app))
+			m.transportEventHandler = transporteventhandler.New(m.app.Transport())
+			cmds.AppendCommand(m.transportEventHandler.Init())
 
 			m.gameEventHandler = gameeventhandler.New(m.app.Game)
 			cmds.AppendCommand(m.gameEventHandler.Init())
@@ -188,7 +192,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				State: states.WaitingForPeers,
 			})
 		}
-		cmds.AppendCommand(commands.WaitForConnectionStatus(m.app))
 
 	case messages.GameStateMessage:
 		if m.gameState != nil && msg.State != nil && msg.State.ActiveIssue != m.gameState.ActiveIssue {
@@ -289,6 +292,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.issueView, cmds.IssueViewCommand = m.issueView.Update(msg)
 	m.issuesListView, cmds.IssuesListViewCommand = m.issuesListView.Update(msg)
 	m.gameEventHandler, cmds.GameEventHandlerCommand = m.gameEventHandler.Update(msg)
+	m.transportEventHandler, cmds.TransportEventHandlerCommand = m.transportEventHandler.Update(msg)
 
 	return m, cmds.Batch()
 }

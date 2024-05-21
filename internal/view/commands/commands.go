@@ -73,21 +73,6 @@ func ToggleRoomView(currentRoomView states.RoomView) tea.Cmd {
 	}
 }
 
-func WaitForConnectionStatus(app *app.App) tea.Cmd {
-	return func() tea.Msg {
-		status, more, err := app.WaitForConnectionStatus()
-		if err != nil {
-			return messages.FatalErrorMessage{Err: err}
-		}
-		if !more {
-			return nil
-		}
-		return messages.ConnectionStatus{
-			Status: status,
-		}
-	}
-}
-
 func PublishVote(app *app.App, vote protocol.VoteValue) tea.Cmd {
 	return func() tea.Msg {
 		err := app.Game.PublishVote(vote)

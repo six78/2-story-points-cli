@@ -17,8 +17,6 @@ type App struct {
 
 	ctx  context.Context
 	quit context.CancelFunc
-
-	wakuStatusSubscription transport.ConnectionStatusSubscription
 }
 
 func NewApp() *App {
@@ -50,7 +48,9 @@ func (a *App) Initialize() error {
 		return printedErr
 	}
 
-	a.wakuStatusSubscription = a.waku.SubscribeToConnectionStatus()
+	// NOTE: Before transportEventHandler we were subscribing here before starting waku.
+	// 		 Hopefully this is covered by "Force notify current status".
+	//a.wakuStatusSubscription = a.waku.SubscribeToConnectionStatus()
 
 	err = a.waku.Start()
 	if err != nil {
@@ -77,15 +77,7 @@ func (a *App) Stop() {
 	a.quit()
 }
 
-func (a *App) WaitForConnectionStatus() (transport.ConnectionStatus, bool, error) {
-	if a.wakuStatusSubscription == nil {
-		config.Logger.Error("Waku connection status subscription not created")
-		return transport.ConnectionStatus{}, false, errors.New("Waku connection status subscription not created")
-	}
-
-	status, more := <-a.wakuStatusSubscription
-	if !more {
-		a.wakuStatusSubscription = nil
-	}
-	return status, more, nil
+// NOTE: temp method
+func (a *App) Transport() transport.Service {
+	return a.waku
 }

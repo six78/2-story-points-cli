@@ -42,15 +42,8 @@ type Node struct {
 	roomCache            ContentTopicCache
 	lightMode            bool
 	statusSubscribers    []ConnectionStatusSubscription
+	connectionStatus     ConnectionStatus
 }
-
-type ConnectionStatus struct {
-	IsOnline   bool
-	HasHistory bool
-	PeersCount int
-}
-
-type ConnectionStatusSubscription chan ConnectionStatus
 
 func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 
@@ -481,6 +474,10 @@ func decryptMessage(room *pp.Room, message *pb.WakuMessage) ([]byte, error) {
 	return message.Payload, nil
 }
 
+func (n *Node) ConnectionStatus() ConnectionStatus {
+	return n.connectionStatus
+}
+
 func (n *Node) SubscribeToConnectionStatus() ConnectionStatusSubscription {
 	channel := make(ConnectionStatusSubscription, 10)
 	n.statusSubscribers = append(n.statusSubscribers, channel)
@@ -493,6 +490,8 @@ func (n *Node) notifyConnectionStatus(s *node.ConnStatus) {
 		HasHistory: s.HasHistory,
 		PeersCount: len(s.Peers),
 	}
+
+	n.connectionStatus = status
 
 	for _, subscriber := range n.statusSubscribers {
 		subscriber <- status
