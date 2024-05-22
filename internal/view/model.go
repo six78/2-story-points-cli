@@ -7,12 +7,11 @@ import (
 	"2sp/internal/view/commands"
 	"2sp/internal/view/components/deckview"
 	"2sp/internal/view/components/errorview"
-	"2sp/internal/view/components/gameeventhandler"
+	"2sp/internal/view/components/eventhandler"
 	"2sp/internal/view/components/issuesview"
 	"2sp/internal/view/components/issueview"
 	"2sp/internal/view/components/playersview"
 	"2sp/internal/view/components/shortcutsview"
-	"2sp/internal/view/components/transporteventhandler"
 	"2sp/internal/view/components/userinput"
 	"2sp/internal/view/components/wakustatusview"
 	"2sp/internal/view/messages"
@@ -61,8 +60,8 @@ type model struct {
 	deckView              deckview.Model
 	issueView             issueview.Model
 	issuesListView        issuesview.Model
-	gameEventHandler      gameeventhandler.Model
-	transportEventHandler transporteventhandler.Model
+	gameEventHandler      eventhandler.Model[*protocol.State, messages.GameStateMessage]
+	transportEventHandler eventhandler.Model[transport.ConnectionStatus, messages.ConnectionStatus]
 
 	// Workaround: Used to allow pasting multiline text (list of issues)
 	disableEnterKey     bool
@@ -158,11 +157,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// Subscribe to states when app initialized
-			m.transportEventHandler = transporteventhandler.New(m.app.Transport())
-			cmds.AppendCommand(m.transportEventHandler.Init())
+			convert := func(status transport.ConnectionStatus) messages.ConnectionStatus {
+				return messages.ConnectionStatus{Status: status}
+			}
+			m.transportEventHandler = eventhandler.New[transport.ConnectionStatus, messages.ConnectionStatus](convert)
+			cmds.AppendCommand(m.transportEventHandler.Init(
+				m.app.Transport().SubscribeToConnectionStatus(),
+				m.app.Transport().ConnectionStatus(),
+			))
 
-			m.gameEventHandler = gameeventhandler.New(m.app.Game)
-			cmds.AppendCommand(m.gameEventHandler.Init())
+			convert2 := func(status *protocol.State) messages.GameStateMessage {
+				return messages.GameStateMessage{State: status}
+			}
+			m.gameEventHandler = eventhandler.New[*protocol.State, messages.GameStateMessage](convert2)
+			cmds.AppendCommand(m.gameEventHandler.Init(
+				m.app.Game.SubscribeToStateChanges(),
+				m.app.Game.CurrentState(),
+			))
 
 		case states.InputPlayerName:
 			switchToState(states.WaitingForPeers)
