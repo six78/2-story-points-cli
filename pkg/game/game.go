@@ -36,12 +36,7 @@ type Game struct {
 	stateSubscribers []StateSubscription
 }
 
-func NewGame(ctx context.Context, transport transport.Service, storage storage.Service) (*Game, error) {
-	player, err := loadPlayer(storage)
-	if err != nil {
-		return nil, err
-	}
-
+func NewGame(ctx context.Context, transport transport.Service, storage storage.Service) *Game {
 	return &Game{
 		logger:    config.Logger.Named("game"),
 		ctx:       ctx,
@@ -50,18 +45,29 @@ func NewGame(ctx context.Context, transport transport.Service, storage storage.S
 		exitRoom:  nil,
 		features:  defaultFeatureFlags(),
 		isDealer:  false,
-		player: &protocol.Player{
-			ID:     player.ID,
-			Name:   player.Name,
-			Online: true,
-		},
+		player:    nil,
 		myVote: protocol.VoteResult{
 			Value:     "",
 			Timestamp: 0,
 		},
 		room:           nil,
 		stateTimestamp: 0,
-	}, nil
+	}
+}
+
+func (g *Game) Initialize() error {
+	player, err := loadPlayer(g.storage)
+	if err != nil {
+		return err
+	}
+
+	g.player = &protocol.Player{
+		ID:     player.ID,
+		Name:   player.Name,
+		Online: true,
+	}
+
+	return nil
 }
 
 func (g *Game) LeaveRoom() {

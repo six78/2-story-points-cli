@@ -45,25 +45,36 @@ type Node struct {
 	connectionStatus     ConnectionStatus
 }
 
-func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
+func NewNode(ctx context.Context, logger *zap.Logger) *Node {
+	return &Node{
+		waku:                 nil,
+		ctx:                  ctx,
+		logger:               logger,
+		pubsubTopic:          relay.DefaultWakuTopic,
+		wakuConnectionStatus: nil,
+		roomCache:            NewRoomCache(logger),
+		lightMode:            config.WakuLightMode(),
+	}
+}
 
+func (n *Node) Initialize() error {
 	hostAddr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to resolve TCP address")
+		return errors.Wrap(err, "failed to resolve TCP address")
 	}
 
 	var discoveredNodes []dnsdisc.DiscoveredNode
 	if config.WakuDnsDiscovery() {
-		discoveredNodes, err = discoverNodes(ctx, logger.Named("dnsdiscovery"))
+		discoveredNodes, err = discoverNodes(n.ctx, n.logger.Named("dnsdiscovery"))
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to discover nodes")
+			return errors.Wrap(err, "failed to discover nodes")
 		}
 	}
 
 	wakuConnectionStatus := make(chan node.ConnStatus)
 
 	options := []node.WakuNodeOption{
-		node.WithLogger(logger.Named("waku")),
+		node.WithLogger(n.logger.Named("waku")),
 		//node.WithDNS4Domain(),
 		node.WithLogLevel(zap.DebugLevel),
 		node.WithHostAddress(hostAddr),
@@ -93,21 +104,21 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 
 	wakuNode, err := node.New(options...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create waku node")
+		return errors.Wrap(err, "failed to create waku node")
 	}
 
-	return &Node{
-		waku:                 wakuNode,
-		ctx:                  ctx,
-		logger:               logger.Named("waku"),
-		pubsubTopic:          relay.DefaultWakuTopic,
-		wakuConnectionStatus: wakuConnectionStatus,
-		roomCache:            NewRoomCache(logger),
-		lightMode:            config.WakuLightMode(),
-	}, nil
+	n.waku = wakuNode
+	n.wakuConnectionStatus = wakuConnectionStatus
+	n.logger = n.logger.Named("waku")
+
+	return nil
 }
 
 func (n *Node) Start() error {
+	if n.waku == nil {
+		return errors.New("not initialized")
+	}
+
 	go n.watchConnectionStatus()
 
 	err := n.waku.Start(n.ctx)

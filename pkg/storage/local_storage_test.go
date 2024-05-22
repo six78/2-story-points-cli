@@ -24,13 +24,13 @@ type Suite struct {
 func (s *Suite) SetupTest() {
 	var err error
 	s.tempPath = s.T().TempDir()
-	s.storage, err = NewStorage(s.tempPath)
+	s.storage, err = NewLocalStorage(s.tempPath)
 	s.Require().NoError(err)
 }
 
 func (s *Suite) TestLocalPath() {
 	localPath := s.T().TempDir()
-	storage, err := NewStorage(localPath)
+	storage, err := NewLocalStorage(localPath)
 	s.Require().NoError(err)
 	s.Require().NotNil(storage)
 	s.Require().NotNil(storage.folder)
@@ -45,7 +45,7 @@ func (s *Suite) TestGlobalPath() {
 	folder := folders[0]
 	s.Require().NotNil(folder)
 
-	storage, err := NewStorage("")
+	storage, err := NewLocalStorage("")
 	s.Require().NoError(err)
 	s.Require().NotNil(storage)
 	s.Require().NotNil(storage.folder)
@@ -137,7 +137,7 @@ func (s *Suite) TestResetPlayerOnUnmarshalFailure() {
 	s.Require().NoError(err)
 
 	// Create a new storage (with same path) to ensure that the player storage was reset
-	newStorage, err := NewStorage(s.tempPath)
+	newStorage, err := NewLocalStorage(s.tempPath)
 	s.Require().NoError(err)
 	s.Require().NotNil(newStorage)
 	s.Require().Empty(newStorage.PlayerID())

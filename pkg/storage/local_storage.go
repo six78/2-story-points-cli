@@ -38,7 +38,7 @@ type roomStorage struct {
 	State *protocol.State `json:"state"`
 }
 
-func NewStorage(localPath string) (*LocalStorage, error) {
+func NewLocalStorage(localPath string) (*LocalStorage, error) {
 	configDirs := configdir.New(config.VendorName, config.ApplicationName)
 	configDirs.LocalPath = localPath
 

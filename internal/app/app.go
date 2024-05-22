@@ -11,9 +11,8 @@ import (
 )
 
 type App struct {
-	Game    *game.Game
-	waku    *transport.Node
-	storage *storage.LocalStorage
+	Game *game.Game
+	waku *transport.Node
 
 	ctx  context.Context
 	quit context.CancelFunc
@@ -23,27 +22,29 @@ func NewApp() *App {
 	ctx, quit := context.WithCancel(context.Background())
 
 	return &App{
-		Game:    nil,
-		waku:    nil,
-		storage: nil,
-		ctx:     ctx,
-		quit:    quit,
+		Game: nil,
+		waku: nil,
+		ctx:  ctx,
+		quit: quit,
 	}
 }
 
 func (a *App) Initialize() error {
 	var err error
+	var localStorage storage.Service
 
 	if !config.Anonymous() {
-		a.storage, err = storage.NewStorage("")
+		localStorage, err = storage.NewLocalStorage("")
 		if err != nil {
 			return errors.Wrap(err, "failed to create storage")
 		}
 	}
 
-	a.waku, err = transport.NewNode(a.ctx, config.Logger)
+	a.waku = transport.NewNode(a.ctx, config.Logger)
+
+	err = a.waku.Initialize()
 	if err != nil {
-		printedErr := errors.New("failed to create waku node")
+		printedErr := errors.New("failed to initialize waku node")
 		config.Logger.Error(printedErr.Error(), zap.Error(err))
 		return printedErr
 	}
@@ -59,9 +60,10 @@ func (a *App) Initialize() error {
 		return printedErr
 	}
 
-	a.Game, err = game.NewGame(a.ctx, a.waku, a.storage)
+	a.Game = game.NewGame(a.ctx, a.waku, localStorage)
+	err = a.Game.Initialize()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to initialize game")
 	}
 
 	return nil

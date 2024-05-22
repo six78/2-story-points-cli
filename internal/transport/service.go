@@ -3,6 +3,9 @@ package transport
 import "2sp/pkg/protocol"
 
 type Service interface {
+	Initialize() error
+	Start() error
+
 	SubscribeToMessages(room *protocol.Room) (*MessagesSubscription, error)
 	PublishUnencryptedMessage(room *protocol.Room, payload []byte) error
 	PublishPublicMessage(room *protocol.Room, payload []byte) error
