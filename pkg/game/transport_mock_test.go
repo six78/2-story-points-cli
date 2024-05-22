@@ -19,6 +19,14 @@ func NewTransportMock(t *testing.T) *TransportMock {
 	}
 }
 
+func (t *TransportMock) Initialize() error {
+	return nil
+}
+
+func (t *TransportMock) Start() error {
+	return nil
+}
+
 func (t *TransportMock) SubscribeToMessages(room *protocol.Room) (*transport.MessagesSubscription, error) {
 	roomID, err := room.ToRoomID()
 	require.NoError(t.t, err)

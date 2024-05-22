@@ -62,7 +62,7 @@ func (m model) renderRoomID() string {
 		return "  Join a room or create a new one ..."
 	}
 	var dealerString string
-	if m.app.Game.IsDealer() {
+	if m.game.IsDealer() {
 		dealerString = foregroundShadeStyle.Render(" (dealer)")
 	}
 	return "  Room: " + m.roomID.String() + dealerString

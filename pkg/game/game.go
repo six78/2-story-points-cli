@@ -56,6 +56,13 @@ func NewGame(ctx context.Context, transport transport.Service, storage storage.S
 }
 
 func (g *Game) Initialize() error {
+	if g.HasStorage() {
+		err := g.storage.Initialize()
+		if err != nil {
+			return errors.Wrap(err, "failed to create storage")
+		}
+	}
+
 	player, err := loadPlayer(g.storage)
 	if err != nil {
 		return err

@@ -38,23 +38,21 @@ type roomStorage struct {
 	State *protocol.State `json:"state"`
 }
 
-func NewLocalStorage(localPath string) (*LocalStorage, error) {
+func NewLocalStorage(localPath string) *LocalStorage {
 	configDirs := configdir.New(config.VendorName, config.ApplicationName)
 	configDirs.LocalPath = localPath
 
-	s := &LocalStorage{
+	return &LocalStorage{
 		folder: queryFolder(&configDirs),
 		mutex:  &sync.RWMutex{},
 	}
-
-	if s.folder == nil {
-		return nil, errors.New("failed to find storage folder")
-	}
-
-	return s, s.initialize()
 }
 
-func (s *LocalStorage) initialize() error {
+func (s *LocalStorage) Initialize() error {
+	if s.folder == nil {
+		return errors.New("failed to find storage folder")
+	}
+
 	err := s.readPlayer()
 
 	if errors.Is(err, ErrStorageUnmarshalFailed) {

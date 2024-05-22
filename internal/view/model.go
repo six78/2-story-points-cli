@@ -1,7 +1,6 @@
 package view
 
 import (
-	"2sp/internal/app"
 	"2sp/internal/config"
 	"2sp/internal/transport"
 	"2sp/internal/view/commands"
@@ -17,6 +16,7 @@ import (
 	"2sp/internal/view/messages"
 	"2sp/internal/view/states"
 	"2sp/internal/view/update"
+	"2sp/pkg/game"
 	"2sp/pkg/protocol"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
@@ -31,16 +31,8 @@ import (
 )
 
 type model struct {
-	// Keep the app part of model.
-	// This is the only way to keep app logic separate off the view. If I decide
-	// to replace BubbleTea "frontend" with whatever else, I can keep the app as is.
-	// Otherwise, I will have to move everything from app.App here. This would
-	// create a logic/view mess.
-	// As consequence, some properties are duplicated here and in the app.App. But
-	// I find it a good trade-off.
-	// All methods of the app should be called from BubbleTea. Therefore, there's
-	// a tea.Cmd wrapper for each app method.
-	app *app.App
+	game      *game.Game
+	transport transport.Service
 
 	// Actual nextState that will be rendered in components.
 	// This is filled from app during Update stage.
@@ -73,13 +65,14 @@ type model struct {
 	spinner spinner.Model
 }
 
-func initialModel(a *app.App) model {
+func initialModel(game *game.Game, transport transport.Service) model {
 	const initialRoomViewState = states.ActiveIssueView
 	deckView := deckview.New()
 	deckView.Focus()
 
 	return model{
-		app: a,
+		game:      game,
+		transport: transport,
 		// Initial model values
 		state:     states.Initializing,
 		gameState: nil,
@@ -121,7 +114,7 @@ func (m model) Init() tea.Cmd {
 		m.deckView.Init(),
 		m.issueView.Init(),
 		m.issuesListView.Init(),
-		commands.InitializeApp(m.app),
+		commands.InitializeApp(m.game, m.transport),
 	)
 }
 
@@ -147,10 +140,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case states.Initializing:
 			// Notify PlayerID generated
 			cmds.AppendMessage(messages.PlayerIDMessage{
-				PlayerID: m.app.Game.Player().ID,
+				PlayerID: m.game.Player().ID,
 			})
 			// Determine next state
-			if m.app.Game.Player().Name == "" {
+			if m.game.Player().Name == "" {
 				switchToState(states.InputPlayerName)
 			} else {
 				switchToState(states.WaitingForPeers)
@@ -162,8 +155,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.transportEventHandler = eventhandler.New[transport.ConnectionStatus, messages.ConnectionStatus](convert)
 			cmds.AppendCommand(m.transportEventHandler.Init(
-				m.app.Transport().SubscribeToConnectionStatus(),
-				m.app.Transport().ConnectionStatus(),
+				m.transport.SubscribeToConnectionStatus(),
+				m.transport.ConnectionStatus(),
 			))
 
 			convert2 := func(status *protocol.State) messages.GameStateMessage {
@@ -171,8 +164,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.gameEventHandler = eventhandler.New[*protocol.State, messages.GameStateMessage](convert2)
 			cmds.AppendCommand(m.gameEventHandler.Init(
-				m.app.Game.SubscribeToStateChanges(),
-				m.app.Game.CurrentState(),
+				m.game.SubscribeToStateChanges(),
+				m.game.CurrentState(),
 			))
 
 		case states.InputPlayerName:
@@ -206,7 +199,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case messages.GameStateMessage:
 		if m.gameState != nil && msg.State != nil && msg.State.ActiveIssue != m.gameState.ActiveIssue {
-			cmds.AppendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
+			cmds.AppendMessage(messages.MyVote{Result: m.game.MyVote()})
 		}
 		m.gameState = msg.State
 
@@ -218,7 +211,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		config.Logger.Debug("room joined",
 			zap.String("roomID", msg.RoomID.String()),
 			zap.Bool("isDealer", msg.IsDealer))
-		cmds.AppendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
+		cmds.AppendMessage(messages.MyVote{Result: m.game.MyVote()})
 
 	case messages.EnableEnterKey:
 		m.disableEnterKey = false
@@ -227,7 +220,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC:
-			cmds.AppendCommand(commands.QuitApp(m.app))
+			cmds.AppendCommand(commands.QuitApp(m.game))
 		case tea.KeyEnter:
 			var cmd tea.Cmd
 			if m.disableEnterKey {
@@ -251,7 +244,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					cmd = FinishOnCursor(&m)
 				}
 			case states.IssuesListView:
-				cmd = commands.SelectIssue(m.app, m.issuesListView.CursorPosition())
+				cmd = commands.SelectIssue(m.game, m.issuesListView.CursorPosition())
 				toggleRoomView(&m)
 			}
 			cmds.AppendCommand(cmd)
@@ -279,7 +272,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case key.Matches(msg, commands.DefaultKeyMap.FinishVote):
 				cmds.AppendCommand(runFinishAction(&m, nil))
 			case key.Matches(msg, commands.DefaultKeyMap.RevokeVote):
-				cmds.AppendCommand(commands.PublishVote(m.app, ""))
+				cmds.AppendCommand(commands.PublishVote(m.game, ""))
 			}
 		} else {
 			switch {
@@ -330,7 +323,7 @@ func FinishOnCursor(m *model) tea.Cmd {
 	return cursorCommand(m, m.deckView.FinishCursor(), commands.FinishVoting)
 }
 
-func cursorCommand(m *model, cursor int, command func(*app.App, protocol.VoteValue) tea.Cmd) tea.Cmd {
+func cursorCommand(m *model, cursor int, command func(*game.Game, protocol.VoteValue) tea.Cmd) tea.Cmd {
 	if m.gameState == nil {
 		return nil
 	}
@@ -338,7 +331,7 @@ func cursorCommand(m *model, cursor int, command func(*app.App, protocol.VoteVal
 		return nil
 	}
 	cursorValue := m.gameState.Deck[cursor]
-	return command(m.app, cursorValue)
+	return command(m.game, cursorValue)
 }
 
 func toggleRoomView(m *model) {
@@ -369,7 +362,7 @@ func (m *model) handlePastedText(text string) (tea.Msg, tea.Cmd) {
 			return messages.NewErrorMessage(err), nil
 		}
 		roomID := protocol.NewRoomID(text)
-		return nil, commands.JoinRoom(m.app, roomID)
+		return nil, commands.JoinRoom(m.game, roomID)
 	}
 
 	// Try to parse as issues list
@@ -382,7 +375,7 @@ func (m *model) handlePastedText(text string) (tea.Msg, tea.Cmd) {
 			config.Logger.Warn("failed to parse issue url", zap.Error(err))
 			continue
 		}
-		cmds = append(cmds, commands.AddIssue(m.app, u.String()))
+		cmds = append(cmds, commands.AddIssue(m.game, u.String()))
 	}
 
 	m.disableEnterKey = true

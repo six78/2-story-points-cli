@@ -68,7 +68,10 @@ func TestSimpleGame(t *testing.T) {
 	require.NoError(t, err)
 
 	transport := NewTransportMock(t)
-	game, err := NewGame(ctx, transport, nil)
+	game := NewGame(ctx, transport, nil)
+	require.NotNil(t, game)
+
+	err = game.Initialize()
 	require.NoError(t, err)
 
 	room, initialState, err := game.CreateNewRoom()
