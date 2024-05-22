@@ -1,6 +1,7 @@
 package game
 
 import (
+	"2sp/internal/transport"
 	"2sp/pkg/protocol"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -18,7 +19,7 @@ func NewTransportMock(t *testing.T) *TransportMock {
 	}
 }
 
-func (t *TransportMock) SubscribeToMessages(room *protocol.Room) (*MessagesSubscription, error) {
+func (t *TransportMock) SubscribeToMessages(room *protocol.Room) (*transport.MessagesSubscription, error) {
 	roomID, err := room.ToRoomID()
 	require.NoError(t.t, err)
 
@@ -29,7 +30,7 @@ func (t *TransportMock) SubscribeToMessages(room *protocol.Room) (*MessagesSubsc
 	}
 	subs = append(subs, channel)
 	t.subscriptions[roomID] = subs
-	return &MessagesSubscription{
+	return &transport.MessagesSubscription{
 		Ch:          channel,
 		Unsubscribe: nil,
 	}, nil
@@ -57,6 +58,14 @@ func (t *TransportMock) PublishPublicMessage(room *protocol.Room, payload []byte
 
 func (t *TransportMock) PublishPrivateMessage(room *protocol.Room, payload []byte) error {
 	return t.PublishUnencryptedMessage(room, payload)
+}
+
+func (t *TransportMock) ConnectionStatus() transport.ConnectionStatus {
+	return transport.ConnectionStatus{}
+}
+
+func (t *TransportMock) SubscribeToConnectionStatus() transport.ConnectionStatusSubscription {
+	return nil
 }
 
 func (t *TransportMock) subscribeToAll() {

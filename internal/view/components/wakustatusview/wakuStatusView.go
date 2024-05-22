@@ -1,8 +1,8 @@
 package wakustatusview
 
 import (
+	"2sp/internal/transport"
 	"2sp/internal/view/messages"
-	"2sp/internal/waku"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -15,7 +15,7 @@ var (
 )
 
 type Model struct {
-	status waku.ConnectionStatus
+	status transport.ConnectionStatus
 }
 
 func New() Model {

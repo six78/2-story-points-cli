@@ -2,9 +2,8 @@ package app
 
 import (
 	"2sp/internal/config"
-	"2sp/internal/waku"
+	"2sp/internal/transport"
 	"2sp/pkg/game"
-	"2sp/pkg/protocol"
 	"2sp/pkg/storage"
 	"context"
 	"github.com/pkg/errors"
@@ -13,26 +12,22 @@ import (
 
 type App struct {
 	Game    *game.Game
-	waku    *waku.Node
+	waku    *transport.Node
 	storage *storage.LocalStorage
 
 	ctx  context.Context
 	quit context.CancelFunc
-
-	gameStateSubscription  game.StateSubscription
-	wakuStatusSubscription waku.ConnectionStatusSubscription
 }
 
 func NewApp() *App {
 	ctx, quit := context.WithCancel(context.Background())
 
 	return &App{
-		Game:                  nil,
-		waku:                  nil,
-		storage:               nil,
-		ctx:                   ctx,
-		quit:                  quit,
-		gameStateSubscription: nil,
+		Game:    nil,
+		waku:    nil,
+		storage: nil,
+		ctx:     ctx,
+		quit:    quit,
 	}
 }
 
@@ -46,14 +41,16 @@ func (a *App) Initialize() error {
 		}
 	}
 
-	a.waku, err = waku.NewNode(a.ctx, config.Logger)
+	a.waku, err = transport.NewNode(a.ctx, config.Logger)
 	if err != nil {
 		printedErr := errors.New("failed to create waku node")
 		config.Logger.Error(printedErr.Error(), zap.Error(err))
 		return printedErr
 	}
 
-	a.wakuStatusSubscription = a.waku.SubscribeToConnectionStatus()
+	// NOTE: Before transportEventHandler we were subscribing here before starting waku.
+	// 		 Hopefully this is covered by "Force notify current status".
+	//a.wakuStatusSubscription = a.waku.SubscribeToConnectionStatus()
 
 	err = a.waku.Start()
 	if err != nil {
@@ -66,8 +63,6 @@ func (a *App) Initialize() error {
 	if err != nil {
 		return err
 	}
-
-	a.gameStateSubscription = a.Game.SubscribeToStateChanges()
 
 	return nil
 }
@@ -82,36 +77,7 @@ func (a *App) Stop() {
 	a.quit()
 }
 
-func (a *App) WaitForGameState() (*protocol.State, bool, error) {
-	if a.gameStateSubscription == nil {
-		config.Logger.Error("Game state subscription not created")
-		return &protocol.State{}, false, errors.New("Game state subscription not created")
-	}
-
-	state, more := <-a.gameStateSubscription
-	if !more {
-		a.gameStateSubscription = nil
-	}
-
-	if !config.Anonymous() && a.Game.IsDealer() { // Only store room state for non-anonymously joined rooms
-		err := a.storage.SaveRoomState(a.Game.RoomID(), state)
-		if err != nil {
-			config.Logger.Error("failed to save room state", zap.Error(err))
-		}
-	}
-
-	return state, more, nil
-}
-
-func (a *App) WaitForConnectionStatus() (waku.ConnectionStatus, bool, error) {
-	if a.wakuStatusSubscription == nil {
-		config.Logger.Error("Waku connection status subscription not created")
-		return waku.ConnectionStatus{}, false, errors.New("Waku connection status subscription not created")
-	}
-
-	status, more := <-a.wakuStatusSubscription
-	if !more {
-		a.wakuStatusSubscription = nil
-	}
-	return status, more, nil
+// NOTE: temp method
+func (a *App) Transport() transport.Service {
+	return a.waku
 }

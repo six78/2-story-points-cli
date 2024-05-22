@@ -60,19 +60,6 @@ func JoinRoom(a *app.App, roomID protocol.RoomID) tea.Cmd {
 	}
 }
 
-func WaitForGameState(app *app.App) tea.Cmd {
-	return func() tea.Msg {
-		state, more, err := app.WaitForGameState()
-		if err != nil {
-			return messages.FatalErrorMessage{Err: err}
-		}
-		if !more {
-			return nil
-		}
-		return messages.GameStateMessage{State: state}
-	}
-}
-
 func ToggleRoomView(currentRoomView states.RoomView) tea.Cmd {
 	return func() tea.Msg {
 		var nextRoomView states.RoomView
@@ -83,21 +70,6 @@ func ToggleRoomView(currentRoomView states.RoomView) tea.Cmd {
 			nextRoomView = states.ActiveIssueView
 		}
 		return messages.RoomViewChange{RoomView: nextRoomView}
-	}
-}
-
-func WaitForConnectionStatus(app *app.App) tea.Cmd {
-	return func() tea.Msg {
-		status, more, err := app.WaitForConnectionStatus()
-		if err != nil {
-			return messages.FatalErrorMessage{Err: err}
-		}
-		if !more {
-			return nil
-		}
-		return messages.ConnectionStatus{
-			Status: status,
-		}
 	}
 }
 

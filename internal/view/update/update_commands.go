@@ -5,12 +5,14 @@ import (
 )
 
 type Commands struct {
-	commands              []tea.Cmd
-	InputCommand          tea.Cmd
-	SpinnerCommand        tea.Cmd
-	PlayersCommand        tea.Cmd
-	IssueViewCommand      tea.Cmd
-	IssuesListViewCommand tea.Cmd
+	commands                     []tea.Cmd
+	InputCommand                 tea.Cmd
+	SpinnerCommand               tea.Cmd
+	PlayersCommand               tea.Cmd
+	IssueViewCommand             tea.Cmd
+	IssuesListViewCommand        tea.Cmd
+	GameEventHandlerCommand      tea.Cmd
+	TransportEventHandlerCommand tea.Cmd
 }
 
 func NewUpdateCommands() *Commands {
@@ -36,6 +38,8 @@ func (u *Commands) Batch() tea.Cmd {
 		u.PlayersCommand,
 		u.IssueViewCommand,
 		u.IssuesListViewCommand,
+		u.GameEventHandlerCommand,
+		u.TransportEventHandlerCommand,
 	)
 	return tea.Batch(u.commands...)
 }

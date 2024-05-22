@@ -3,9 +3,11 @@ package view
 import (
 	"2sp/internal/app"
 	"2sp/internal/config"
+	"2sp/internal/transport"
 	"2sp/internal/view/commands"
 	"2sp/internal/view/components/deckview"
 	"2sp/internal/view/components/errorview"
+	"2sp/internal/view/components/eventhandler"
 	"2sp/internal/view/components/issuesview"
 	"2sp/internal/view/components/issueview"
 	"2sp/internal/view/components/playersview"
@@ -15,7 +17,6 @@ import (
 	"2sp/internal/view/messages"
 	"2sp/internal/view/states"
 	"2sp/internal/view/update"
-	"2sp/internal/waku"
 	"2sp/pkg/protocol"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
@@ -47,18 +48,20 @@ type model struct {
 	fatalError       error
 	gameState        *protocol.State
 	roomID           protocol.RoomID
-	connectionStatus waku.ConnectionStatus
+	connectionStatus transport.ConnectionStatus
 
 	// UI components state
-	commandMode    bool
-	roomViewState  states.RoomView
-	errorView      errorview.Model
-	playersView    playersview.Model
-	shortcutsView  shortcutsview.Model
-	wakuStatusView wakustatusview.Model
-	deckView       deckview.Model
-	issueView      issueview.Model
-	issuesListView issuesview.Model
+	commandMode           bool
+	roomViewState         states.RoomView
+	errorView             errorview.Model
+	playersView           playersview.Model
+	shortcutsView         shortcutsview.Model
+	wakuStatusView        wakustatusview.Model
+	deckView              deckview.Model
+	issueView             issueview.Model
+	issuesListView        issuesview.Model
+	gameEventHandler      eventhandler.Model[*protocol.State, messages.GameStateMessage]
+	transportEventHandler eventhandler.Model[transport.ConnectionStatus, messages.ConnectionStatus]
 
 	// Workaround: Used to allow pasting multiline text (list of issues)
 	disableEnterKey     bool
@@ -152,9 +155,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				switchToState(states.WaitingForPeers)
 			}
+
 			// Subscribe to states when app initialized
-			cmds.AppendCommand(commands.WaitForConnectionStatus(m.app))
-			cmds.AppendCommand(commands.WaitForGameState(m.app))
+			convert := func(status transport.ConnectionStatus) messages.ConnectionStatus {
+				return messages.ConnectionStatus{Status: status}
+			}
+			m.transportEventHandler = eventhandler.New[transport.ConnectionStatus, messages.ConnectionStatus](convert)
+			cmds.AppendCommand(m.transportEventHandler.Init(
+				m.app.Transport().SubscribeToConnectionStatus(),
+				m.app.Transport().ConnectionStatus(),
+			))
+
+			convert2 := func(status *protocol.State) messages.GameStateMessage {
+				return messages.GameStateMessage{State: status}
+			}
+			m.gameEventHandler = eventhandler.New[*protocol.State, messages.GameStateMessage](convert2)
+			cmds.AppendCommand(m.gameEventHandler.Init(
+				m.app.Game.SubscribeToStateChanges(),
+				m.app.Game.CurrentState(),
+			))
 
 		case states.InputPlayerName:
 			switchToState(states.WaitingForPeers)
@@ -184,14 +203,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				State: states.WaitingForPeers,
 			})
 		}
-		cmds.AppendCommand(commands.WaitForConnectionStatus(m.app))
 
 	case messages.GameStateMessage:
 		if m.gameState != nil && msg.State != nil && msg.State.ActiveIssue != m.gameState.ActiveIssue {
 			cmds.AppendMessage(messages.MyVote{Result: m.app.Game.MyVote()})
 		}
 		m.gameState = msg.State
-		cmds.AppendCommand(commands.WaitForGameState(m.app))
 
 	case messages.CommandModeChange:
 		m.commandMode = msg.CommandMode
@@ -285,6 +302,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.deckView = m.deckView.Update(msg)
 	m.issueView, cmds.IssueViewCommand = m.issueView.Update(msg)
 	m.issuesListView, cmds.IssuesListViewCommand = m.issuesListView.Update(msg)
+	m.gameEventHandler, cmds.GameEventHandlerCommand = m.gameEventHandler.Update(msg)
+	m.transportEventHandler, cmds.TransportEventHandlerCommand = m.transportEventHandler.Update(msg)
 
 	return m, cmds.Batch()
 }

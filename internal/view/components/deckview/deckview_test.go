@@ -2,7 +2,7 @@ package deckview
 
 import (
 	"2sp/internal/testcommon"
-	"2sp/internal/view/cursor"
+	"2sp/internal/view/components/cursor"
 	"2sp/internal/view/messages"
 	"2sp/pkg/game"
 	"2sp/pkg/protocol"

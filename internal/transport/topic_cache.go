@@ -1,4 +1,4 @@
-package waku
+package transport
 
 import (
 	"2sp/pkg/protocol"

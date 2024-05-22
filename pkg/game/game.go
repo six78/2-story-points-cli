@@ -2,6 +2,7 @@ package game
 
 import (
 	"2sp/internal/config"
+	"2sp/internal/transport"
 	"2sp/pkg/protocol"
 	"2sp/pkg/storage"
 	"context"
@@ -10,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
+	"reflect"
 	"time"
 )
 
@@ -18,7 +20,7 @@ type StateSubscription chan *protocol.State
 type Game struct {
 	logger    *zap.Logger
 	ctx       context.Context
-	transport Transport
+	transport transport.Service
 	storage   storage.Service
 	exitRoom  chan struct{}
 	features  FeatureFlags
@@ -34,7 +36,7 @@ type Game struct {
 	stateSubscribers []StateSubscription
 }
 
-func NewGame(ctx context.Context, transport Transport, storage storage.Service) (*Game, error) {
+func NewGame(ctx context.Context, transport transport.Service, storage storage.Service) (*Game, error) {
 	player, err := loadPlayer(storage)
 	if err != nil {
 		return nil, err
@@ -341,7 +343,7 @@ func (g *Game) checkPlayersStateLoop() {
 	}
 }
 
-func (g *Game) processIncomingMessages(sub *MessagesSubscription) {
+func (g *Game) processIncomingMessages(sub *transport.MessagesSubscription) {
 	if sub.Unsubscribe != nil {
 		defer sub.Unsubscribe()
 	}
@@ -442,6 +444,13 @@ func (g *Game) publishState(state *protocol.State) {
 		return
 	}
 
+	if g.HasStorage() && g.IsDealer() {
+		err := g.storage.SaveRoomState(g.RoomID(), state)
+		if err != nil {
+			g.logger.Error("failed to save room state", zap.Error(err))
+		}
+	}
+
 	g.logger.Debug("publishing state")
 	g.publishMessage(protocol.GameStateMessage{
 		Message: protocol.Message{
@@ -524,7 +533,7 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 		return errors.Wrap(err, fmt.Sprintf("this room has unsupported version %d", room.Version))
 	}
 
-	if state == nil && g.storage != nil {
+	if state == nil && g.HasStorage() {
 		state, err = g.storage.LoadRoomState(roomID)
 		g.logger.Info("room not found in storage", zap.Error(err))
 	}
@@ -588,7 +597,7 @@ func (g *Game) MyVote() protocol.VoteResult {
 }
 
 func (g *Game) RenamePlayer(name string) error {
-	if g.storage != nil {
+	if g.HasStorage() {
 		err := g.storage.SetPlayerName(name)
 		if err != nil {
 			return errors.Wrap(err, "failed to save player name")
@@ -759,7 +768,7 @@ func loadPlayer(s storage.Service) (*protocol.Player, error) {
 	var player protocol.Player
 
 	// Load ID
-	if s != nil {
+	if !nilStorage(s) {
 		player.ID = s.PlayerID()
 	}
 
@@ -769,7 +778,7 @@ func loadPlayer(s storage.Service) (*protocol.Player, error) {
 			return nil, errors.Wrap(err, "failed to generate player ID")
 		}
 
-		if s != nil {
+		if !nilStorage(s) {
 			err = s.SetPlayerID(player.ID)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to save player ID")
@@ -780,9 +789,17 @@ func loadPlayer(s storage.Service) (*protocol.Player, error) {
 	// Load Name
 	if config.PlayerName() != "" {
 		player.Name = config.PlayerName()
-	} else if s != nil {
+	} else if !nilStorage(s) {
 		player.Name = s.PlayerName()
 	}
 
 	return &player, nil
+}
+
+func nilStorage(s storage.Service) bool {
+	return s == nil || reflect.ValueOf(s).IsNil()
+}
+
+func (g *Game) HasStorage() bool {
+	return !nilStorage(g.storage)
 }

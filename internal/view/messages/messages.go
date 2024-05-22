@@ -1,8 +1,8 @@
 package messages
 
 import (
+	"2sp/internal/transport"
 	"2sp/internal/view/states"
-	"2sp/internal/waku"
 	"2sp/pkg/protocol"
 )
 
@@ -39,7 +39,7 @@ type RoomViewChange struct {
 }
 
 type ConnectionStatus struct {
-	Status waku.ConnectionStatus
+	Status transport.ConnectionStatus
 }
 
 type CommandModeChange struct {
