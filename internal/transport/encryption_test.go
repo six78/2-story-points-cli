@@ -2,6 +2,7 @@ package transport
 
 import (
 	pp "2sp/pkg/protocol"
+	"context"
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
@@ -14,18 +15,23 @@ func TestEncryptionSuite(t *testing.T) {
 
 type EncryptionSuite struct {
 	suite.Suite
-	node *Node
+	node   *Node
+	cancel func()
 }
 
 func (s *EncryptionSuite) SetupSuite() {
+	var ctx context.Context
+	ctx, s.cancel = context.WithCancel(context.Background())
+
 	logger, err := zap.NewDevelopment()
 	s.Require().NoError(err)
 
-	// For this test we only need roomCache and logger
-	s.node = &Node{
-		logger:    logger,
-		roomCache: NewRoomCache(logger),
-	}
+	// Skip initialization, for this test we only need roomCache and logger
+	s.node = NewNode(ctx, logger)
+}
+
+func (s *EncryptionSuite) TearDownSuite() {
+	s.cancel()
 }
 
 func (s *EncryptionSuite) TestPublicEncryption() {
