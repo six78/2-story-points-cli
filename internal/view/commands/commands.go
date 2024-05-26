@@ -1,31 +1,46 @@
 package commands
 
 import (
-	"2sp/internal/app"
+	"2sp/internal/transport"
 	"2sp/internal/view/messages"
 	"2sp/internal/view/states"
+	"2sp/pkg/game"
 	"2sp/pkg/protocol"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/pkg/errors"
 	"time"
 )
 
-// Any command here must:
-// 	1. Get App as argument
-// 	2. Return tea.Cmd
-
-func InitializeApp(a *app.App) tea.Cmd {
+func InitializeApp(game *game.Game, transport transport.Service) tea.Cmd {
 	return func() tea.Msg {
-		err := a.Initialize()
+		err := transport.Initialize()
 		if err != nil {
-			return messages.FatalErrorMessage{Err: err}
+			return messages.FatalErrorMessage{
+				Err: errors.Wrap(err, "failed to initialize transport"),
+			}
 		}
+
+		err = transport.Start()
+		if err != nil {
+			return messages.FatalErrorMessage{
+				Err: errors.Wrap(err, "failed to start transport"),
+			}
+		}
+
+		err = game.Initialize()
+		if err != nil {
+			return messages.FatalErrorMessage{
+				Err: errors.Wrap(err, "failed to initialize game"),
+			}
+		}
+
 		return messages.AppStateFinishedMessage{State: states.Initializing}
 	}
 }
 
-func CreateNewRoom(a *app.App) tea.Cmd {
+func CreateNewRoom(game *game.Game) tea.Cmd {
 	return func() tea.Msg {
-		room, initialState, err := a.Game.CreateNewRoom()
+		room, initialState, err := game.CreateNewRoom()
 		if err != nil {
 			return messages.NewErrorMessage(err)
 		}
@@ -35,27 +50,27 @@ func CreateNewRoom(a *app.App) tea.Cmd {
 			return messages.NewErrorMessage(err)
 		}
 
-		err = a.Game.JoinRoom(roomID, initialState)
+		err = game.JoinRoom(roomID, initialState)
 		if err != nil {
 			return messages.NewErrorMessage(err)
 		}
 
 		return messages.RoomJoin{
-			RoomID:   a.Game.RoomID(),
-			IsDealer: a.Game.IsDealer(),
+			RoomID:   game.RoomID(),
+			IsDealer: game.IsDealer(),
 		}
 	}
 }
 
-func JoinRoom(a *app.App, roomID protocol.RoomID) tea.Cmd {
+func JoinRoom(game *game.Game, roomID protocol.RoomID) tea.Cmd {
 	return func() tea.Msg {
-		err := a.Game.JoinRoom(roomID, nil)
+		err := game.JoinRoom(roomID, nil)
 		if err != nil {
 			return messages.NewErrorMessage(err)
 		}
 		return messages.RoomJoin{
-			RoomID:   a.Game.RoomID(),
-			IsDealer: a.Game.IsDealer(),
+			RoomID:   game.RoomID(),
+			IsDealer: game.IsDealer(),
 		}
 	}
 }
@@ -73,43 +88,43 @@ func ToggleRoomView(currentRoomView states.RoomView) tea.Cmd {
 	}
 }
 
-func PublishVote(app *app.App, vote protocol.VoteValue) tea.Cmd {
+func PublishVote(game *game.Game, vote protocol.VoteValue) tea.Cmd {
 	return func() tea.Msg {
-		err := app.Game.PublishVote(vote)
+		err := game.PublishVote(vote)
 		if err != nil {
 			return messages.NewErrorMessage(err)
 		}
 		// TODO: Send err=nil ErrorMessage here
 		return messages.MyVote{
-			Result: app.Game.MyVote(),
+			Result: game.MyVote(),
 		}
 	}
 }
 
-func FinishVoting(app *app.App, result protocol.VoteValue) tea.Cmd {
+func FinishVoting(game *game.Game, result protocol.VoteValue) tea.Cmd {
 	return func() tea.Msg {
-		err := app.Game.Finish(result)
+		err := game.Finish(result)
 		return messages.NewErrorMessage(err)
 	}
 }
 
-func AddIssue(app *app.App, urlOrTitle string) tea.Cmd {
+func AddIssue(game *game.Game, urlOrTitle string) tea.Cmd {
 	return func() tea.Msg {
-		_, err := app.Game.AddIssue(urlOrTitle)
+		_, err := game.AddIssue(urlOrTitle)
 		return messages.NewErrorMessage(err)
 	}
 }
 
-func SelectIssue(app *app.App, index int) tea.Cmd {
+func SelectIssue(game *game.Game, index int) tea.Cmd {
 	return func() tea.Msg {
-		err := app.Game.SelectIssue(index)
+		err := game.SelectIssue(index)
 		return messages.NewErrorMessage(err)
 	}
 }
 
-func QuitApp(app *app.App) tea.Cmd {
+func QuitApp(game *game.Game) tea.Cmd {
 	return func() tea.Msg {
-		app.Game.LeaveRoom()
+		game.LeaveRoom()
 		return tea.Quit()
 	}
 }

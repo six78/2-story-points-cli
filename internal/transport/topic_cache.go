@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"2sp/internal/config"
 	"2sp/pkg/protocol"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -15,6 +16,7 @@ type ContentTopicCache struct {
 	roomID       *protocol.RoomID
 	contentTopic string
 	err          error
+	hits         int
 }
 
 func NewRoomCache(logger *zap.Logger) ContentTopicCache {
@@ -22,6 +24,7 @@ func NewRoomCache(logger *zap.Logger) ContentTopicCache {
 		logger:       logger.Named("TopicCache"),
 		roomID:       nil,
 		contentTopic: "",
+		hits:         0,
 	}
 }
 
@@ -30,37 +33,33 @@ func (r *ContentTopicCache) Get(room *protocol.Room) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if r.roomID == nil || *r.roomID != roomID {
-		r.roomID = &roomID
-		r.contentTopic, r.err = r.roomContentTopic(room)
-		if r.err != nil {
-			r.logger.Error("failed to calculate content topic", zap.Error(r.err))
-		} else {
-			r.logger.Debug("new content topic", zap.String("contentTopic", r.contentTopic))
-		}
+
+	if r.roomID != nil && *r.roomID == roomID {
+		r.hits++
+		return r.contentTopic, r.err
 	}
+
+	r.roomID = &roomID
+	r.contentTopic, r.err = r.roomContentTopic(room)
+	r.hits = 0
+
+	if r.err != nil {
+		r.logger.Error("failed to calculate content topic", zap.Error(r.err))
+	} else {
+		r.logger.Debug("new content topic", zap.String("contentTopic", r.contentTopic))
+	}
+
 	return r.contentTopic, r.err
 }
 
 func (r *ContentTopicCache) roomContentTopic(room *protocol.Room) (string, error) {
-	roomID, err := room.ToRoomID()
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create room ID")
-	}
-
 	version := strconv.Itoa(int(protocol.Version))
 	hash := crypto.Keccak256(room.Bytes())
 	contentTopicName := hexutil.Encode(hash[:4])[2:]
-	contentTopic, err := waku.NewContentTopic("six78", version, contentTopicName, "json") // WARNING: "six78" is not the name of the app
 
-	r.logger.Debug("content topic details",
-		zap.String("version", version),
-		zap.String("roomID", roomID.String()),
-		zap.String("symmetricKey", hexutil.Encode(room.SymmetricKey)),
-		zap.String("hashHexEncoded", hexutil.Encode(hash)),
-		zap.String("contentTopicName", contentTopicName),
-		zap.String("contentTopic", contentTopic.String()),
-	)
+	// FIXME: Change vendor name to application name here?
+	// TODO: Switch to protobuf
+	contentTopic, err := waku.NewContentTopic(config.VendorName, version, contentTopicName, "json") // WARNING: "six78" is not the name of the app
 
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create content topic")

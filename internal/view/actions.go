@@ -50,7 +50,7 @@ var actions = map[Action]actionFunc{
 
 func processPlayerNameInput(m *model, playerName string) tea.Cmd {
 	return func() tea.Msg {
-		err := m.app.Game.RenamePlayer(playerName)
+		err := m.game.RenamePlayer(playerName)
 		if err != nil {
 			return messages.NewErrorMessage(err)
 		}
@@ -66,7 +66,7 @@ func runRenameAction(m *model, args []string) tea.Cmd {
 			err := errors.New("empty user")
 			return messages.NewErrorMessage(err)
 		}
-		err := m.app.Game.RenamePlayer(args[0])
+		err := m.game.RenamePlayer(args[0])
 		return messages.NewErrorMessage(err)
 	}
 }
@@ -88,13 +88,13 @@ func runVoteAction(m *model, args []string) tea.Cmd {
 			return messages.NewErrorMessage(err)
 		}
 
-		return commands.PublishVote(m.app, vote)()
+		return commands.PublishVote(m.game, vote)()
 	}
 }
 
 func runUnvoteAction(m *model, args []string) tea.Cmd {
 	return func() tea.Msg {
-		return commands.PublishVote(m.app, "")()
+		return commands.PublishVote(m.game, "")()
 	}
 }
 
@@ -106,7 +106,7 @@ func runDealAction(m *model, args []string) tea.Cmd {
 		}
 		// TODO: Find a better way of restoring empty spaces between args
 		issue := strings.Join(args, " ")
-		_, err := m.app.Game.Deal(issue)
+		_, err := m.game.Deal(issue)
 		return messages.NewErrorMessage(err)
 	}
 }
@@ -117,12 +117,12 @@ func runAddAction(m *model, args []string) tea.Cmd {
 			err := errors.New("empty issue")
 			return messages.NewErrorMessage(err)
 		}
-		return commands.AddIssue(m.app, args[0])()
+		return commands.AddIssue(m.game, args[0])()
 	}
 }
 
 func runNewAction(m *model, args []string) tea.Cmd {
-	return commands.CreateNewRoom(m.app)
+	return commands.CreateNewRoom(m.game)
 }
 
 func runJoinAction(m *model, args []string) tea.Cmd {
@@ -132,23 +132,23 @@ func runJoinAction(m *model, args []string) tea.Cmd {
 			return messages.NewErrorMessage(err)
 		}
 		roomID := protocol.NewRoomID(args[0])
-		return commands.JoinRoom(m.app, roomID)()
+		return commands.JoinRoom(m.game, roomID)()
 	}
 }
 
 func runExitAction(m *model, args []string) tea.Cmd {
 	return func() tea.Msg {
-		m.app.Game.LeaveRoom()
+		m.game.LeaveRoom()
 		return messages.RoomJoin{
-			RoomID:   m.app.Game.RoomID(),
-			IsDealer: m.app.Game.IsDealer(),
+			RoomID:   m.game.RoomID(),
+			IsDealer: m.game.IsDealer(),
 		}
 	}
 }
 
 func runRevealAction(m *model, args []string) tea.Cmd {
 	return func() tea.Msg {
-		err := m.app.Game.Reveal()
+		err := m.game.Reveal()
 		return messages.NewErrorMessage(err)
 	}
 }
@@ -167,7 +167,7 @@ func runFinishAction(m *model, args []string) tea.Cmd {
 			err = errors.New("result not in deck")
 			return messages.NewErrorMessage(err)
 		}
-		err = m.app.Game.Finish(result)
+		err = m.game.Finish(result)
 		return messages.NewErrorMessage(err)
 	}
 }
@@ -209,7 +209,7 @@ func runDeckAction(m *model, args []string) tea.Cmd {
 			return messages.NewErrorMessage(err)
 		}
 
-		err = m.app.Game.SetDeck(deck)
+		err = m.game.SetDeck(deck)
 		return messages.NewErrorMessage(err)
 	}
 }
@@ -227,6 +227,6 @@ func runSelectAction(m *model, args []string) tea.Cmd {
 			return messages.NewErrorMessage(err)
 		}
 
-		return commands.SelectIssue(m.app, index)()
+		return commands.SelectIssue(m.game, index)()
 	}
 }

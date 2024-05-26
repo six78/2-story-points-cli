@@ -5,6 +5,7 @@ import (
 )
 
 type Service interface {
+	Initialize() error
 	PlayerID() protocol.PlayerID
 	PlayerName() string
 	SetPlayerID(id protocol.PlayerID) error
