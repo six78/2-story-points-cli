@@ -4,24 +4,33 @@ import (
 	mocktransport "2sp/internal/transport/mock"
 	mockstorage "2sp/pkg/storage/mock"
 	"context"
+	"github.com/brianvoe/gofakeit/v6"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"testing"
+	"time"
 )
 
 func TestOptions(t *testing.T) {
-	ctx := context.Background()
+	ctx := context.WithValue(context.Background(), gofakeit.LetterN(3), gofakeit.LetterN(3))
 	transport := &mocktransport.MockService{}
 	storage := &mockstorage.MockService{}
 	logger := zap.NewNop()
-	const enableSymmetricEncryption = false
+	enableSymmetricEncryption := gofakeit.Bool()
+	playerName := gofakeit.Username()
+	onlineMessagePeriod := time.Duration(gofakeit.Int64())
+	stateMessagePeriod := time.Duration(gofakeit.Int64())
 
 	options := []Option{
 		WithContext(ctx),
 		WithTransport(transport),
 		WithStorage(storage),
 		WithLogger(logger),
-		WithEnableSymmetricEncryption(false),
+		WithEnableSymmetricEncryption(enableSymmetricEncryption),
+		WithPlayerName(playerName),
+		WithOnlineMessagePeriod(onlineMessagePeriod),
+		WithStateMessagePeriod(stateMessagePeriod),
 	}
 	game := NewGame(options)
 
@@ -31,6 +40,9 @@ func TestOptions(t *testing.T) {
 	require.Equal(t, storage, game.storage)
 	require.Equal(t, logger, game.logger)
 	require.Equal(t, enableSymmetricEncryption, game.config.EnableSymmetricEncryption)
+	require.Equal(t, playerName, game.config.PlayerName)
+	require.Equal(t, onlineMessagePeriod, game.config.OnlineMessagePeriod)
+	require.Equal(t, stateMessagePeriod, game.config.StateMessagePeriod)
 }
 
 func TestNoTransport(t *testing.T) {
@@ -39,4 +51,25 @@ func TestNoTransport(t *testing.T) {
 	}
 	game := NewGame(options)
 	require.Nil(t, game)
+}
+
+func TestNoContext(t *testing.T) {
+	options := []Option{
+		WithContext(nil),
+		WithTransport(&mocktransport.MockService{}),
+	}
+	game := NewGame(options)
+	require.NotNil(t, game)
+	require.Equal(t, context.Background(), game.ctx)
+}
+
+func TestNotLogger(t *testing.T) {
+	options := []Option{
+		WithLogger(nil),
+		WithTransport(&mocktransport.MockService{}),
+	}
+	game := NewGame(options)
+	require.NotNil(t, game)
+	require.NotNil(t, game.logger)
+	require.Equal(t, zapcore.InvalidLevel, game.logger.Level())
 }

@@ -25,6 +25,9 @@ func main() {
 		game.WithTransport(waku),
 		game.WithStorage(createStorage()),
 		game.WithLogger(config.Logger.Named("game")),
+		game.WithPlayerName(config.PlayerName()),
+		game.WithOnlineMessagePeriod(config.OnlineMessagePeriod),
+		game.WithStateMessagePeriod(config.StateMessagePeriod),
 		game.WithEnableSymmetricEncryption(config.EnableSymmetricEncryption),
 	}
 

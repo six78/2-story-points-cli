@@ -25,9 +25,23 @@ type Suite struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	transport *mocktransport.MockService
+	game      *Game
+}
 
-	game     *Game
-	stateSub StateSubscription
+func (s *Suite) newGame(extraOptions []Option) *Game {
+	options := []Option{
+		WithContext(s.ctx),
+		WithTransport(s.transport),
+	}
+	options = append(options, extraOptions...)
+
+	g := NewGame(options)
+	s.Require().NotNil(g)
+
+	err := g.Initialize()
+	s.Require().NoError(err)
+
+	return g
 }
 
 func (s *Suite) SetupTest() {
@@ -40,15 +54,29 @@ func (s *Suite) SetupTest() {
 		WithEnableSymmetricEncryption(true),
 	})
 
-	s.stateSub = s.game.SubscribeToStateChanges()
-	s.Require().NotNil(s.stateSub)
-
 	err := s.game.Initialize()
 	s.Require().NoError(err)
 }
 
 func (s *Suite) TearDownTest() {
 	s.cancel()
+}
+
+func (s *Suite) expectSubscribeToMessages(room *protocol.Room) func(room *protocol.Room, payload []byte) {
+	roomMatcher := matchers.NewRoomMatcher(room)
+
+	subscription := &transport.MessagesSubscription{
+		Ch:          make(chan []byte),
+		Unsubscribe: func() {},
+	}
+
+	s.transport.EXPECT().SubscribeToMessages(roomMatcher).
+		Return(subscription, nil).
+		Times(1)
+
+	return func(room *protocol.Room, payload []byte) {
+		subscription.Ch <- payload
+	}
 }
 
 func (s *Suite) TestStateSize() {
@@ -104,7 +132,6 @@ func (s *Suite) TestSimpleGame() {
 	s.Require().NotNil(room)
 
 	roomID := room.ToRoomID()
-
 	roomMatcher := matchers.NewRoomMatcher(room)
 	onlineMatcher := matchers.NewOnlineMatcher()
 
@@ -113,16 +140,7 @@ func (s *Suite) TestSimpleGame() {
 
 	// We need to loop the subscription to mock waku behaviour
 	// We should probably check the published messages instead of received ones, but it's fine for now.
-	subscription := &transport.MessagesSubscription{
-		Ch:          make(chan []byte),
-		Unsubscribe: func() {},
-	}
-	loop := func(room *protocol.Room, payload []byte) {
-		subscription.Ch <- payload
-	}
-	s.transport.EXPECT().SubscribeToMessages(roomMatcher).
-		Return(subscription, nil).
-		Times(1)
+	loop := s.expectSubscribeToMessages(room)
 
 	// Join room
 	stateMatcher := matchers.NewStateMatcher(nil)
@@ -341,17 +359,4 @@ func (s *Suite) TestPublishMessage() {
 			s.Require().NoError(err)
 		})
 	}
-}
-
-func (s *Suite) newGame(extraOptions []Option) *Game {
-	options := []Option{
-		WithContext(s.ctx),
-		WithTransport(s.transport),
-	}
-	options = append(options, extraOptions...)
-
-	g := NewGame(options)
-	s.Require().NotNil(g)
-
-	return g
 }

@@ -1,7 +1,6 @@
 package game
 
 import (
-	"2sp/internal/config"
 	"2sp/internal/transport"
 	"2sp/pkg/protocol"
 	"2sp/pkg/storage"
@@ -86,7 +85,7 @@ func (g *Game) Initialize() error {
 		}
 	}
 
-	player, err := loadPlayer(g.storage)
+	player, err := g.loadPlayer(g.storage)
 	if err != nil {
 		return err
 	}
@@ -327,7 +326,7 @@ func (g *Game) publishOnlineState() {
 	g.publishUserOnline(true)
 	for {
 		select {
-		case <-time.After(config.OnlineMessagePeriod):
+		case <-time.After(g.config.OnlineMessagePeriod):
 			g.publishUserOnline(true)
 		case <-g.exitRoom:
 			return
@@ -342,7 +341,7 @@ func (g *Game) publishStateLoop() {
 	logger.Debug("started")
 	for {
 		select {
-		case <-time.After(config.StateMessagePeriod):
+		case <-time.After(g.config.StateMessagePeriod):
 			logger.Debug("tick")
 			g.notifyChangedState(true)
 		case <-g.exitRoom:
@@ -821,7 +820,7 @@ func (g *Game) playerIndex(playerID protocol.PlayerID) int {
 	})
 }
 
-func loadPlayer(s storage.Service) (*protocol.Player, error) {
+func (g *Game) loadPlayer(s storage.Service) (*protocol.Player, error) {
 	var err error
 	var player protocol.Player
 
@@ -845,8 +844,8 @@ func loadPlayer(s storage.Service) (*protocol.Player, error) {
 	}
 
 	// Load Name
-	if config.PlayerName() != "" {
-		player.Name = config.PlayerName()
+	if g.config.PlayerName != "" {
+		player.Name = g.config.PlayerName
 	} else if !nilStorage(s) {
 		player.Name = s.PlayerName()
 	}
