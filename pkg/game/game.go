@@ -69,7 +69,7 @@ func NewGame(opts []Option) *Game {
 	}
 
 	if game.transport == nil {
-		game.logger.Fatal("transport is required")
+		game.logger.Error("transport is required")
 		return nil
 	}
 

@@ -1,8 +1,8 @@
 package game
 
 import (
-	mock_transport "2sp/internal/transport/mock"
-	mock_storage "2sp/pkg/storage/mock"
+	mocktransport "2sp/internal/transport/mock"
+	mockstorage "2sp/pkg/storage/mock"
 	"context"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -11,8 +11,8 @@ import (
 
 func TestOptions(t *testing.T) {
 	ctx := context.Background()
-	transport := &mock_transport.MockService{}
-	storage := &mock_storage.MockService{}
+	transport := &mocktransport.MockService{}
+	storage := &mockstorage.MockService{}
 	logger := zap.NewNop()
 	const enableSymmetricEncryption = false
 
