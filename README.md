@@ -24,14 +24,14 @@
  ```shell
  git clone https://github.io/six78/2-story-points-cli
  cd 2-story-points
- go build
+ make build
  ./2sp
  ```
  
 Or just run the code with a shadow build:
 
 ```shell
-go run main.go
+make run
 ```
 
 Now share your room id with friends and start estimating your issues!
