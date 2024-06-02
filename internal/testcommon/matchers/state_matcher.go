@@ -4,6 +4,8 @@ import (
 	"2sp/pkg/protocol"
 	"encoding/json"
 	"fmt"
+	"testing"
+	"time"
 )
 
 type Matcher func(state *protocol.State)
@@ -60,7 +62,11 @@ func (m *StateMatcher) State() protocol.State {
 	return m.state
 }
 
-func (m *StateMatcher) Wait() protocol.State {
-	<-m.triggered
+func (m *StateMatcher) Wait(t *testing.T) protocol.State {
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout waiting for state message")
+	case <-m.triggered:
+	}
 	return m.state
 }

@@ -132,8 +132,7 @@ func (s *Suite) TestSimpleGame() {
 	err = s.game.JoinRoom(roomID, initialState)
 	s.Require().NoError(err)
 
-	state := stateMatcher.Wait()
-	s.Require().NotNil(state)
+	state := stateMatcher.Wait(s.T())
 	s.Require().False(state.VotesRevealed)
 	s.Require().Empty(state.ActiveIssue)
 	s.Require().Len(state.Players, 1)
@@ -164,7 +163,7 @@ func (s *Suite) TestSimpleGame() {
 		firstIssueID, err = s.game.Deal(firstItemText)
 		s.Require().NoError(err)
 
-		state = stateMatcher.Wait()
+		state = stateMatcher.Wait(s.T())
 		item := checkIssues(state.Issues)
 		s.Require().Nil(item.Result)
 		s.Require().Len(item.Votes, 0)
@@ -190,7 +189,7 @@ func (s *Suite) TestSimpleGame() {
 		err = s.game.PublishVote(dealerVote)
 		s.Require().NoError(err)
 
-		state = stateMatcher.Wait()
+		state = stateMatcher.Wait(s.T())
 		item := checkIssues(state.Issues)
 		s.Require().NotNil(item)
 		s.Require().Nil(item.Result)
@@ -211,7 +210,7 @@ func (s *Suite) TestSimpleGame() {
 		err = s.game.Reveal()
 		s.Require().NoError(err)
 
-		state = stateMatcher.Wait()
+		state = stateMatcher.Wait(s.T())
 		item := checkIssues(state.Issues)
 		s.Require().Nil(item.Result)
 		s.Require().Len(item.Votes, 1)
@@ -234,7 +233,7 @@ func (s *Suite) TestSimpleGame() {
 		err = s.game.Finish(votingResult)
 		s.Require().NoError(err)
 
-		state = stateMatcher.Wait()
+		state = stateMatcher.Wait(s.T())
 		item := checkIssues(state.Issues)
 		s.Require().NotNil(item.Result)
 		s.Require().Equal(*item.Result, votingResult)
@@ -272,7 +271,7 @@ func (s *Suite) TestSimpleGame() {
 		secondIssueID, err = s.game.Deal(secondItemText)
 		s.Require().NoError(err)
 
-		state = stateMatcher.Wait()
+		state = stateMatcher.Wait(s.T())
 		item := checkIssues(state.Issues)
 		s.Require().Nil(item.Result)
 		s.Require().Len(item.Votes, 0)
