@@ -40,6 +40,9 @@ jobs:
       - name: Build
         run: make build-all
 
+      - name: Generate
+        run: make generate
+
       - name: Test
         run: |
           mkdir -p /tmp/test-results
