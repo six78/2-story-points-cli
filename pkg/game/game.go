@@ -15,6 +15,10 @@ import (
 	"time"
 )
 
+var (
+	ErrNoRoom = errors.New("no room")
+)
+
 type StateSubscription chan *protocol.State
 
 type Game struct {
@@ -392,16 +396,14 @@ func (g *Game) processIncomingMessages(sub *transport.MessagesSubscription) {
 	}
 }
 
-func (g *Game) publishMessage(message any) {
+func (g *Game) publishMessage(message any) error {
 	if g.room == nil {
-		g.logger.Warn("no room to publish message")
-		return
+		return ErrNoRoom
 	}
 
 	payload, err := json.Marshal(message)
 	if err != nil {
-		g.logger.Error("failed to marshal message", zap.Error(err))
-		return
+		return err
 	}
 
 	if g.config.EnableSymmetricEncryption {
@@ -410,32 +412,35 @@ func (g *Game) publishMessage(message any) {
 		err = g.transport.PublishUnencryptedMessage(g.room, payload)
 	}
 
-	if err != nil {
-		g.logger.Error("failed to publish message", zap.Error(err))
-		return
-	}
+	return err
 }
 
 func (g *Game) publishUserOnline() {
 	g.logger.Debug("publishing online state")
-	g.publishMessage(protocol.PlayerOnlineMessage{
+	err := g.publishMessage(protocol.PlayerOnlineMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypePlayerOnline,
 			Timestamp: g.timestamp(),
 		},
 		Player: *g.player,
 	})
+	if err != nil {
+		g.logger.Error("failed to publish online state", zap.Error(err))
+	}
 }
 
 func (g *Game) publishUserOffline() {
 	g.logger.Debug("publishing offline state")
-	g.publishMessage(protocol.PlayerOfflineMessage{
+	err := g.publishMessage(protocol.PlayerOfflineMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypePlayerOffline,
 			Timestamp: g.timestamp(),
 		},
 		Player: *g.player,
 	})
+	if err != nil {
+		g.logger.Error("failed to publish offline state", zap.Error(err))
+	}
 }
 
 func (g *Game) PublishVote(vote protocol.VoteValue) error {
@@ -447,7 +452,7 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 	}
 	g.logger.Debug("publishing vote", zap.Any("vote", vote))
 	g.myVote = *protocol.NewVoteResult(vote)
-	g.publishMessage(protocol.PlayerVoteMessage{
+	err := g.publishMessage(protocol.PlayerVoteMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypePlayerVote,
 			Timestamp: g.timestamp(),
@@ -456,6 +461,10 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 		Issue:      g.state.ActiveIssue,
 		VoteResult: g.myVote,
 	})
+	if err != nil {
+		g.logger.Error("failed to publish vote", zap.Error(err))
+		return err
+	}
 	return nil
 }
 
@@ -482,13 +491,16 @@ func (g *Game) publishState(state *protocol.State) {
 	}
 
 	g.logger.Debug("publishing state")
-	g.publishMessage(protocol.GameStateMessage{
+	err := g.publishMessage(protocol.GameStateMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypeState,
 			Timestamp: g.timestamp(),
 		},
 		State: *state,
 	})
+	if err != nil {
+		g.logger.Error("failed to publish state", zap.Error(err))
+	}
 }
 
 func (g *Game) timestamp() int64 {
