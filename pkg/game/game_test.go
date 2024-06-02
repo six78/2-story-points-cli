@@ -36,8 +36,9 @@ func (s *Suite) SetupTest() {
 	ctrl := gomock.NewController(s.T())
 	s.transport = mocktransport.NewMockService(ctrl)
 
-	s.game = NewGame(s.ctx, s.transport, nil)
-	s.Require().NotNil(s.game)
+	s.game = s.newGame([]Option{
+		WithEnableSymmetricEncryption(true),
+	})
 
 	s.stateSub = s.game.SubscribeToStateChanges()
 	s.Require().NotNil(s.stateSub)

@@ -34,25 +34,42 @@ type Game struct {
 	state            *protocol.State
 	stateTimestamp   int64
 	stateSubscribers []StateSubscription
+	config           gameConfig
 }
 
-func NewGame(ctx context.Context, transport transport.Service, storage storage.Service) *Game {
-	return &Game{
-		logger:    config.Logger.Named("game"),
-		ctx:       ctx,
-		transport: transport,
-		storage:   storage,
-		exitRoom:  nil,
-		features:  defaultFeatureFlags(),
-		isDealer:  false,
-		player:    nil,
+func NewGame(opts []Option) *Game {
+	game := &Game{
+		exitRoom: nil,
+		features: defaultFeatureFlags(),
+		isDealer: false,
+		player:   nil,
 		myVote: protocol.VoteResult{
 			Value:     "",
 			Timestamp: 0,
 		},
 		room:           nil,
 		stateTimestamp: 0,
+		config:         defaultConfig,
 	}
+
+	for _, opt := range opts {
+		opt(game)
+	}
+
+	if game.ctx == nil {
+		game.ctx = context.Background()
+	}
+
+	if game.logger == nil {
+		game.logger = zap.NewNop()
+	}
+
+	if game.transport == nil {
+		game.logger.Fatal("transport is required")
+		return nil
+	}
+
+	return game
 }
 
 func (g *Game) Initialize() error {
@@ -387,7 +404,7 @@ func (g *Game) publishMessage(message any) {
 		return
 	}
 
-	if config.EnableSymmetricEncryption {
+	if g.config.EnableSymmetricEncryption {
 		err = g.transport.PublishPublicMessage(g.room, payload)
 	} else {
 		err = g.transport.PublishUnencryptedMessage(g.room, payload)
