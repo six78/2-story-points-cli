@@ -15,7 +15,7 @@ type Player struct {
 	Name   string   `json:"name"`
 	Online bool     `json:"online"`
 
-	OnlineTimestamp time.Time `json:"-"`
+	OnlineTimestamp time.Time `json:"onlineTimestamp"`
 }
 
 type Issue struct {

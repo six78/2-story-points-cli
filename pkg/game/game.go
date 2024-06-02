@@ -17,6 +17,8 @@ import (
 
 var (
 	ErrNoRoom = errors.New("no room")
+
+	playerOnlineTimeout = 20 * time.Second
 )
 
 type StateSubscription chan *protocol.State
@@ -191,12 +193,13 @@ func (g *Game) processMessage(payload []byte) {
 		playerChanged := !g.state.Players[index].Online ||
 			g.state.Players[index].Name != playerOnline.Player.Name
 
+		g.state.Players[index].OnlineTimestamp = time.Now()
+
 		if !playerChanged {
 			return
 		}
 
 		g.state.Players[index].Online = true
-		g.state.Players[index].OnlineTimestamp = time.Now()
 		g.state.Players[index].Name = playerOnline.Player.Name
 		g.notifyChangedState(true)
 
@@ -352,7 +355,7 @@ func (g *Game) publishStateLoop() {
 	}
 }
 
-func (g *Game) checkPlayersStateLoop() {
+func (g *Game) watchPlayersStateLoop() {
 	g.logger.Debug("check users state loop")
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -368,8 +371,16 @@ func (g *Game) checkPlayersStateLoop() {
 			}
 			now := time.Now()
 			for i, player := range g.state.Players {
+				if !player.Online {
+					continue
+				}
 				diff := now.Sub(player.OnlineTimestamp)
-				if diff > 20*time.Second {
+				if diff > playerOnlineTimeout {
+					g.logger.Info("marking user as offline",
+						zap.Any("name", player.Name),
+						zap.Any("lastSeenAt", player.OnlineTimestamp),
+						zap.Any("now", now),
+					)
 					g.state.Players[i].Online = false
 				}
 			}
@@ -573,7 +584,16 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 
 	if state == nil && g.HasStorage() {
 		state, err = g.storage.LoadRoomState(roomID)
-		g.logger.Info("room not found in storage", zap.Error(err))
+		if err != nil {
+			g.logger.Info("room not found in storage", zap.Error(err))
+		} else {
+			g.logger.Info("loaded room from storage", zap.Any("roomID", roomID))
+			now := time.Now()
+			for i := range state.Players {
+				online := now.Sub(state.Players[i].OnlineTimestamp) < playerOnlineTimeout
+				state.Players[i].Online = online
+			}
+		}
 	}
 
 	g.exitRoom = make(chan struct{})
@@ -597,7 +617,7 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	go g.publishOnlineState()
 	if g.isDealer {
 		go g.publishStateLoop()
-		go g.checkPlayersStateLoop()
+		go g.watchPlayersStateLoop()
 	}
 	g.notifyChangedState(g.isDealer)
 
