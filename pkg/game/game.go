@@ -582,17 +582,7 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	}
 
 	if state == nil && g.HasStorage() {
-		state, err = g.storage.LoadRoomState(roomID)
-		if err != nil {
-			g.logger.Info("room not found in storage", zap.Error(err))
-		} else {
-			g.logger.Info("loaded room from storage", zap.Any("roomID", roomID))
-			now := time.Now()
-			for i := range state.Players {
-				online := now.Sub(state.Players[i].OnlineTimestamp) < playerOnlineTimeout
-				state.Players[i].Online = online
-			}
-		}
+		state = g.loadStateFromStorage(roomID)
 	}
 
 	g.exitRoom = make(chan struct{})
@@ -625,9 +615,7 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 
 	} else {
 		g.stateTimestamp = g.timestamp()
-		g.logger.Info("loaded room",
-			zap.Any("roomID", roomID),
-			zap.Bool("isDealer", g.isDealer))
+		g.logger.Info("loaded room", zap.Any("roomID", roomID), zap.Bool("isDealer", g.isDealer))
 	}
 
 	return nil
@@ -859,4 +847,25 @@ func nilStorage(s storage.Service) bool {
 
 func (g *Game) HasStorage() bool {
 	return !nilStorage(g.storage)
+}
+
+func (g *Game) loadStateFromStorage(roomID protocol.RoomID) *protocol.State {
+	if !g.HasStorage() {
+		return nil
+	}
+	state, err := g.storage.LoadRoomState(roomID)
+	if err != nil {
+		g.logger.Info("room not found in storage", zap.Error(err))
+		return nil
+	}
+	g.logger.Info("loaded room from storage", zap.Any("roomID", roomID))
+
+	// Mark players as offline if they haven't been seen for a while
+	now := time.Now()
+	for i := range state.Players {
+		online := now.Sub(state.Players[i].OnlineTimestamp) < playerOnlineTimeout
+		state.Players[i].Online = online
+	}
+
+	return state
 }
