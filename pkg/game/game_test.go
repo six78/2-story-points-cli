@@ -277,3 +277,81 @@ func (s *Suite) TestSimpleGame() {
 		s.Require().Len(item.Votes, 0)
 	}
 }
+
+func (s *Suite) TestPublishMessageWithNoRoom() {
+	game := s.newGame(nil)
+	err := game.publishMessage(nil)
+	s.Require().ErrorIs(err, ErrNoRoom)
+}
+
+func (s *Suite) TestPublishUnsupportedMessage() {
+	var err error
+
+	game := s.newGame(nil)
+	game.room, err = protocol.NewRoom()
+	s.Require().NoError(err)
+
+	err = game.publishMessage(make(chan int))
+	s.Require().Error(err)
+}
+
+func (s *Suite) TestPublishMessage() {
+	testCases := []struct {
+		name       string
+		encryption bool
+	}{
+		{
+			name:       "encryption message",
+			encryption: true,
+		},
+		{
+			name:       "unencrypted message",
+			encryption: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			// Create controller inside subtest
+			ctrl := gomock.NewController(s.T())
+			s.transport = mocktransport.NewMockService(ctrl)
+
+			game := s.newGame([]Option{
+				WithEnableSymmetricEncryption(tc.encryption),
+			})
+
+			var err error
+			game.room, err = protocol.NewRoom()
+			s.Require().NoError(err)
+
+			roomMatcher := matchers.NewRoomMatcher(game.room)
+			payload, jsonPayload := s.FakePayload()
+
+			if tc.encryption {
+				s.transport.EXPECT().
+					PublishPublicMessage(roomMatcher, gomock.Eq(jsonPayload)).
+					Times(1)
+			} else {
+				s.transport.EXPECT().
+					PublishUnencryptedMessage(roomMatcher, gomock.Eq(jsonPayload)).
+					Times(1)
+			}
+
+			err = game.publishMessage(payload)
+			s.Require().NoError(err)
+		})
+	}
+}
+
+func (s *Suite) newGame(extraOptions []Option) *Game {
+	options := []Option{
+		WithContext(s.ctx),
+		WithTransport(s.transport),
+	}
+	options = append(options, extraOptions...)
+
+	g := NewGame(options)
+	s.Require().NotNil(g)
+
+	return g
+}
