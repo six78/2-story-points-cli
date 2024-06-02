@@ -121,7 +121,9 @@ func SelectIssue(game *game.Game, index int) tea.Cmd {
 
 func QuitApp(game *game.Game) tea.Cmd {
 	return func() tea.Msg {
-		game.LeaveRoom()
+		if game != nil {
+			game.LeaveRoom()
+		}
 		return tea.Quit()
 	}
 }
