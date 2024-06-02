@@ -45,10 +45,7 @@ func CreateNewRoom(game *game.Game) tea.Cmd {
 			return messages.NewErrorMessage(err)
 		}
 
-		roomID, err := room.ToRoomID()
-		if err != nil {
-			return messages.NewErrorMessage(err)
-		}
+		roomID := room.ToRoomID()
 
 		err = game.JoinRoom(roomID, initialState)
 		if err != nil {

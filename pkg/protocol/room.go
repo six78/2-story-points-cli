@@ -42,13 +42,13 @@ func (room *Room) Bytes() []byte {
 	return bytes
 }
 
-func (room *Room) ToRoomID() (RoomID, error) {
+func (room *Room) ToRoomID() RoomID {
 	if room.cachedRoomID == nil {
 		bytes := room.Bytes()
 		roomID := NewRoomID(base58.Encode(bytes))
 		room.cachedRoomID = &roomID
 	}
-	return *room.cachedRoomID, nil
+	return *room.cachedRoomID
 }
 
 func (room *Room) VersionSupported() bool {

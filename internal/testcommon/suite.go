@@ -10,11 +10,13 @@ import (
 
 type Suite struct {
 	suite.Suite
+	Logger *zap.Logger
 }
 
 func (s *Suite) SetupSuite() {
 	logger, err := zap.NewDevelopment()
 	s.Require().NoError(err)
+	s.Logger = logger
 	config.Logger = logger
 }
 

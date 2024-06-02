@@ -503,11 +503,6 @@ func (g *Game) CreateNewRoom() (*protocol.Room, *protocol.State, error) {
 		return nil, nil, errors.Wrap(err, "failed to create a new room")
 	}
 
-	_, err = room.ToRoomID()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to convert to room id")
-	}
-
 	deckName := Fibonacci // FIXME: Remove hardcoded deck
 	deck, deckFound := GetDeck(deckName)
 	if !deckFound {

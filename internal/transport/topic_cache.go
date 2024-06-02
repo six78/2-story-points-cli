@@ -29,11 +29,7 @@ func NewRoomCache(logger *zap.Logger) ContentTopicCache {
 }
 
 func (r *ContentTopicCache) Get(room *protocol.Room) (string, error) {
-	roomID, err := room.ToRoomID()
-	if err != nil {
-		return "", err
-	}
-
+	roomID := room.ToRoomID()
 	if r.roomID != nil && *r.roomID == roomID {
 		r.hits++
 		return r.contentTopic, r.err
