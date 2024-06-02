@@ -1,5 +1,7 @@
 package storage
 
+//go:generate mockgen -source=service.go -destination=mock/service.go
+
 import (
 	"2sp/pkg/protocol"
 )
