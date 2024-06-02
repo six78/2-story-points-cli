@@ -1,6 +1,8 @@
 .idea/
 dist
 .DS_Store
+mock
+2sp
 
 # Used in ci for goreleaser
 .goreleaser-artifacts
