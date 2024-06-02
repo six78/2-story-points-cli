@@ -20,7 +20,18 @@ func main() {
 	waku := transport.NewNode(ctx, config.Logger)
 	defer waku.Stop()
 
-	game := game.NewGame(ctx, waku, createStorage())
+	options := []game.Option{
+		game.WithContext(ctx),
+		game.WithTransport(waku),
+		game.WithStorage(createStorage()),
+		game.WithLogger(config.Logger.Named("game")),
+		game.WithEnableSymmetricEncryption(config.EnableSymmetricEncryption),
+	}
+
+	game := game.NewGame(options)
+	if game == nil {
+		config.Logger.Fatal("could not create game")
+	}
 	defer game.Stop()
 
 	code := view.Run(game, waku)

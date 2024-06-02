@@ -138,7 +138,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.AppStateFinishedMessage:
 		switch msg.State {
 		case states.Initializing:
-			// Notify PlayerID generated
+			// Notify playerID generated
 			cmds.AppendMessage(messages.PlayerIDMessage{
 				PlayerID: m.game.Player().ID,
 			})

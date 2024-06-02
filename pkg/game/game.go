@@ -15,6 +15,10 @@ import (
 	"time"
 )
 
+var (
+	ErrNoRoom = errors.New("no room")
+)
+
 type StateSubscription chan *protocol.State
 
 type Game struct {
@@ -34,25 +38,42 @@ type Game struct {
 	state            *protocol.State
 	stateTimestamp   int64
 	stateSubscribers []StateSubscription
+	config           gameConfig
 }
 
-func NewGame(ctx context.Context, transport transport.Service, storage storage.Service) *Game {
-	return &Game{
-		logger:    config.Logger.Named("game"),
-		ctx:       ctx,
-		transport: transport,
-		storage:   storage,
-		exitRoom:  nil,
-		features:  defaultFeatureFlags(),
-		isDealer:  false,
-		player:    nil,
+func NewGame(opts []Option) *Game {
+	game := &Game{
+		exitRoom: nil,
+		features: defaultFeatureFlags(),
+		isDealer: false,
+		player:   nil,
 		myVote: protocol.VoteResult{
 			Value:     "",
 			Timestamp: 0,
 		},
 		room:           nil,
 		stateTimestamp: 0,
+		config:         defaultConfig,
 	}
+
+	for _, opt := range opts {
+		opt(game)
+	}
+
+	if game.ctx == nil {
+		game.ctx = context.Background()
+	}
+
+	if game.logger == nil {
+		game.logger = zap.NewNop()
+	}
+
+	if game.transport == nil {
+		game.logger.Error("transport is required")
+		return nil
+	}
+
+	return game
 }
 
 func (g *Game) Initialize() error {
@@ -79,7 +100,7 @@ func (g *Game) Initialize() error {
 
 func (g *Game) LeaveRoom() {
 	if g.room != nil {
-		g.publishUserOffline()
+		g.publishUserOnline(false)
 	}
 
 	if g.exitRoom != nil {
@@ -300,11 +321,11 @@ func (g *Game) notifyChangedState(publish bool) {
 }
 
 func (g *Game) publishOnlineState() {
-	g.publishUserOnline()
+	g.publishUserOnline(true)
 	for {
 		select {
 		case <-time.After(config.OnlineMessagePeriod):
-			g.publishUserOnline()
+			g.publishUserOnline(true)
 		case <-g.exitRoom:
 			return
 		case <-g.ctx.Done():
@@ -375,50 +396,52 @@ func (g *Game) processIncomingMessages(sub *transport.MessagesSubscription) {
 	}
 }
 
-func (g *Game) publishMessage(message any) {
+func (g *Game) publishMessage(message any) error {
 	if g.room == nil {
-		g.logger.Warn("no room to publish message")
-		return
+		return ErrNoRoom
 	}
 
 	payload, err := json.Marshal(message)
 	if err != nil {
-		g.logger.Error("failed to marshal message", zap.Error(err))
-		return
+		return err
 	}
 
-	if config.EnableSymmetricEncryption {
+	if g.config.EnableSymmetricEncryption {
 		err = g.transport.PublishPublicMessage(g.room, payload)
 	} else {
 		err = g.transport.PublishUnencryptedMessage(g.room, payload)
 	}
 
-	if err != nil {
-		g.logger.Error("failed to publish message", zap.Error(err))
-		return
+	return err
+}
+
+func (g *Game) publishUserOnline(online bool) {
+	g.logger.Debug("publishing online state", zap.Bool("online", online))
+
+	var message interface{}
+
+	if online {
+		message = protocol.PlayerOnlineMessage{
+			Player: *g.player,
+			Message: protocol.Message{
+				Type:      protocol.MessageTypePlayerOnline,
+				Timestamp: g.timestamp(),
+			},
+		}
+	} else {
+		message = protocol.PlayerOfflineMessage{
+			Player: *g.player,
+			Message: protocol.Message{
+				Type:      protocol.MessageTypePlayerOffline,
+				Timestamp: g.timestamp(),
+			},
+		}
 	}
-}
 
-func (g *Game) publishUserOnline() {
-	g.logger.Debug("publishing online state")
-	g.publishMessage(protocol.PlayerOnlineMessage{
-		Message: protocol.Message{
-			Type:      protocol.MessageTypePlayerOnline,
-			Timestamp: g.timestamp(),
-		},
-		Player: *g.player,
-	})
-}
-
-func (g *Game) publishUserOffline() {
-	g.logger.Debug("publishing offline state")
-	g.publishMessage(protocol.PlayerOfflineMessage{
-		Message: protocol.Message{
-			Type:      protocol.MessageTypePlayerOffline,
-			Timestamp: g.timestamp(),
-		},
-		Player: *g.player,
-	})
+	err := g.publishMessage(message)
+	if err != nil {
+		g.logger.Error("failed to publish online state", zap.Error(err))
+	}
 }
 
 func (g *Game) PublishVote(vote protocol.VoteValue) error {
@@ -430,7 +453,7 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 	}
 	g.logger.Debug("publishing vote", zap.Any("vote", vote))
 	g.myVote = *protocol.NewVoteResult(vote)
-	g.publishMessage(protocol.PlayerVoteMessage{
+	err := g.publishMessage(protocol.PlayerVoteMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypePlayerVote,
 			Timestamp: g.timestamp(),
@@ -439,6 +462,10 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 		Issue:      g.state.ActiveIssue,
 		VoteResult: g.myVote,
 	})
+	if err != nil {
+		g.logger.Error("failed to publish vote", zap.Error(err))
+		return err
+	}
 	return nil
 }
 
@@ -465,13 +492,16 @@ func (g *Game) publishState(state *protocol.State) {
 	}
 
 	g.logger.Debug("publishing state")
-	g.publishMessage(protocol.GameStateMessage{
+	err := g.publishMessage(protocol.GameStateMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypeState,
 			Timestamp: g.timestamp(),
 		},
 		State: *state,
 	})
+	if err != nil {
+		g.logger.Error("failed to publish state", zap.Error(err))
+	}
 }
 
 func (g *Game) timestamp() int64 {
@@ -501,11 +531,6 @@ func (g *Game) CreateNewRoom() (*protocol.Room, *protocol.State, error) {
 	room, err := protocol.NewRoom()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create a new room")
-	}
-
-	_, err = room.ToRoomID()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to convert to room id")
 	}
 
 	deckName := Fibonacci // FIXME: Remove hardcoded deck
@@ -618,7 +643,7 @@ func (g *Game) RenamePlayer(name string) error {
 	}
 
 	g.player.Name = name
-	g.publishUserOnline()
+	g.publishUserOnline(true)
 	return nil
 }
 

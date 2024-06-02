@@ -2,6 +2,8 @@ package transport
 
 import "2sp/pkg/protocol"
 
+//go:generate mockgen -source=service.go -destination=mock/service.go
+
 type Service interface {
 	Initialize() error
 	Start() error

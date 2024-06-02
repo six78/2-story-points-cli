@@ -10,8 +10,7 @@ func TestRoomID(t *testing.T) {
 	sent, err := NewRoom()
 	require.NoError(t, err)
 
-	roomID, err := sent.ToRoomID()
-	require.NoError(t, err)
+	roomID := sent.ToRoomID()
 	require.NotEmpty(t, roomID)
 
 	received, err := ParseRoomID(roomID.String())
