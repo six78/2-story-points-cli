@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+var (
+	playerOnlineTimeout = 20 * time.Second
+)
+
 type StateSubscription chan *protocol.State
 
 type Game struct {
@@ -147,12 +151,13 @@ func (g *Game) processMessage(payload []byte) {
 		playerChanged := !g.state.Players[index].Online ||
 			g.state.Players[index].Name != playerOnline.Player.Name
 
+		g.state.Players[index].OnlineTimestamp = time.Now()
+
 		if !playerChanged {
 			return
 		}
 
 		g.state.Players[index].Online = true
-		g.state.Players[index].OnlineTimestamp = time.Now()
 		g.state.Players[index].Name = playerOnline.Player.Name
 		g.notifyChangedState(true)
 
@@ -324,8 +329,16 @@ func (g *Game) checkPlayersStateLoop() {
 			}
 			now := time.Now()
 			for i, player := range g.state.Players {
+				if !player.Online {
+					continue
+				}
 				diff := now.Sub(player.OnlineTimestamp)
-				if diff > 20*time.Second {
+				if diff > playerOnlineTimeout {
+					g.logger.Info("marking user as offline",
+						zap.Any("name", player.Name),
+						zap.Any("lastSeenAt", player.OnlineTimestamp),
+						zap.Any("now", now),
+					)
 					g.state.Players[i].Online = false
 				}
 			}
@@ -514,6 +527,14 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	}
 	if !room.VersionSupported() {
 		return errors.Wrap(err, fmt.Sprintf("this room has unsupported version %d", room.Version))
+	}
+
+	if state != nil {
+		now := time.Now()
+		for i := range state.Players {
+			online := now.Sub(state.Players[i].OnlineTimestamp) < playerOnlineTimeout
+			state.Players[i].Online = online
+		}
 	}
 
 	g.exitRoom = make(chan struct{})
