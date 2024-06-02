@@ -2,6 +2,8 @@ package testcommon
 
 import (
 	"2sp/internal/config"
+	"encoding/json"
+	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
@@ -34,4 +36,14 @@ func (s *Suite) SplitBatch(batch tea.Cmd) []tea.Cmd {
 	s.Require().NotNil(batchMessage)
 
 	return batchMessage
+}
+
+func (s *Suite) FakePayload() ([]byte, []byte) {
+	payload := make([]byte, 10)
+	gofakeit.Slice(&payload)
+
+	jsonPayload, err := json.Marshal(payload)
+	s.Require().NoError(err)
+
+	return payload, jsonPayload
 }
