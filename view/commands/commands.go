@@ -145,7 +145,9 @@ func SelectIssue(app *app.App, index int) tea.Cmd {
 
 func QuitApp(app *app.App) tea.Cmd {
 	return func() tea.Msg {
-		app.Game.LeaveRoom()
+		if app.Game != nil {
+			app.Game.LeaveRoom()
+		}
 		return tea.Quit()
 	}
 }
