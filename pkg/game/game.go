@@ -100,7 +100,7 @@ func (g *Game) Initialize() error {
 
 func (g *Game) LeaveRoom() {
 	if g.room != nil {
-		g.publishUserOffline()
+		g.publishUserOnline(false)
 	}
 
 	if g.exitRoom != nil {
@@ -321,11 +321,11 @@ func (g *Game) notifyChangedState(publish bool) {
 }
 
 func (g *Game) publishOnlineState() {
-	g.publishUserOnline()
+	g.publishUserOnline(true)
 	for {
 		select {
 		case <-time.After(config.OnlineMessagePeriod):
-			g.publishUserOnline()
+			g.publishUserOnline(true)
 		case <-g.exitRoom:
 			return
 		case <-g.ctx.Done():
@@ -415,31 +415,32 @@ func (g *Game) publishMessage(message any) error {
 	return err
 }
 
-func (g *Game) publishUserOnline() {
-	g.logger.Debug("publishing online state")
-	err := g.publishMessage(protocol.PlayerOnlineMessage{
-		Message: protocol.Message{
-			Type:      protocol.MessageTypePlayerOnline,
-			Timestamp: g.timestamp(),
-		},
-		Player: *g.player,
-	})
+func (g *Game) publishUserOnline(online bool) {
+	g.logger.Debug("publishing online state", zap.Bool("online", online))
+
+	var message interface{}
+
+	if online {
+		message = protocol.PlayerOnlineMessage{
+			Player: *g.player,
+			Message: protocol.Message{
+				Type:      protocol.MessageTypePlayerOnline,
+				Timestamp: g.timestamp(),
+			},
+		}
+	} else {
+		message = protocol.PlayerOfflineMessage{
+			Player: *g.player,
+			Message: protocol.Message{
+				Type:      protocol.MessageTypePlayerOffline,
+				Timestamp: g.timestamp(),
+			},
+		}
+	}
+
+	err := g.publishMessage(message)
 	if err != nil {
 		g.logger.Error("failed to publish online state", zap.Error(err))
-	}
-}
-
-func (g *Game) publishUserOffline() {
-	g.logger.Debug("publishing offline state")
-	err := g.publishMessage(protocol.PlayerOfflineMessage{
-		Message: protocol.Message{
-			Type:      protocol.MessageTypePlayerOffline,
-			Timestamp: g.timestamp(),
-		},
-		Player: *g.player,
-	})
-	if err != nil {
-		g.logger.Error("failed to publish offline state", zap.Error(err))
 	}
 }
 
@@ -642,7 +643,7 @@ func (g *Game) RenamePlayer(name string) error {
 	}
 
 	g.player.Name = name
-	g.publishUserOnline()
+	g.publishUserOnline(true)
 	return nil
 }
 
