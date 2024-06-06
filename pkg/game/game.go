@@ -497,12 +497,6 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	}
 
 	g.exitRoom = make(chan struct{})
-
-	sub, err := g.transport.SubscribeToMessages(room)
-	if err != nil {
-		return errors.Wrap(err, "failed to subscribe to messages")
-	}
-
 	g.isDealer = state != nil
 	g.room = room
 	g.roomID = roomID
@@ -511,19 +505,14 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	if g.isDealer {
 		g.state.Deck, _ = GetDeck(Fibonacci) // FIXME: remove hardcoded deck
 	}
+
 	g.resetMyVote()
 
-	go g.loopPublishedMessages()
-	go g.processIncomingMessages(sub)
-	if g.codeControls.EnablePublishOnlineState {
-		go g.publishOnlineState()
+	err = g.startRoutines()
+	if err != nil {
+		return errors.Wrap(err, "failed to start routines")
 	}
-	if g.isDealer {
-		if g.config.PublishStateLoopEnabled {
-			go g.publishStateLoop()
-		}
-		go g.watchPlayersStateLoop()
-	}
+
 	g.notifyChangedState(g.isDealer)
 
 	if state == nil {
@@ -532,6 +521,31 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 		g.stateTimestamp = g.timestamp()
 		g.logger.Info("loaded room", zap.Any("roomID", roomID), zap.Bool("isDealer", g.isDealer))
 	}
+
+	return nil
+}
+
+func (g *Game) startRoutines() error {
+	sub, err := g.transport.SubscribeToMessages(g.room)
+	if err != nil {
+		return errors.Wrap(err, "failed to subscribe to messages")
+	}
+
+	go g.loopPublishedMessages()
+	go g.processIncomingMessages(sub)
+
+	if g.codeControls.EnablePublishOnlineState {
+		go g.publishOnlineState()
+	}
+
+	if !g.isDealer {
+		return nil
+	}
+
+	if g.config.PublishStateLoopEnabled {
+		go g.publishStateLoop()
+	}
+	go g.watchPlayersStateLoop()
 
 	return nil
 }
