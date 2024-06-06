@@ -3,11 +3,19 @@ package matchers
 import (
 	"2sp/pkg/protocol"
 	"fmt"
+	"testing"
 )
 
 type MessageMatcher struct {
+	Matcher
 	payload []byte
 	message *protocol.Message
+}
+
+func NewMessageMatcher(t *testing.T) *MessageMatcher {
+	return &MessageMatcher{
+		Matcher: *NewMatcher(t),
+	}
 }
 
 func (m *MessageMatcher) Matches(x interface{}) bool {

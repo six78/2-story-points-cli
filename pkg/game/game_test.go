@@ -10,8 +10,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/brianvoe/gofakeit/v6"
+	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
+	"go.uber.org/zap"
 	"testing"
 )
 
@@ -25,13 +27,18 @@ type Suite struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	transport *mocktransport.MockService
-	game      *Game
+	clock     clockwork.FakeClock
+	dealer    *Game
 }
 
 func (s *Suite) newGame(extraOptions []Option) *Game {
 	options := []Option{
 		WithContext(s.ctx),
 		WithTransport(s.transport),
+		WithClock(s.clock),
+		WithLogger(s.Logger),
+		WithPlayerName(gofakeit.Username()),
+		WithPublishStateLoop(false),
 	}
 	options = append(options, extraOptions...)
 
@@ -49,17 +56,22 @@ func (s *Suite) SetupTest() {
 
 	ctrl := gomock.NewController(s.T())
 	s.transport = mocktransport.NewMockService(ctrl)
+	s.clock = clockwork.NewFakeClock()
 
-	s.game = s.newGame([]Option{
+	s.dealer = s.newGame([]Option{
 		WithEnableSymmetricEncryption(true),
 	})
 
-	err := s.game.Initialize()
+	err := s.dealer.Initialize()
 	s.Require().NoError(err)
 }
 
 func (s *Suite) TearDownTest() {
 	s.cancel()
+}
+
+func (s *Suite) newStateMatcher() *matchers.StateMatcher {
+	return matchers.NewStateMatcher(s.T(), nil)
 }
 
 func (s *Suite) expectSubscribeToMessages(room *protocol.Room) func(room *protocol.Room, payload []byte) {
@@ -127,30 +139,28 @@ func (s *Suite) TestStateSize() {
 }
 
 func (s *Suite) TestSimpleGame() {
-	room, initialState, err := s.game.CreateNewRoom()
+	room, initialState, err := s.dealer.CreateNewRoom()
 	s.Require().NoError(err)
 	s.Require().NotNil(room)
 
 	roomID := room.ToRoomID()
 	roomMatcher := matchers.NewRoomMatcher(room)
-	onlineMatcher := matchers.NewOnlineMatcher()
+	onlineMatcher := matchers.NewOnlineMatcher(s.T(), s.dealer.Player().ID)
 
 	// Online state is sent periodically
 	s.transport.EXPECT().PublishPublicMessage(roomMatcher, onlineMatcher).AnyTimes()
 
-	// We need to loop the subscription to mock waku behaviour
-	// We should probably check the published messages instead of received ones, but it's fine for now.
-	loop := s.expectSubscribeToMessages(room)
+	s.expectSubscribeToMessages(room)
 
 	// Join room
-	stateMatcher := matchers.NewStateMatcher(nil)
+	stateMatcher := s.newStateMatcher()
 	s.transport.EXPECT().PublishPublicMessage(roomMatcher, stateMatcher).
 		Times(1)
 
-	err = s.game.JoinRoom(roomID, initialState)
+	err = s.dealer.JoinRoom(roomID, initialState)
 	s.Require().NoError(err)
 
-	state := stateMatcher.Wait(s.T())
+	state := stateMatcher.Wait()
 	s.Require().False(state.VotesRevealed)
 	s.Require().Empty(state.ActiveIssue)
 	s.Require().Len(state.Players, 1)
@@ -172,68 +182,67 @@ func (s *Suite) TestSimpleGame() {
 	}
 
 	{ // Deal first vote item
-		stateMatcher = matchers.NewStateMatcher(nil)
+		stateMatcher = s.newStateMatcher()
 
 		s.transport.EXPECT().
 			PublishPublicMessage(roomMatcher, stateMatcher).
 			Times(1)
 
-		firstIssueID, err = s.game.Deal(firstItemText)
+		firstIssueID, err = s.dealer.Deal(firstItemText)
 		s.Require().NoError(err)
 
-		state = stateMatcher.Wait(s.T())
+		state = stateMatcher.Wait()
 		item := checkIssues(state.Issues)
 		s.Require().Nil(item.Result)
 		s.Require().Len(item.Votes, 0)
 		s.Logger.Info("match on deal first item")
 	}
 
-	currentIssue := s.game.CurrentState().Issues.Get(s.game.CurrentState().ActiveIssue)
+	currentIssue := s.dealer.CurrentState().Issues.Get(s.dealer.CurrentState().ActiveIssue)
 	s.Require().NotNil(currentIssue)
 	s.Require().Equal(firstItemText, currentIssue.TitleOrURL)
 
 	{ // Publish dealer vote
-		voteMatcher := matchers.NewVoteMatcher(s.game.Player().ID, currentIssue.ID, dealerVote)
+		voteMatcher := matchers.NewVoteMatcher(s.dealer.Player().ID, currentIssue.ID, dealerVote)
 		s.transport.EXPECT().
 			PublishPublicMessage(roomMatcher, voteMatcher).
-			Do(loop). // FIXME: Game should not depend on transport loop/no-loop behaviour
 			Times(1)
 
-		stateMatcher = matchers.NewStateMatcher(nil)
+		stateMatcher = s.newStateMatcher()
 		s.transport.EXPECT().
 			PublishPublicMessage(roomMatcher, stateMatcher).
 			Times(1)
 
-		err = s.game.PublishVote(dealerVote)
+		err = s.dealer.PublishVote(dealerVote)
 		s.Require().NoError(err)
 
-		state = stateMatcher.Wait(s.T())
+		state = stateMatcher.Wait()
 		item := checkIssues(state.Issues)
 		s.Require().NotNil(item)
 		s.Require().Nil(item.Result)
 		s.Require().Len(item.Votes, 1)
 
-		vote, ok := item.Votes[s.game.Player().ID]
+		vote, ok := item.Votes[s.dealer.Player().ID]
 		s.Require().True(ok)
 		s.Require().Empty(vote.Value)
 		s.Require().Greater(vote.Timestamp, int64(0))
 	}
 
 	{ // Reveal votes
-		stateMatcher = matchers.NewStateMatcher(nil)
+		stateMatcher = s.newStateMatcher()
 		s.transport.EXPECT().
 			PublishPublicMessage(roomMatcher, stateMatcher).
 			Times(1)
 
-		err = s.game.Reveal()
+		err = s.dealer.Reveal()
 		s.Require().NoError(err)
 
-		state = stateMatcher.Wait(s.T())
+		state = stateMatcher.Wait()
 		item := checkIssues(state.Issues)
 		s.Require().Nil(item.Result)
 		s.Require().Len(item.Votes, 1)
 
-		vote, ok := item.Votes[s.game.Player().ID]
+		vote, ok := item.Votes[s.dealer.Player().ID]
 		s.Require().True(ok)
 		s.Require().NotNil(vote)
 		s.Require().Equal(dealerVote, vote.Value)
@@ -243,21 +252,21 @@ func (s *Suite) TestSimpleGame() {
 	const votingResult = protocol.VoteValue("1")
 
 	{ // Finish voting
-		stateMatcher = matchers.NewStateMatcher(nil)
+		stateMatcher = s.newStateMatcher()
 		s.transport.EXPECT().
 			PublishPublicMessage(roomMatcher, stateMatcher).
 			Times(1)
 
-		err = s.game.Finish(votingResult)
+		err = s.dealer.Finish(votingResult)
 		s.Require().NoError(err)
 
-		state = stateMatcher.Wait(s.T())
+		state = stateMatcher.Wait()
 		item := checkIssues(state.Issues)
 		s.Require().NotNil(item.Result)
 		s.Require().Equal(*item.Result, votingResult)
 		s.Require().Len(item.Votes, 1)
 
-		vote, ok := item.Votes[s.game.Player().ID]
+		vote, ok := item.Votes[s.dealer.Player().ID]
 		s.Require().True(ok)
 		s.Require().Equal(dealerVote, vote.Value)
 		s.Require().Greater(vote.Timestamp, int64(0))
@@ -281,15 +290,15 @@ func (s *Suite) TestSimpleGame() {
 	}
 
 	{ // Deal another issue
-		stateMatcher = matchers.NewStateMatcher(nil)
+		stateMatcher = s.newStateMatcher()
 		s.transport.EXPECT().
 			PublishPublicMessage(roomMatcher, stateMatcher).
 			Times(1)
 
-		secondIssueID, err = s.game.Deal(secondItemText)
+		secondIssueID, err = s.dealer.Deal(secondItemText)
 		s.Require().NoError(err)
 
-		state = stateMatcher.Wait(s.T())
+		state = stateMatcher.Wait()
 		item := checkIssues(state.Issues)
 		s.Require().Nil(item.Result)
 		s.Require().Len(item.Votes, 0)
@@ -359,4 +368,98 @@ func (s *Suite) TestPublishMessage() {
 			s.Require().NoError(err)
 		})
 	}
+}
+
+func (s *Suite) TestOnlineState() {
+	/*
+		2. Create and join room
+		3. mock time = 0
+		4. Alice sends online message
+		5. Dealer updates online timestamp
+		6. mock time = 20
+		7. Dealer checks online initialState, mark as offline
+	*/
+
+	playerID, err := GeneratePlayerID()
+	s.Require().NoError(err)
+
+	player := protocol.Player{
+		ID:   playerID,
+		Name: gofakeit.Username(),
+	}
+
+	s.dealer = s.newGame([]Option{
+		WithPlayerName("dealer"),
+		WithEnablePublishOnlineState(false), // FIXME: Add a separate test for self publishing
+	})
+
+	s.Logger.Debug("<<< test info",
+		zap.Any("player", player),
+		zap.Any("dealer", s.dealer.Player()),
+	)
+
+	room, initialState, err := s.dealer.CreateNewRoom()
+	s.Require().NoError(err)
+	s.Require().NotNil(room)
+
+	roomID := room.ToRoomID()
+	roomMatcher := matchers.NewRoomMatcher(room)
+
+	s.expectSubscribeToMessages(room)
+
+	//s.transport.EXPECT().
+	//	PublishPublicMessage(roomMatcher,
+	//		matchers.NewOnlineMatcher(s.T(), s.dealer.Player().ID)).
+	//	AnyTimes()
+
+	stateMatcher := s.newStateMatcher()
+	s.transport.EXPECT().
+		PublishPublicMessage(roomMatcher, stateMatcher).
+		Times(1)
+
+	err = s.dealer.JoinRoom(roomID, initialState)
+	s.Require().NoError(err)
+
+	_ = stateMatcher.Wait()
+
+	// Player joins the room
+	playerOnlineMessage := &protocol.PlayerOnlineMessage{
+		Message: protocol.Message{
+			Type:      protocol.MessageTypePlayerOnline,
+			Timestamp: s.clock.Now().UnixMilli(),
+		},
+		Player: player,
+	}
+
+	stateMatcher = s.newStateMatcher()
+	s.transport.EXPECT().
+		PublishPublicMessage(roomMatcher, stateMatcher).
+		Times(1)
+
+	s.dealer.handlePlayerOnlineMessage(playerOnlineMessage)
+
+	// Ensure new player joined
+	state := stateMatcher.Wait()
+	s.Require().Len(state.Players, 2)
+
+	p, ok := state.Players.Get(player.ID)
+	s.Require().True(ok)
+	s.Require().True(p.Online)
+	s.Require().Equal(s.clock.Now().UnixMilli(), p.OnlineTimestampMilliseconds)
+
+	s.transport.EXPECT().
+		PublishPublicMessage(roomMatcher, stateMatcher).
+		Times(1)
+
+	// Advance time, make sure player is marked as offline
+	lastSeenAt := p.OnlineTimestampMilliseconds
+	s.clock.Advance(playerOnlineTimeout)
+
+	state = stateMatcher.Wait()
+	s.Require().Len(state.Players, 2)
+
+	p, ok = state.Players.Get(player.ID)
+	s.Require().True(ok)
+	s.Require().False(p.Online)
+	s.Require().Equal(lastSeenAt, p.OnlineTimestampMilliseconds)
 }

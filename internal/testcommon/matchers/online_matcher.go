@@ -1,19 +1,27 @@
 package matchers
 
 import (
+	"2sp/internal/config"
 	"2sp/pkg/protocol"
+	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
+	"testing"
 )
 
 type OnlineMatcher struct {
 	MessageMatcher
+	playerID protocol.PlayerID
 }
 
-func NewOnlineMatcher() OnlineMatcher {
-	return OnlineMatcher{}
+func NewOnlineMatcher(t *testing.T, playerID protocol.PlayerID) *OnlineMatcher {
+	return &OnlineMatcher{
+		MessageMatcher: *NewMessageMatcher(t),
+		playerID:       playerID,
+	}
 }
 
-func (m OnlineMatcher) Matches(x interface{}) bool {
+func (m *OnlineMatcher) Matches(x interface{}) bool {
 	if !m.MessageMatcher.Matches(x) {
 		return false
 	}
@@ -22,9 +30,27 @@ func (m OnlineMatcher) Matches(x interface{}) bool {
 		return false
 	}
 
+	var onlineMessage protocol.PlayerOnlineMessage
+	err := json.Unmarshal(m.payload, &onlineMessage)
+	if err != nil {
+		return false
+	}
+
+	if onlineMessage.Player.ID != m.playerID {
+		return false
+	}
+
+	config.Logger.Debug("<<< OnlineMatcher.Matches",
+		zap.Any("onlineMessage", onlineMessage),
+	)
+	m.triggered <- onlineMessage
 	return true
 }
 
-func (m OnlineMatcher) String() string {
+func (m *OnlineMatcher) String() string {
 	return fmt.Sprintf("is user online protocol message")
+}
+
+func (m *OnlineMatcher) Wait() protocol.PlayerOnlineMessage {
+	return m.MessageMatcher.Wait().(protocol.PlayerOnlineMessage)
 }

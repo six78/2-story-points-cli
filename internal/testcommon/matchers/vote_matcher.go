@@ -12,15 +12,15 @@ type VoteMatcher struct {
 	voteValue protocol.VoteValue
 }
 
-func NewVoteMatcher(playerID protocol.PlayerID, issue protocol.IssueID, value protocol.VoteValue) VoteMatcher {
-	return VoteMatcher{
+func NewVoteMatcher(playerID protocol.PlayerID, issue protocol.IssueID, value protocol.VoteValue) *VoteMatcher {
+	return &VoteMatcher{
 		playerID:  playerID,
 		issueID:   issue,
 		voteValue: value,
 	}
 }
 
-func (m VoteMatcher) Matches(x interface{}) bool {
+func (m *VoteMatcher) Matches(x interface{}) bool {
 	if !m.MessageMatcher.Matches(x) {
 		return false
 	}
@@ -40,6 +40,6 @@ func (m VoteMatcher) Matches(x interface{}) bool {
 		vote.Timestamp > 0
 }
 
-func (m VoteMatcher) String() string {
+func (m *VoteMatcher) String() string {
 	return fmt.Sprintf("is any state message")
 }

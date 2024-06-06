@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jonboulle/clockwork"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
@@ -23,12 +24,15 @@ var (
 type StateSubscription chan *protocol.State
 
 type Game struct {
-	logger    *zap.Logger
-	ctx       context.Context
-	transport transport.Service
-	storage   storage.Service
-	exitRoom  chan struct{}
-	features  FeatureFlags
+	logger       *zap.Logger
+	ctx          context.Context
+	transport    transport.Service
+	storage      storage.Service
+	clock        clockwork.Clock
+	exitRoom     chan struct{}
+	messages     chan []byte
+	features     FeatureFlags
+	codeControls codeControlFlags
 
 	isDealer bool
 	player   *protocol.Player
@@ -44,10 +48,12 @@ type Game struct {
 
 func NewGame(opts []Option) *Game {
 	game := &Game{
-		exitRoom: nil,
-		features: defaultFeatureFlags(),
-		isDealer: false,
-		player:   nil,
+		exitRoom:     nil,
+		messages:     make(chan []byte, 42),
+		features:     defaultFeatureFlags(),
+		codeControls: defaultCodeControlFlags(),
+		isDealer:     false,
+		player:       nil,
 		myVote: protocol.VoteResult{
 			Value:     "",
 			Timestamp: 0,
@@ -71,6 +77,11 @@ func NewGame(opts []Option) *Game {
 
 	if game.transport == nil {
 		game.logger.Error("transport is required")
+		return nil
+	}
+
+	if game.clock == nil {
+		game.logger.Error("clock is required")
 		return nil
 	}
 
@@ -128,8 +139,8 @@ func (g *Game) Stop() {
 	// WARNING: wait for all routines to finish
 }
 
-func (g *Game) processMessage(payload []byte) {
-	g.logger.Debug("processing message", zap.String("payload", string(payload)))
+func (g *Game) handleMessage(payload []byte) {
+	g.logger.Debug("handling message", zap.String("payload", string(payload)))
 
 	message := protocol.Message{}
 	err := json.Unmarshal(payload, &message)
@@ -176,31 +187,7 @@ func (g *Game) processMessage(payload []byte) {
 			logger.Error("failed to unmarshal message", zap.Error(err))
 			return
 		}
-		g.logger.Info("player online message received", zap.Any("player", playerOnline.Player))
-
-		// TODO: Store player pointers in a map
-
-		index := g.playerIndex(playerOnline.Player.ID)
-		if index < 0 {
-			playerOnline.Player.Online = true
-			playerOnline.Player.OnlineTimestamp = time.Now()
-			g.state.Players = append(g.state.Players, playerOnline.Player)
-			g.notifyChangedState(true)
-			return
-		}
-
-		playerChanged := !g.state.Players[index].Online ||
-			g.state.Players[index].Name != playerOnline.Player.Name
-
-		g.state.Players[index].OnlineTimestamp = time.Now()
-
-		if !playerChanged {
-			return
-		}
-
-		g.state.Players[index].Online = true
-		g.state.Players[index].Name = playerOnline.Player.Name
-		g.notifyChangedState(true)
+		g.handlePlayerOnlineMessage(&playerOnline)
 
 	case protocol.MessageTypePlayerOffline:
 		if !g.isDealer {
@@ -212,15 +199,7 @@ func (g *Game) processMessage(payload []byte) {
 			logger.Error("failed to unmarshal message", zap.Error(err))
 			return
 		}
-		g.logger.Info("player is offline", zap.Any("player", playerOffline.Player))
-
-		index := g.playerIndex(playerOffline.Player.ID)
-		if index < 0 {
-			return
-		}
-
-		g.state.Players[index].Online = false
-		g.notifyChangedState(true)
+		g.handlePlayerOfflineMessage(&playerOffline)
 
 	case protocol.MessageTypePlayerVote:
 		if !g.isDealer {
@@ -326,7 +305,7 @@ func (g *Game) publishOnlineState() {
 	g.publishUserOnline(true)
 	for {
 		select {
-		case <-time.After(g.config.OnlineMessagePeriod):
+		case <-g.clock.After(g.config.OnlineMessagePeriod):
 			g.publishUserOnline(true)
 		case <-g.exitRoom:
 			return
@@ -341,7 +320,7 @@ func (g *Game) publishStateLoop() {
 	logger.Debug("started")
 	for {
 		select {
-		case <-time.After(g.config.StateMessagePeriod):
+		case <-g.clock.After(g.config.StateMessagePeriod):
 			logger.Debug("tick")
 			g.notifyChangedState(true)
 		case <-g.exitRoom:
@@ -356,7 +335,7 @@ func (g *Game) publishStateLoop() {
 
 func (g *Game) watchPlayersStateLoop() {
 	g.logger.Debug("check users state loop")
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := g.clock.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -364,24 +343,29 @@ func (g *Game) watchPlayersStateLoop() {
 			return
 		case <-g.ctx.Done():
 			return
-		case <-ticker.C:
+		case <-ticker.Chan():
 			if g.state == nil {
 				continue
 			}
-			now := time.Now()
+			stateChanged := false
+			now := g.clock.Now()
 			for i, player := range g.state.Players {
 				if !player.Online {
 					continue
 				}
-				diff := now.Sub(player.OnlineTimestamp)
-				if diff > playerOnlineTimeout {
-					g.logger.Info("marking user as offline",
-						zap.Any("name", player.Name),
-						zap.Any("lastSeenAt", player.OnlineTimestamp),
-						zap.Any("now", now),
-					)
-					g.state.Players[i].Online = false
+				if now.Sub(player.OnlineTime()) <= playerOnlineTimeout {
+					continue
 				}
+				g.logger.Info("marking user as offline",
+					zap.Any("name", player.Name),
+					zap.Any("lastSeenAt", player.OnlineTimestampMilliseconds),
+					zap.Any("now", now),
+				)
+				g.state.Players[i].Online = false
+				stateChanged = true
+			}
+			if stateChanged {
+				g.notifyChangedState(true)
 			}
 		}
 	}
@@ -397,11 +381,24 @@ func (g *Game) processIncomingMessages(sub *transport.MessagesSubscription) {
 			if !more {
 				return
 			}
-			g.processMessage(payload)
+			g.handleMessage(payload)
 		case <-g.exitRoom:
 			return
 		case <-g.ctx.Done():
 			return
+		}
+	}
+}
+
+func (g *Game) loopPublishedMessages() {
+	for {
+		select {
+		case <-g.exitRoom:
+			return
+		case <-g.ctx.Done():
+			return
+		case payload := <-g.messages:
+			g.handleMessage(payload)
 		}
 	}
 }
@@ -422,28 +419,41 @@ func (g *Game) publishMessage(message any) error {
 		err = g.transport.PublishUnencryptedMessage(g.room, payload)
 	}
 
+	// Loop message to ourselves
+	if g.isDealer {
+		g.messages <- payload
+	}
+
 	return err
 }
 
 func (g *Game) publishUserOnline(online bool) {
-	g.logger.Debug("publishing online state", zap.Bool("online", online))
+	timestamp := g.timestamp()
+
+	g.logger.Debug("publishing online state",
+		zap.Bool("online", online),
+		zap.Int64("timestamp", timestamp),
+	)
 
 	var message interface{}
 
+	player := *g.player
+	player.ApplyDeprecatedPatchOnSend()
+
 	if online {
 		message = protocol.PlayerOnlineMessage{
-			Player: *g.player,
+			Player: player,
 			Message: protocol.Message{
 				Type:      protocol.MessageTypePlayerOnline,
-				Timestamp: g.timestamp(),
+				Timestamp: timestamp,
 			},
 		}
 	} else {
 		message = protocol.PlayerOfflineMessage{
-			Player: *g.player,
+			Player: player,
 			Message: protocol.Message{
 				Type:      protocol.MessageTypePlayerOffline,
-				Timestamp: g.timestamp(),
+				Timestamp: timestamp,
 			},
 		}
 	}
@@ -515,7 +525,7 @@ func (g *Game) publishState(state *protocol.State) {
 }
 
 func (g *Game) timestamp() int64 {
-	return time.Now().UnixMilli()
+	return g.clock.Now().UnixMilli()
 }
 
 func (g *Game) Deal(input string) (protocol.IssueID, error) {
@@ -602,10 +612,15 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	}
 	g.resetMyVote()
 
+	go g.loopPublishedMessages()
 	go g.processIncomingMessages(sub)
-	go g.publishOnlineState()
+	if g.codeControls.EnablePublishOnlineState {
+		go g.publishOnlineState()
+	}
 	if g.isDealer {
-		go g.publishStateLoop()
+		if g.config.PublishStateLoopEnabled {
+			go g.publishStateLoop()
+		}
 		go g.watchPlayersStateLoop()
 	}
 	g.notifyChangedState(g.isDealer)
@@ -861,9 +876,9 @@ func (g *Game) loadStateFromStorage(roomID protocol.RoomID) *protocol.State {
 	g.logger.Info("loaded room from storage", zap.Any("roomID", roomID))
 
 	// Mark players as offline if they haven't been seen for a while
-	now := time.Now()
+	now := g.clock.Now()
 	for i := range state.Players {
-		online := now.Sub(state.Players[i].OnlineTimestamp) < playerOnlineTimeout
+		online := now.Sub(state.Players[i].OnlineTime()) < playerOnlineTimeout
 		state.Players[i].Online = online
 	}
 

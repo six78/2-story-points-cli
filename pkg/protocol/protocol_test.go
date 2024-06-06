@@ -26,7 +26,7 @@ func TestRoomID(t *testing.T) {
 	require.Equal(t, sent.SymmetricKey, received.SymmetricKey)
 }
 
-func TestOnlineTimestampMigration(t *testing.T) {
+func TestOnlineTimestampMigrationBackward(t *testing.T) {
 	now := time.Now()
 
 	player := Player{
@@ -43,10 +43,34 @@ func TestOnlineTimestampMigration(t *testing.T) {
 	err = json.Unmarshal(payload, &playerReceived)
 	require.NoError(t, err)
 
-	playerReceived.ApplyDeprecatedPatch()
+	playerReceived.ApplyDeprecatedPatchOnReceive()
 
 	require.Equal(t, player.ID, playerReceived.ID)
 	require.Equal(t, player.Name, playerReceived.Name)
-	require.Equal(t, player.OnlineTimestamp.UnixMilli(), playerReceived.OnlineTimestamp.UnixMilli())
-	require.Equal(t, player.OnlineTimestamp.UnixMilli(), playerReceived.OnlineTimestampMilliseconds)
+	require.Equal(t, now.UnixMilli(), playerReceived.OnlineTimestamp.UnixMilli())
+	require.Equal(t, now.UnixMilli(), playerReceived.OnlineTimestampMilliseconds)
+}
+
+func TestOnlineTimestampMigrationForward(t *testing.T) {
+	now := time.Now()
+
+	player := Player{
+		ID:                          PlayerID(gofakeit.LetterN(5)),
+		Name:                        gofakeit.Username(),
+		Online:                      true,
+		OnlineTimestampMilliseconds: now.UnixMilli(),
+	}
+
+	player.ApplyDeprecatedPatchOnSend()
+
+	payload, err := json.Marshal(player)
+	require.NoError(t, err)
+
+	var playerReceived Player
+	err = json.Unmarshal(payload, &playerReceived)
+	require.NoError(t, err)
+
+	require.Equal(t, player.ID, playerReceived.ID)
+	require.Equal(t, player.Name, playerReceived.Name)
+	require.Equal(t, now.UnixMilli(), playerReceived.OnlineTimestamp.UnixMilli())
 }

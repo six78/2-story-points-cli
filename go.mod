@@ -10,6 +10,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/google/go-github/v61 v61.0.0
 	github.com/google/uuid v1.3.0
+	github.com/jonboulle/clockwork v0.4.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/muesli/termenv v0.15.2
 	github.com/multiformats/go-multiaddr v0.10.1
