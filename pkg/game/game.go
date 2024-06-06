@@ -152,121 +152,24 @@ func (g *Game) handleMessage(payload []byte) {
 
 	switch message.Type {
 	case protocol.MessageTypeState:
-		if g.isDealer {
-			return
+		if !g.isDealer {
+			g.handleStateMessage(payload)
 		}
-		g.logger.Debug("state message received",
-			zap.Int64("timestamp", message.Timestamp),
-			zap.Int64("localTimestamp", g.stateTimestamp),
-		)
-		if message.Timestamp < g.stateTimestamp {
-			logger.Warn("ignoring outdated state message")
-			return
-		}
-		var stateMessage protocol.GameStateMessage
-		err := json.Unmarshal(payload, &stateMessage)
-		if err != nil {
-			logger.Error("failed to unmarshal message", zap.Error(err))
-			return
-		}
-		if g.state != nil && stateMessage.State.ActiveIssue != g.state.ActiveIssue {
-			// Voting finished or new issue dealt. Reset our vote.
-			g.resetMyVote()
-		}
-		g.state = &stateMessage.State
-		g.state.Deck, _ = GetDeck(Fibonacci) // FIXME: remove hardcoded deck
-		g.notifyChangedState(false)
 
 	case protocol.MessageTypePlayerOnline:
-		if !g.isDealer {
-			return
+		if g.isDealer {
+			g.handlePlayerOnlineMessage(payload)
 		}
-		var playerOnline protocol.PlayerOnlineMessage
-		err := json.Unmarshal(payload, &playerOnline)
-		if err != nil {
-			logger.Error("failed to unmarshal message", zap.Error(err))
-			return
-		}
-		g.handlePlayerOnlineMessage(&playerOnline)
 
 	case protocol.MessageTypePlayerOffline:
-		if !g.isDealer {
-			return
+		if g.isDealer {
+			g.handlePlayerOfflineMessage(payload)
 		}
-		var playerOffline protocol.PlayerOfflineMessage
-		err := json.Unmarshal(payload, &playerOffline)
-		if err != nil {
-			logger.Error("failed to unmarshal message", zap.Error(err))
-			return
-		}
-		g.handlePlayerOfflineMessage(&playerOffline)
 
 	case protocol.MessageTypePlayerVote:
-		if !g.isDealer {
-			return
+		if g.isDealer {
+			g.handlePlayerVoteMessage(payload)
 		}
-		var playerVote protocol.PlayerVoteMessage
-		err := json.Unmarshal(payload, &playerVote)
-
-		if err != nil {
-			logger.Error("failed to unmarshal message", zap.Error(err))
-			return
-		}
-
-		if g.state.VoteState() != protocol.VotingState {
-			g.logger.Warn("player vote ignored as not in voting state",
-				zap.Any("playerID", playerVote.PlayerID),
-			)
-			return
-		}
-
-		if playerVote.VoteResult.Value != "" && !slices.Contains(g.state.Deck, playerVote.VoteResult.Value) {
-			logger.Warn("player vote ignored as not found in deck",
-				zap.Any("playerID", playerVote.PlayerID),
-				zap.Any("vote", playerVote.VoteResult),
-				zap.Any("deck", g.state.Deck))
-			return
-		}
-
-		if g.state.ActiveIssue != playerVote.Issue {
-			g.logger.Warn("player vote ignored as not for the current vote item",
-				zap.Any("playerID", playerVote.PlayerID),
-				zap.Any("voteFor", playerVote.Issue),
-				zap.Any("currentVoteItemID", g.state.ActiveIssue),
-			)
-			return
-		}
-
-		item := g.state.Issues.Get(playerVote.Issue)
-		if item == nil {
-			logger.Error("vote item not found", zap.Any("voteFor", playerVote.Issue))
-			return
-		}
-
-		currentVote, voteExist := item.Votes[playerVote.PlayerID]
-		if voteExist && currentVote.Timestamp >= playerVote.Timestamp {
-			logger.Warn("player vote ignored as outdated",
-				zap.Any("playerID", playerVote.PlayerID),
-				zap.Any("currentVote", currentVote),
-				zap.Any("receivedVote", playerVote.VoteResult),
-			)
-			return
-		}
-
-		g.logger.Info("player vote accepted",
-			zap.String("name", string(playerVote.PlayerID)),
-			zap.String("voteFor", string(playerVote.Issue)),
-			zap.String("voteResult", string(playerVote.VoteResult.Value)),
-			zap.Any("timestamp", playerVote.Timestamp),
-		)
-
-		if playerVote.VoteResult.Value == "" {
-			delete(item.Votes, playerVote.PlayerID)
-		} else {
-			item.Votes[playerVote.PlayerID] = playerVote.VoteResult
-		}
-
-		g.notifyChangedState(true)
 
 	default:
 		logger.Warn("unsupported message type")

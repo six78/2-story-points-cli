@@ -423,13 +423,14 @@ func (s *Suite) TestOnlineState() {
 	_ = stateMatcher.Wait()
 
 	// Player joins the room
-	playerOnlineMessage := &protocol.PlayerOnlineMessage{
+	playerOnlineMessage, err := json.Marshal(&protocol.PlayerOnlineMessage{
 		Message: protocol.Message{
 			Type:      protocol.MessageTypePlayerOnline,
 			Timestamp: s.clock.Now().UnixMilli(),
 		},
 		Player: player,
-	}
+	})
+	s.Require().NoError(err)
 
 	stateMatcher = s.newStateMatcher()
 	s.transport.EXPECT().
