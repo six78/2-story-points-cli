@@ -477,11 +477,9 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	if g.RoomID() == roomID {
 		return errors.New("already in this room")
 	}
-
 	if g.room != nil {
 		return errors.New("exit current room to join another one")
 	}
-
 	if roomID.Empty() {
 		return errors.New("empty room ID")
 	}
@@ -530,7 +528,6 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 
 	if state == nil {
 		g.logger.Info("joined room", zap.Any("roomID", roomID))
-
 	} else {
 		g.stateTimestamp = g.timestamp()
 		g.logger.Info("loaded room", zap.Any("roomID", roomID), zap.Bool("isDealer", g.isDealer))

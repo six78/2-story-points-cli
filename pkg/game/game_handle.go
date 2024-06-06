@@ -91,26 +91,23 @@ func (g *Game) handlePlayerVoteMessage(payload []byte) {
 		return
 	}
 
-	g.logger.Info("player vote message received", zap.Any("player", message.PlayerID))
+	logger := g.logger.With(zap.Any("playerID", message.PlayerID))
+	logger.Info("player vote message received")
 
 	if g.state.VoteState() != protocol.VotingState {
-		g.logger.Warn("player vote ignored as not in voting state",
-			zap.Any("playerID", message.PlayerID),
-		)
+		g.logger.Warn("player vote ignored as not in voting state")
 		return
 	}
 
 	if message.VoteResult.Value != "" && !slices.Contains(g.state.Deck, message.VoteResult.Value) {
-		g.logger.Warn("player vote ignored as not found in deck",
-			zap.Any("playerID", message.PlayerID),
+		logger.Warn("player vote ignored as not found in deck",
 			zap.Any("vote", message.VoteResult),
 			zap.Any("deck", g.state.Deck))
 		return
 	}
 
 	if g.state.ActiveIssue != message.Issue {
-		g.logger.Warn("player vote ignored as not for the current vote item",
-			zap.Any("playerID", message.PlayerID),
+		logger.Warn("player vote ignored as not for the current vote item",
 			zap.Any("voteFor", message.Issue),
 			zap.Any("currentVoteItemID", g.state.ActiveIssue),
 		)
@@ -125,18 +122,16 @@ func (g *Game) handlePlayerVoteMessage(payload []byte) {
 
 	currentVote, voteExist := item.Votes[message.PlayerID]
 	if voteExist && currentVote.Timestamp >= message.Timestamp {
-		g.logger.Warn("player vote ignored as outdated",
-			zap.Any("playerID", message.PlayerID),
+		logger.Warn("player vote ignored as outdated",
 			zap.Any("currentVote", currentVote),
 			zap.Any("receivedVote", message.VoteResult),
 		)
 		return
 	}
 
-	g.logger.Info("player vote accepted",
-		zap.String("name", string(message.PlayerID)),
-		zap.String("voteFor", string(message.Issue)),
-		zap.String("voteResult", string(message.VoteResult.Value)),
+	logger.Info("player vote accepted",
+		zap.Any("voteFor", message.Issue),
+		zap.Any("voteResult", message.VoteResult.Value),
 		zap.Any("timestamp", message.Timestamp),
 	)
 
