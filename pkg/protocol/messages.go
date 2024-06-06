@@ -2,21 +2,12 @@ package protocol
 
 import (
 	"2sp/internal/config"
-	"time"
 )
 
 const Version byte = 1
 
 type PlayerID string
 type IssueID string
-
-type Player struct {
-	ID     PlayerID `json:"id"`
-	Name   string   `json:"name"`
-	Online bool     `json:"online"`
-
-	OnlineTimestamp time.Time `json:"-"`
-}
 
 type Issue struct {
 	ID         IssueID                 `json:"id"`
@@ -35,12 +26,12 @@ const (
 )
 
 type State struct {
-	Players       []Player   `json:"players"`
-	Issues        IssuesList `json:"issues"`
-	ActiveIssue   IssueID    `json:"activeIssue"`
-	VotesRevealed bool       `json:"votesRevealed"`
-	Timestamp     int64      `json:"-"` // TODO: Fix conflict with Message.Timestamp. Change type to time.Time.
-	Deck          Deck       `json:"-"`
+	Players       PlayersList `json:"players"`
+	Issues        IssuesList  `json:"issues"`
+	ActiveIssue   IssueID     `json:"activeIssue"`
+	VotesRevealed bool        `json:"votesRevealed"`
+	Timestamp     int64       `json:"-"` // TODO: Fix conflict with Message.Timestamp. Change type to time.Time.
+	Deck          Deck        `json:"-"`
 }
 
 func (s *State) VoteState() VoteState {

@@ -8,7 +8,6 @@ import (
 	"github.com/shibukawa/configdir"
 	"github.com/stretchr/testify/suite"
 	"testing"
-	"time"
 )
 
 func TestLocalStorage(t *testing.T) {
@@ -91,9 +90,8 @@ func (s *Suite) TestRoomStorage() {
 	s.Require().NoError(err)
 
 	resetPlayersTimestamps := func(state *protocol.State) {
-		t := time.UnixMilli(0)
 		for i := range state.Players {
-			state.Players[i].OnlineTimestamp = t
+			state.Players[i].OnlineTimestampMilliseconds = 0
 		}
 	}
 

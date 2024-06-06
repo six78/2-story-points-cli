@@ -5,31 +5,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
-	"time"
 )
 
-type Matcher func(state *protocol.State)
+type Callback func(state *protocol.State) bool
 
 type StateMatcher struct {
+	Matcher
 	MessageMatcher
-	matcher Matcher
-	state   protocol.State
-
-	triggered chan protocol.State
+	cb    Callback
+	state protocol.State
 }
 
-func NewStateMatcher(matcher Matcher) *StateMatcher {
+func NewStateMatcher(t *testing.T, cb Callback) *StateMatcher {
 	return &StateMatcher{
-		matcher:   matcher,
-		triggered: make(chan protocol.State, 1),
+		Matcher: *NewMatcher(t),
+		cb:      cb,
 	}
 }
 
 func (m *StateMatcher) Matches(x interface{}) bool {
-	defer func() {
-		m.triggered <- m.state
-	}()
-
 	if !m.MessageMatcher.Matches(x) {
 		return false
 	}
@@ -45,13 +39,13 @@ func (m *StateMatcher) Matches(x interface{}) bool {
 	}
 
 	m.state = stateMessage.State
+	m.triggered <- stateMessage.State
 
-	if m.matcher == nil {
+	if m.cb == nil {
 		return true
 	}
 
-	m.matcher(&stateMessage.State)
-	return true
+	return m.cb(&stateMessage.State)
 }
 
 func (m *StateMatcher) String() string {
@@ -62,11 +56,6 @@ func (m *StateMatcher) State() protocol.State {
 	return m.state
 }
 
-func (m *StateMatcher) Wait(t *testing.T) protocol.State {
-	select {
-	case <-time.After(1 * time.Second):
-		t.Fatal("timeout waiting for state message")
-	case <-m.triggered:
-	}
-	return m.state
+func (m *StateMatcher) Wait() protocol.State {
+	return m.Matcher.Wait().(protocol.State)
 }

@@ -4,7 +4,9 @@ import (
 	"2sp/internal/transport"
 	"2sp/pkg/storage"
 	"context"
+	"github.com/jonboulle/clockwork"
 	"go.uber.org/zap"
+	"time"
 )
 
 type Option func(*Game)
@@ -33,8 +35,38 @@ func WithStorage(s storage.Service) Option {
 	}
 }
 
+func WithClock(c clockwork.Clock) Option {
+	return func(g *Game) {
+		g.clock = c
+	}
+}
+
 func WithEnableSymmetricEncryption(b bool) Option {
 	return func(g *Game) {
 		g.config.EnableSymmetricEncryption = b
+	}
+}
+
+func WithPlayerName(name string) Option {
+	return func(g *Game) {
+		g.config.PlayerName = name
+	}
+}
+
+func WithOnlineMessagePeriod(d time.Duration) Option {
+	return func(g *Game) {
+		g.config.OnlineMessagePeriod = d
+	}
+}
+
+func WithStateMessagePeriod(d time.Duration) Option {
+	return func(g *Game) {
+		g.config.StateMessagePeriod = d
+	}
+}
+
+func WithPublishStateLoop(enabled bool) Option {
+	return func(g *Game) {
+		g.config.PublishStateLoopEnabled = enabled
 	}
 }
