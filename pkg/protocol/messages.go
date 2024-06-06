@@ -2,21 +2,12 @@ package protocol
 
 import (
 	"2sp/internal/config"
-	"time"
 )
 
 const Version byte = 1
 
 type PlayerID string
 type IssueID string
-
-type Player struct {
-	ID     PlayerID `json:"id"`
-	Name   string   `json:"name"`
-	Online bool     `json:"online"`
-
-	OnlineTimestamp time.Time `json:"onlineTimestamp"`
-}
 
 type Issue struct {
 	ID         IssueID                 `json:"id"`
