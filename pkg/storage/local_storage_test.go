@@ -1,11 +1,11 @@
 package storage
 
 import (
-	"2sp/internal/config"
-	"2sp/internal/testcommon"
-	"2sp/pkg/protocol"
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/shibukawa/configdir"
+	"github.com/six78/2-story-points-cli/internal/config"
+	"github.com/six78/2-story-points-cli/internal/testcommon"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )

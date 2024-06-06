@@ -1,10 +1,10 @@
 package matchers
 
 import (
-	"2sp/internal/config"
-	"2sp/pkg/protocol"
 	"encoding/json"
 	"fmt"
+	"github.com/six78/2-story-points-cli/internal/config"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"go.uber.org/zap"
 	"testing"
 )

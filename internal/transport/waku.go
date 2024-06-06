@@ -1,14 +1,14 @@
 package transport
 
 import (
-	"2sp/internal/config"
-	pp "2sp/pkg/protocol"
 	"context"
 	"encoding/hex"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
+	"github.com/six78/2-story-points-cli/internal/config"
+	pp "github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wp "github.com/waku-org/go-waku/waku/v2/payload"

@@ -1,9 +1,9 @@
 package transport
 
 import (
-	pp "2sp/pkg/protocol"
 	"context"
 	"github.com/brianvoe/gofakeit/v6"
+	pp "github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"testing"

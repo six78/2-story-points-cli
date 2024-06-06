@@ -3,7 +3,7 @@ package storage
 //go:generate mockgen -source=service.go -destination=mock/service.go
 
 import (
-	"2sp/pkg/protocol"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 )
 
 type Service interface {

@@ -1,14 +1,14 @@
 package view
 
 import (
-	"2sp/internal/view/commands"
-	"2sp/internal/view/messages"
-	"2sp/internal/view/states"
-	"2sp/pkg/game"
-	"2sp/pkg/protocol"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pkg/errors"
+	"github.com/six78/2-story-points-cli/internal/view/commands"
+	"github.com/six78/2-story-points-cli/internal/view/messages"
+	"github.com/six78/2-story-points-cli/internal/view/states"
+	"github.com/six78/2-story-points-cli/pkg/game"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"golang.org/x/exp/slices"
 	"strconv"
 	"strings"

@@ -1,13 +1,13 @@
 package userinput
 
 import (
-	"2sp/internal/config"
-	"2sp/internal/view/messages"
-	"2sp/internal/view/states"
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/six78/2-story-points-cli/internal/config"
+	"github.com/six78/2-story-points-cli/internal/view/messages"
+	"github.com/six78/2-story-points-cli/internal/view/states"
 )
 
 var style = lipgloss.NewStyle().Foreground(config.UserColor)

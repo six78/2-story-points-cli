@@ -1,9 +1,9 @@
 package errorview
 
 import (
-	"2sp/internal/view/messages"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/six78/2-story-points-cli/internal/view/messages"
 )
 
 const color = lipgloss.Color("#d78700")

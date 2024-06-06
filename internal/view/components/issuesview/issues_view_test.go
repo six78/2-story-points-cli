@@ -1,10 +1,10 @@
 package issuesview
 
 import (
-	"2sp/internal/testcommon"
-	"2sp/internal/view/messages"
-	"2sp/pkg/protocol"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/six78/2-story-points-cli/internal/testcommon"
+	"github.com/six78/2-story-points-cli/internal/view/messages"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/stretchr/testify/suite"
 	"strings"
 	"testing"

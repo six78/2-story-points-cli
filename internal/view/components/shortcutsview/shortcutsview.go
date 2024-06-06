@@ -1,14 +1,14 @@
 package shortcutsview
 
 import (
-	"2sp/internal/view/commands"
-	"2sp/internal/view/messages"
-	"2sp/internal/view/states"
-	"2sp/pkg/protocol"
 	"fmt"
 	bubblekey "github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/six78/2-story-points-cli/internal/view/commands"
+	"github.com/six78/2-story-points-cli/internal/view/messages"
+	"github.com/six78/2-story-points-cli/internal/view/states"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 )
 
 const (

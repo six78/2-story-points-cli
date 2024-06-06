@@ -1,9 +1,9 @@
 package matchers
 
 import (
-	"2sp/pkg/protocol"
 	"encoding/json"
 	"fmt"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"testing"
 )
 
