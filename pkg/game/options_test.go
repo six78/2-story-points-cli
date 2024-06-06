@@ -55,6 +55,16 @@ func TestOptions(t *testing.T) {
 func TestNoTransport(t *testing.T) {
 	options := []Option{
 		WithTransport(nil),
+		WithClock(clockwork.NewFakeClock()),
+	}
+	game := NewGame(options)
+	require.Nil(t, game)
+}
+
+func TestNoClock(t *testing.T) {
+	options := []Option{
+		WithClock(nil),
+		WithTransport(&mocktransport.MockService{}),
 	}
 	game := NewGame(options)
 	require.Nil(t, game)
