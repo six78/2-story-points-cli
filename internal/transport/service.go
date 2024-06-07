@@ -1,6 +1,6 @@
 package transport
 
-import "2sp/pkg/protocol"
+import "github.com/six78/2-story-points-cli/pkg/protocol"
 
 //go:generate mockgen -source=service.go -destination=mock/service.go
 

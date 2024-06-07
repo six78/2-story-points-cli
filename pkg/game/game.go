@@ -1,14 +1,14 @@
 package game
 
 import (
-	"2sp/internal/transport"
-	"2sp/pkg/protocol"
-	"2sp/pkg/storage"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/jonboulle/clockwork"
 	"github.com/pkg/errors"
+	"github.com/six78/2-story-points-cli/internal/transport"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
+	"github.com/six78/2-story-points-cli/pkg/storage"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"reflect"

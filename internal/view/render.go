@@ -1,10 +1,10 @@
 package view
 
 import (
-	"2sp/internal/config"
-	"2sp/internal/view/states"
 	"fmt"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/six78/2-story-points-cli/internal/config"
+	"github.com/six78/2-story-points-cli/internal/view/states"
 	"strings"
 )
 

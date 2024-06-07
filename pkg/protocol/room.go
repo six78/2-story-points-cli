@@ -1,10 +1,10 @@
 package protocol
 
 import (
-	"2sp/internal/config"
 	"crypto/rand"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"github.com/six78/2-story-points-cli/internal/config"
 )
 
 type Room struct {

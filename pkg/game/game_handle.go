@@ -1,8 +1,8 @@
 package game
 
 import (
-	"2sp/pkg/protocol"
 	"encoding/json"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 )

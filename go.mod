@@ -1,4 +1,4 @@
-module 2sp
+module github.com/six78/2-story-points-cli
 
 go 1.20
 

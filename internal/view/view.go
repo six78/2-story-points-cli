@@ -1,10 +1,10 @@
 package view
 
 import (
-	"2sp/internal/config"
-	"2sp/internal/transport"
-	"2sp/pkg/game"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/six78/2-story-points-cli/internal/config"
+	"github.com/six78/2-story-points-cli/internal/transport"
+	"github.com/six78/2-story-points-cli/pkg/game"
 	"go.uber.org/zap"
 )
 

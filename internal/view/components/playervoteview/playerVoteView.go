@@ -1,11 +1,11 @@
 package playervoteview
 
 import (
-	"2sp/internal/view/components/voteview"
-	"2sp/internal/view/messages"
-	"2sp/pkg/protocol"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/six78/2-story-points-cli/internal/view/components/voteview"
+	"github.com/six78/2-story-points-cli/internal/view/messages"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 )
 
 type Model struct {

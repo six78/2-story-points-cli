@@ -1,16 +1,16 @@
 package game
 
 import (
-	"2sp/internal/testcommon"
-	"2sp/internal/testcommon/matchers"
-	"2sp/internal/transport"
-	mocktransport "2sp/internal/transport/mock"
-	"2sp/pkg/protocol"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/jonboulle/clockwork"
+	"github.com/six78/2-story-points-cli/internal/testcommon"
+	"github.com/six78/2-story-points-cli/internal/testcommon/matchers"
+	"github.com/six78/2-story-points-cli/internal/transport"
+	mocktransport "github.com/six78/2-story-points-cli/internal/transport/mock"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 	"go.uber.org/zap"

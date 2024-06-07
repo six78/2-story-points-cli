@@ -1,10 +1,10 @@
 package game
 
 import (
-	"2sp/internal/transport"
-	"2sp/pkg/storage"
 	"context"
 	"github.com/jonboulle/clockwork"
+	"github.com/six78/2-story-points-cli/internal/transport"
+	"github.com/six78/2-story-points-cli/pkg/storage"
 	"go.uber.org/zap"
 	"time"
 )

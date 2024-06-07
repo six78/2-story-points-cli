@@ -1,7 +1,7 @@
 package protocol
 
 import (
-	"2sp/internal/config"
+	"github.com/six78/2-story-points-cli/internal/config"
 )
 
 const Version byte = 1

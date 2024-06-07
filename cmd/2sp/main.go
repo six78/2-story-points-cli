@@ -1,13 +1,13 @@
 package main
 
 import (
-	"2sp/internal/config"
-	"2sp/internal/transport"
-	"2sp/internal/view"
-	"2sp/pkg/game"
-	"2sp/pkg/storage"
 	"context"
 	"github.com/jonboulle/clockwork"
+	"github.com/six78/2-story-points-cli/internal/config"
+	"github.com/six78/2-story-points-cli/internal/transport"
+	"github.com/six78/2-story-points-cli/internal/view"
+	"github.com/six78/2-story-points-cli/pkg/game"
+	"github.com/six78/2-story-points-cli/pkg/storage"
 	"os"
 )
 

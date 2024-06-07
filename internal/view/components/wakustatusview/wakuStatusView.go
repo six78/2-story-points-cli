@@ -1,11 +1,11 @@
 package wakustatusview
 
 import (
-	"2sp/internal/transport"
-	"2sp/internal/view/messages"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/six78/2-story-points-cli/internal/transport"
+	"github.com/six78/2-story-points-cli/internal/view/messages"
 )
 
 var (

@@ -1,9 +1,9 @@
 package update
 
 import (
-	"2sp/internal/testcommon"
 	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/six78/2-story-points-cli/internal/testcommon"
 	"github.com/stretchr/testify/suite"
 	"reflect"
 	"testing"

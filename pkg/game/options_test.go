@@ -1,11 +1,11 @@
 package game
 
 import (
-	mocktransport "2sp/internal/transport/mock"
-	mockstorage "2sp/pkg/storage/mock"
 	"context"
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/jonboulle/clockwork"
+	mocktransport "github.com/six78/2-story-points-cli/internal/transport/mock"
+	mockstorage "github.com/six78/2-story-points-cli/pkg/storage/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

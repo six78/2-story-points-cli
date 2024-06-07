@@ -1,9 +1,9 @@
 package messages
 
 import (
-	"2sp/internal/transport"
-	"2sp/internal/view/states"
-	"2sp/pkg/protocol"
+	"github.com/six78/2-story-points-cli/internal/transport"
+	"github.com/six78/2-story-points-cli/internal/view/states"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 )
 
 type FatalErrorMessage struct {

@@ -1,13 +1,13 @@
 package deckview
 
 import (
-	"2sp/internal/testcommon"
-	"2sp/internal/view/components/cursor"
-	"2sp/internal/view/messages"
-	"2sp/pkg/game"
-	"2sp/pkg/protocol"
 	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/six78/2-story-points-cli/internal/testcommon"
+	"github.com/six78/2-story-points-cli/internal/view/components/cursor"
+	"github.com/six78/2-story-points-cli/internal/view/messages"
+	"github.com/six78/2-story-points-cli/pkg/game"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )

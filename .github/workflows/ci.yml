@@ -62,5 +62,5 @@ jobs:
               ./...
           /tmp/cc-test-reporter after-build \
             --id ${{ secrets.CC_TEST_REPORTER_ID }} \
-            --prefix 2sp \
+            --prefix "github.com/six78/2-story-points-cli" \
             --exit-code $?

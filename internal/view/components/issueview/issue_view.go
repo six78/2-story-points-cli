@@ -1,9 +1,6 @@
 package issueview
 
 import (
-	"2sp/internal/config"
-	"2sp/internal/view/messages"
-	"2sp/pkg/protocol"
 	"context"
 	"fmt"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -12,6 +9,9 @@ import (
 	"github.com/google/go-github/v61/github"
 	"github.com/muesli/termenv"
 	"github.com/pkg/errors"
+	"github.com/six78/2-story-points-cli/internal/config"
+	"github.com/six78/2-story-points-cli/internal/view/messages"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"go.uber.org/zap"
 	"net/url"
 	"strconv"
