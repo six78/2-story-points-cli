@@ -3,23 +3,24 @@ package transport
 import (
 	"context"
 	"github.com/brianvoe/gofakeit/v6"
+	"github.com/six78/2-story-points-cli/internal/testcommon"
 	pp "github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"testing"
 )
 
-func TestEncryptionSuite(t *testing.T) {
-	suite.Run(t, new(EncryptionSuite))
+func TestWakuSuite(t *testing.T) {
+	suite.Run(t, new(WakuSuite))
 }
 
-type EncryptionSuite struct {
-	suite.Suite
+type WakuSuite struct {
+	testcommon.Suite
 	node   *Node
 	cancel func()
 }
 
-func (s *EncryptionSuite) SetupSuite() {
+func (s *WakuSuite) SetupSuite() {
 	var ctx context.Context
 	ctx, s.cancel = context.WithCancel(context.Background())
 
@@ -30,11 +31,11 @@ func (s *EncryptionSuite) SetupSuite() {
 	s.node = NewNode(ctx, logger)
 }
 
-func (s *EncryptionSuite) TearDownSuite() {
+func (s *WakuSuite) TearDownSuite() {
 	s.cancel()
 }
 
-func (s *EncryptionSuite) TestPublicEncryption() {
+func (s *WakuSuite) TestPublicEncryption() {
 	room, err := pp.NewRoom()
 	s.Require().NoError(err)
 
@@ -51,4 +52,9 @@ func (s *EncryptionSuite) TestPublicEncryption() {
 	s.Require().NoError(err)
 
 	s.Require().Equal(payload, decryptedPayload)
+}
+
+func (s *WakuSuite) TestWakuCreate() {
+	err := s.node.Initialize()
+	s.Require().NoError(err)
 }
