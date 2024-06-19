@@ -97,6 +97,12 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 		)
 	}
 
+	if config.Fleet() == "shards.test" {
+		options = append(options,
+			node.WithClusterID(16),
+		)
+	}
+
 	options = append(options, node.DefaultWakuNodeOptions...)
 
 	wakuNode, err := node.New(options...)
@@ -104,11 +110,16 @@ func NewNode(ctx context.Context, logger *zap.Logger) (*Node, error) {
 		return nil, errors.Wrap(err, "failed to create waku node")
 	}
 
+	pubsubTopic := relay.DefaultWakuTopic
+	if config.Fleet() == "shards.test" {
+		pubsubTopic = protocol.NewStaticShardingPubsubTopic(16, 64).String()
+	}
+
 	return &Node{
 		waku:                 wakuNode,
 		ctx:                  ctx,
 		logger:               logger.Named("waku"),
-		pubsubTopic:          relay.DefaultWakuTopic,
+		pubsubTopic:          pubsubTopic,
 		wakuConnectionStatus: wakuConnectionStatus,
 		roomCache:            NewRoomCache(logger),
 		lightMode:            config.WakuLightMode(),
@@ -124,6 +135,10 @@ func (n *Node) Start() error {
 	}
 
 	n.logger.Info("waku started", zap.String("peerID", n.waku.ID()))
+
+	if !config.WakuLightMode() {
+		n.subscribeToPubsubTopic()
+	}
 
 	if config.WakuDiscV5() {
 		n.logger.Debug("starting discoveryV5")
@@ -350,6 +365,25 @@ func (n *Node) watchConnectionStatus() {
 	}
 }
 
+func (n *Node) subscribeToPubsubTopic() error {
+	filter := protocol.NewContentFilter(n.pubsubTopic)
+	_, err := n.waku.Relay().Subscribe(n.ctx, filter)
+	if err != nil {
+		return errors.Wrap(err, "failed to subscribe to pubsub topic")
+	}
+
+	go func() {
+		<-n.ctx.Done()
+
+		err := n.waku.Relay().Unsubscribe(n.ctx, filter)
+		if err != nil {
+			n.logger.Warn("failed to unsubscribe from relay", zap.Error(err))
+		}
+	}()
+
+	return nil
+}
+
 func (n *Node) SubscribeToMessages(room *pp.Room) (*game.MessagesSubscription, error) {
 	n.logger.Debug("subscribing to room")
 
@@ -358,7 +392,7 @@ func (n *Node) SubscribeToMessages(room *pp.Room) (*game.MessagesSubscription, e
 		return nil, errors.Wrap(err, "failed to build content topic")
 	}
 
-	contentFilter := protocol.NewContentFilter(relay.DefaultWakuTopic, contentTopic)
+	contentFilter := protocol.NewContentFilter(n.pubsubTopic, contentTopic)
 
 	var in chan *protocol.Envelope
 	var unsubscribe func()
