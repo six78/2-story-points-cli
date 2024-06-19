@@ -6,6 +6,7 @@ import (
 	"github.com/six78/2-story-points-cli/internal/testcommon"
 	pp "github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/stretchr/testify/suite"
+	wakuenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"go.uber.org/zap"
 	"testing"
 )
@@ -54,7 +55,30 @@ func (s *WakuSuite) TestPublicEncryption() {
 	s.Require().Equal(payload, decryptedPayload)
 }
 
-func (s *WakuSuite) TestWakuCreate() {
+func (s *WakuSuite) TestWakuInitialize() {
 	err := s.node.Initialize()
 	s.Require().NoError(err)
+}
+
+func (s *WakuSuite) TestParseEnrProtocols() {
+	p := parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00000000))
+	s.Require().Empty(p)
+
+	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00000001))
+	s.Require().Equal(p, "relay")
+
+	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00000010))
+	s.Require().Equal(p, "store")
+
+	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00000011))
+	s.Require().Equal(p, "store,relay")
+
+	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00000100))
+	s.Require().Equal(p, "filter")
+
+	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00001000))
+	s.Require().Equal(p, "lightpush")
+
+	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00001111))
+	s.Require().Equal(p, "lightpush,filter,store,relay")
 }
