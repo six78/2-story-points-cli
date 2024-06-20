@@ -2,7 +2,6 @@ package matchers
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"go.uber.org/zap"
@@ -48,7 +47,7 @@ func (m *OnlineMatcher) Matches(x interface{}) bool {
 }
 
 func (m *OnlineMatcher) String() string {
-	return fmt.Sprintf("is user online protocol message")
+	return "is user online protocol message"
 }
 
 func (m *OnlineMatcher) Wait() protocol.PlayerOnlineMessage {

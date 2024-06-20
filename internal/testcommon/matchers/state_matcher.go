@@ -2,7 +2,6 @@ package matchers
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"testing"
 )
@@ -49,7 +48,7 @@ func (m *StateMatcher) Matches(x interface{}) bool {
 }
 
 func (m *StateMatcher) String() string {
-	return fmt.Sprintf("is state message matching custom condition")
+	return "is state message matching custom condition"
 }
 
 func (m *StateMatcher) State() protocol.State {

@@ -1,7 +1,6 @@
 package matchers
 
 import (
-	"fmt"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"testing"
 )
@@ -35,5 +34,5 @@ func (m *MessageMatcher) Matches(x interface{}) bool {
 }
 
 func (m *MessageMatcher) String() string {
-	return fmt.Sprintf("is protocol message")
+	return "is protocol message"
 }

@@ -135,7 +135,7 @@ func (s *Suite) TestStateSize() {
 	s.Require().NoError(err)
 
 	fmt.Println("state size", "bytes", len(stateMessage))
-	s.Require().True(len(stateMessage) < 100*1024, "state size should be less than 100 kilobytes")
+	s.Require().Less(len(stateMessage), 100*1024, "state size should be less than 100 kilobytes")
 }
 
 func (s *Suite) TestSimpleGame() {
@@ -194,7 +194,7 @@ func (s *Suite) TestSimpleGame() {
 		state = stateMatcher.Wait()
 		item := checkIssues(state.Issues)
 		s.Require().Nil(item.Result)
-		s.Require().Len(item.Votes, 0)
+		s.Require().Empty(item.Votes)
 		s.Logger.Info("match on deal first item")
 	}
 
@@ -263,7 +263,7 @@ func (s *Suite) TestSimpleGame() {
 		state = stateMatcher.Wait()
 		item := checkIssues(state.Issues)
 		s.Require().NotNil(item.Result)
-		s.Require().Equal(*item.Result, votingResult)
+		s.Require().Equal(votingResult, *item.Result)
 		s.Require().Len(item.Votes, 1)
 
 		vote, ok := item.Votes[s.dealer.Player().ID]
@@ -301,7 +301,7 @@ func (s *Suite) TestSimpleGame() {
 		state = stateMatcher.Wait()
 		item := checkIssues(state.Issues)
 		s.Require().Nil(item.Result)
-		s.Require().Len(item.Votes, 0)
+		s.Require().Empty(item.Votes)
 	}
 }
 
