@@ -78,6 +78,7 @@ jobs:
         with:
           version: v1.56.2
           args: ./...
+          working-directory: ../
     permissions:
       contents: read      # Required: allow read access to the content for analysis.
       pull-requests: read # Optional: allow read access to pull request. Use with `only-new-issues` option.
