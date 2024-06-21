@@ -14,3 +14,6 @@ generate:
 
 test: generate
 	@gotestsum
+
+lint:
+	golangci-lint run ./...

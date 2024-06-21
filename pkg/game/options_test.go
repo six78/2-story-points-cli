@@ -14,7 +14,8 @@ import (
 )
 
 func TestOptions(t *testing.T) {
-	ctx := context.WithValue(context.Background(), gofakeit.LetterN(3), gofakeit.LetterN(3))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	transport := &mocktransport.MockService{}
 	storage := &mockstorage.MockService{}
 	logger := zap.NewNop()
@@ -72,7 +73,6 @@ func TestNoClock(t *testing.T) {
 
 func TestNoContext(t *testing.T) {
 	options := []Option{
-		WithContext(nil),
 		WithTransport(&mocktransport.MockService{}),
 		WithClock(clockwork.NewFakeClock()),
 	}

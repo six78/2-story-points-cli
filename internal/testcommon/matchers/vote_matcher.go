@@ -1,7 +1,6 @@
 package matchers
 
 import (
-	"fmt"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 )
 
@@ -41,5 +40,5 @@ func (m *VoteMatcher) Matches(x interface{}) bool {
 }
 
 func (m *VoteMatcher) String() string {
-	return fmt.Sprintf("is any state message")
+	return "is any state message"
 }
