@@ -2,13 +2,18 @@ package transport
 
 import (
 	"context"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/brianvoe/gofakeit/v6"
-	"github.com/six78/2-story-points-cli/internal/testcommon"
-	pp "github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/stretchr/testify/suite"
+	"github.com/waku-org/go-waku/waku/v2/node"
 	wakuenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
 	"go.uber.org/zap"
-	"testing"
+
+	"github.com/six78/2-story-points-cli/internal/testcommon"
+	pp "github.com/six78/2-story-points-cli/pkg/protocol"
 )
 
 func TestWakuSuite(t *testing.T) {
@@ -65,20 +70,59 @@ func (s *WakuSuite) TestParseEnrProtocols() {
 	s.Require().Empty(p)
 
 	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00000001))
-	s.Require().Equal(p, "relay")
+	s.Require().Equal("relay", p)
 
 	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00000010))
-	s.Require().Equal(p, "store")
+	s.Require().Equal("store", p)
 
 	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00000011))
-	s.Require().Equal(p, "store,relay")
+	s.Require().Equal("store,relay", p)
 
 	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00000100))
-	s.Require().Equal(p, "filter")
+	s.Require().Equal("filter", p)
 
 	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00001000))
-	s.Require().Equal(p, "lightpush")
+	s.Require().Equal("lightpush", p)
 
 	p = parseEnrProtocols(wakuenr.WakuEnrBitfield(0b00001111))
-	s.Require().Equal(p, "lightpush,filter,store,relay")
+	s.Require().Equal("lightpush,filter,store,relay", p)
+}
+
+func (s *WakuSuite) TestWatchConnectionStatus() {
+	err := s.node.Initialize()
+	s.Require().NoError(err)
+
+	sub := s.node.SubscribeToConnectionStatus()
+
+	finished := make(chan struct{})
+
+	go func() {
+		s.node.watchConnectionStatus()
+		close(finished)
+	}()
+
+	sent := node.ConnStatus{}
+	err = gofakeit.Struct(&sent)
+	s.Require().NoError(err)
+
+	s.node.wakuConnectionStatus <- sent
+
+	select {
+	case received := <-sub:
+		s.Require().Equal(sent.IsOnline, received.IsOnline)
+		s.Require().Equal(sent.HasHistory, received.HasHistory)
+		s.Require().Equal(len(sent.Peers), received.PeersCount)
+		s.Require().True(reflect.DeepEqual(received, s.node.ConnectionStatus()))
+	case <-time.After(500 * time.Millisecond):
+		s.Require().Fail("timeout waiting for connection status")
+	}
+
+	close(s.node.wakuConnectionStatus)
+
+	select {
+	case <-finished:
+		break
+	case <-time.After(500 * time.Millisecond):
+		s.Require().Fail("timeout waiting for connection status watch finish")
+	}
 }

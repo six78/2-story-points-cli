@@ -3,12 +3,14 @@ package transport
 import (
 	"context"
 	"encoding/hex"
+	"net"
+	"strings"
+	"time"
+
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
-	"github.com/six78/2-story-points-cli/internal/config"
-	pp "github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wp "github.com/waku-org/go-waku/waku/v2/payload"
@@ -20,9 +22,9 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
-	"net"
-	"strings"
-	"time"
+
+	"github.com/six78/2-story-points-cli/internal/config"
+	pp "github.com/six78/2-story-points-cli/pkg/protocol"
 )
 
 type Node struct {
@@ -130,7 +132,10 @@ func (n *Node) Start() error {
 	n.logger.Info("waku started", zap.String("peerID", n.waku.ID()))
 
 	if !config.WakuLightMode() {
-		n.subscribeToPubsubTopic()
+		err = n.subscribeToPubsubTopic()
+		if err != nil {
+			return errors.Wrap(err, "failed to subscribe to pubsub topic")
+		}
 	}
 
 	if config.WakuDiscV5() {
