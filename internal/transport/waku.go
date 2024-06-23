@@ -3,12 +3,14 @@ package transport
 import (
 	"context"
 	"encoding/hex"
+	"net"
+	"strings"
+	"time"
+
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
-	"github.com/six78/2-story-points-cli/internal/config"
-	pp "github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wp "github.com/waku-org/go-waku/waku/v2/payload"
@@ -20,17 +22,10 @@ import (
 	"github.com/waku-org/go-waku/waku/v2/protocol/subscription"
 	"github.com/waku-org/go-waku/waku/v2/utils"
 	"go.uber.org/zap"
-	"net"
-	"strings"
-	"time"
-)
 
-var fleets = map[string]string{
-	"wakuv2.prod":  "enrtree://ANEDLO25QVUGJOUTQFRYKWX6P4Z4GKVESBMHML7DZ6YK4LGS5FC5O@prod.wakuv2.nodes.status.im",
-	"wakuv2.test":  "enrtree://AO47IDOLBKH72HIZZOXQP6NMRESAN7CHYWIBNXDXWRJRZWLODKII6@test.wakuv2.nodes.status.im",
-	"waku.sandbox": "enrtree://AIRVQ5DDA4FFWLRBCHJWUWOO6X6S4ZTZ5B667LQ6AJU6PEYDLRD5O@sandbox.waku.nodes.status.im",
-	"shards.test":  "enrtree://AMOJVZX4V6EXP7NTJPMAYJYST2QP6AJXYW76IU6VGJS7UVSNDYZG4@boot.test.shards.nodes.status.im",
-}
+	"github.com/six78/2-story-points-cli/internal/config"
+	pp "github.com/six78/2-story-points-cli/pkg/protocol"
+)
 
 type Node struct {
 	waku   *node.WakuNode
@@ -50,7 +45,7 @@ func NewNode(ctx context.Context, logger *zap.Logger) *Node {
 		waku:                 nil,
 		ctx:                  ctx,
 		logger:               logger,
-		pubsubTopic:          relay.DefaultWakuTopic,
+		pubsubTopic:          FleetName(config.Fleet()).DefaultPubsubTopic(),
 		wakuConnectionStatus: nil,
 		roomCache:            NewRoomCache(logger),
 		lightMode:            config.WakuLightMode(),
@@ -100,6 +95,14 @@ func (n *Node) Initialize() error {
 		)
 	}
 
+	fleet := FleetName(config.Fleet())
+
+	if fleet.IsSharded() {
+		options = append(options,
+			node.WithClusterID(DefaultClusterID),
+		)
+	}
+
 	options = append(options, node.DefaultWakuNodeOptions...)
 
 	wakuNode, err := node.New(options...)
@@ -127,6 +130,13 @@ func (n *Node) Start() error {
 	}
 
 	n.logger.Info("waku started", zap.String("peerID", n.waku.ID()))
+
+	if !config.WakuLightMode() {
+		err = n.subscribeToPubsubTopic()
+		if err != nil {
+			return errors.Wrap(err, "failed to subscribe to pubsub topic")
+		}
+	}
 
 	if config.WakuDiscV5() {
 		n.logger.Debug("starting discoveryV5")
@@ -181,7 +191,7 @@ func parseEnrProtocols(v wakuenr.WakuEnrBitfield) string {
 }
 
 func discoverNodes(ctx context.Context, logger *zap.Logger) ([]dnsdisc.DiscoveredNode, error) {
-	enrTree, ok := fleets[config.Fleet()]
+	enrTree, ok := FleetENRTree(FleetName(config.Fleet()))
 	if !ok {
 		return nil, errors.Errorf("unknown fleet %s", config.Fleet())
 	}
@@ -353,6 +363,25 @@ func (n *Node) watchConnectionStatus() {
 	}
 }
 
+func (n *Node) subscribeToPubsubTopic() error {
+	filter := protocol.NewContentFilter(n.pubsubTopic)
+	_, err := n.waku.Relay().Subscribe(n.ctx, filter)
+	if err != nil {
+		return errors.Wrap(err, "failed to subscribe to pubsub topic")
+	}
+
+	go func() {
+		<-n.ctx.Done()
+
+		err := n.waku.Relay().Unsubscribe(n.ctx, filter)
+		if err != nil {
+			n.logger.Warn("failed to unsubscribe from relay", zap.Error(err))
+		}
+	}()
+
+	return nil
+}
+
 func (n *Node) SubscribeToMessages(room *pp.Room) (*MessagesSubscription, error) {
 	n.logger.Debug("subscribing to room")
 
@@ -361,7 +390,7 @@ func (n *Node) SubscribeToMessages(room *pp.Room) (*MessagesSubscription, error)
 		return nil, errors.Wrap(err, "failed to build content topic")
 	}
 
-	contentFilter := protocol.NewContentFilter(relay.DefaultWakuTopic, contentTopic)
+	contentFilter := protocol.NewContentFilter(n.pubsubTopic, contentTopic)
 
 	var in chan *protocol.Envelope
 	var unsubscribe func()
