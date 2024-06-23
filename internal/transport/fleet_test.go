@@ -1,9 +1,10 @@
 package transport
 
 import (
+	"testing"
+
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestFleets(t *testing.T) {
@@ -15,7 +16,7 @@ func TestFleets(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, fleets[ShardsTest], enr)
 
-	enr, ok = FleetENRTree(WakuTest)
+	_, ok = FleetENRTree(WakuTest)
 	require.False(t, ok) // We know this fleet, but it's not supported
 }
 
