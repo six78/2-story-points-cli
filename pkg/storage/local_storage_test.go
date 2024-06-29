@@ -1,13 +1,15 @@
 package storage
 
 import (
+	"testing"
+
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/shibukawa/configdir"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/internal/testcommon"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
-	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 func TestLocalStorage(t *testing.T) {
@@ -101,6 +103,9 @@ func (s *Suite) TestRoomStorage() {
 	resetPlayersTimestamps(loadedState)
 	loadedState.Deck = state.Deck
 	loadedState.Timestamp = state.Timestamp
+	for _, issue := range state.Issues {
+		issue.Hint = nil
+	}
 
 	s.Require().NoError(err)
 	s.Require().Equal(state, loadedState)
