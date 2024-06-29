@@ -1,11 +1,13 @@
 package voteview
 
 import (
+	"strconv"
+
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
 	"github.com/six78/2-story-points-cli/pkg/protocol"
-	"strconv"
 )
 
 var (
@@ -140,4 +142,8 @@ func VoteStyle(vote protocol.VoteValue) *lipgloss.Style {
 		return &MediumVoteStyle
 	}
 	return &LightVoteStyle
+}
+
+func Render(vote protocol.VoteValue) string {
+	return VoteStyle(vote).Render(string(vote))
 }

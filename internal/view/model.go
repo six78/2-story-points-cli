@@ -2,17 +2,24 @@ package view
 
 import (
 	"fmt"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/internal/transport"
 	"github.com/six78/2-story-points-cli/internal/view/commands"
 	"github.com/six78/2-story-points-cli/internal/view/components/deckview"
 	"github.com/six78/2-story-points-cli/internal/view/components/errorview"
 	"github.com/six78/2-story-points-cli/internal/view/components/eventhandler"
+	"github.com/six78/2-story-points-cli/internal/view/components/hintview"
 	"github.com/six78/2-story-points-cli/internal/view/components/issuesview"
 	"github.com/six78/2-story-points-cli/internal/view/components/issueview"
 	"github.com/six78/2-story-points-cli/internal/view/components/playersview"
@@ -24,10 +31,6 @@ import (
 	"github.com/six78/2-story-points-cli/internal/view/update"
 	"github.com/six78/2-story-points-cli/pkg/game"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
-	"go.uber.org/zap"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type model struct {
@@ -47,6 +50,7 @@ type model struct {
 	roomViewState         states.RoomView
 	errorView             errorview.Model
 	playersView           playersview.Model
+	hintView              hintview.Model
 	shortcutsView         shortcutsview.Model
 	wakuStatusView        wakustatusview.Model
 	deckView              deckview.Model
@@ -85,6 +89,7 @@ func initialModel(game *game.Game, transport transport.Service) model {
 		spinner:        createSpinner(),
 		errorView:      errorview.New(),
 		playersView:    playersview.New(),
+		hintView:       hintview.New(),
 		shortcutsView:  shortcutsview.New(),
 		wakuStatusView: wakustatusview.New(),
 		deckView:       deckView,
@@ -109,6 +114,7 @@ func (m model) Init() tea.Cmd {
 		m.spinner.Tick,
 		m.errorView.Init(),
 		m.playersView.Init(),
+		m.hintView.Init(),
 		m.shortcutsView.Init(),
 		m.wakuStatusView.Init(),
 		m.deckView.Init(),
@@ -290,6 +296,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.spinner, cmds.SpinnerCommand = m.spinner.Update(msg)
 	m.errorView = m.errorView.Update(msg)
 	m.playersView, cmds.PlayersCommand = m.playersView.Update(msg)
+	m.hintView, _ = m.hintView.Update(msg)
 	m.shortcutsView = m.shortcutsView.Update(msg, m.roomViewState)
 	m.wakuStatusView = m.wakuStatusView.Update(msg)
 	m.deckView = m.deckView.Update(msg)
