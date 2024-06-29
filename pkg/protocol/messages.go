@@ -10,10 +10,11 @@ type PlayerID string
 type IssueID string
 
 type Issue struct {
-	ID         IssueID                 `json:"id"`
-	TitleOrURL string                  `json:"titleOrUrl"`
-	Votes      map[PlayerID]VoteResult `json:"votes"`
-	Result     *VoteValue              `json:"result"` // NOTE: keep pointer. Because "empty string means vote is not revealed"
+	ID         IssueID    `json:"id"`
+	TitleOrURL string     `json:"titleOrUrl"`
+	Votes      IssueVotes `json:"votes"`
+	Result     *VoteValue `json:"result"` // NOTE: keep pointer. Because "empty string means vote is not revealed"
+	Hint       *Hint      `json:"-"`
 }
 
 type VoteState string
@@ -89,3 +90,5 @@ type PlayerVoteMessage struct {
 }
 
 type Deck []VoteValue
+
+type IssueVotes map[PlayerID]VoteResult

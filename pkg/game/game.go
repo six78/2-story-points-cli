@@ -612,7 +612,7 @@ func (g *Game) hiddenCurrentState() *protocol.State {
 	hiddenState.Issues = make([]*protocol.Issue, 0, len(g.state.Issues))
 	for _, item := range g.state.Issues {
 		copiedItem := *item
-		copiedItem.Votes = make(map[protocol.PlayerID]protocol.VoteResult, len(item.Votes))
+		copiedItem.Votes = make(protocol.IssueVotes, len(item.Votes))
 		for playerID, vote := range item.Votes {
 			if item.ID == g.state.ActiveIssue {
 				copiedItem.Votes[playerID] = vote.Hidden()
@@ -702,7 +702,7 @@ func (g *Game) addIssue(titleOrURL string) (protocol.IssueID, error) {
 	issue := protocol.Issue{
 		ID:         issueID,
 		TitleOrURL: titleOrURL,
-		Votes:      make(map[protocol.PlayerID]protocol.VoteResult),
+		Votes:      make(protocol.IssueVotes),
 		Result:     nil,
 	}
 
@@ -720,11 +720,11 @@ func (g *Game) SelectIssue(index int) error {
 	}
 
 	if index < 0 || index >= len(g.state.Issues) {
-		return errors.New("invalid issue index")
+		return errors.New("invalid issue deckIndex")
 	}
 
 	g.state.Issues[index].Result = nil
-	g.state.Issues[index].Votes = make(map[protocol.PlayerID]protocol.VoteResult)
+	g.state.Issues[index].Votes = make(protocol.IssueVotes)
 	g.state.ActiveIssue = g.state.Issues[index].ID
 	g.notifyChangedState(true)
 
