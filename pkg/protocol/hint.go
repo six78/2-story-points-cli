@@ -10,9 +10,9 @@ type Hint struct {
 	// When Acceptable is true, RejectReason is empty.
 	RejectReason string
 
-	// Hint is the recommended value for the issue.
+	// Value is the recommended value for the issue.
 	// It's guaranteed to be one of the values from the deck.
-	Hint VoteValue
+	Value VoteValue
 
 	// Advice is a text advice for the team about current vote.
 	// It might contain players mentions in form "@<id>", where <id> a particular player ID.

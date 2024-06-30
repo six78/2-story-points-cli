@@ -49,6 +49,4 @@ type PlayerVoteMessage struct {
 	VoteResult VoteResult `json:"vote"`
 }
 
-type Deck []VoteValue
-
 type IssueVotes map[PlayerID]VoteResult

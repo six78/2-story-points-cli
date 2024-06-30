@@ -2,10 +2,12 @@ package view
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
+
 	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/internal/view/states"
-	"strings"
 )
 
 /*
@@ -93,7 +95,7 @@ func (m model) renderRoomCurrentIssueView() string {
 	return lipgloss.JoinVertical(lipgloss.Top,
 		m.issueView.View(),
 		"",
-		m.playersView.View(),
+		lipgloss.JoinHorizontal(lipgloss.Left, m.playersView.View(), "  ", m.hintView.View()),
 		m.deckView.View(),
 	)
 }
