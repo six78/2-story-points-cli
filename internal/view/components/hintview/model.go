@@ -70,7 +70,7 @@ func (m Model) View() string {
 
 	return lipgloss.JoinVertical(lipgloss.Top,
 		"",
-		headerStyle.Render("Recommended:")+""+voteview.Render(m.hint.Hint),
+		headerStyle.Render("Recommended:")+""+voteview.Render(m.hint.Value),
 		headerStyle.Render("Acceptable:")+"  "+verdictStyle.Render(verdictText)+rejectionReason,
 		headerStyle.Render("What to do:")+"  "+textStyle.Render(m.hint.Advice),
 		"",

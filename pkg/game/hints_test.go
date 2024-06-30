@@ -49,64 +49,64 @@ func TestHint(t *testing.T) {
 		{
 			values:       []protocol.VoteValue{"3", "3", "3", "3", "5"},
 			measurements: hintMeasurements{median: 2, meanDeviation: 0.2, maxDeviation: 1},
-			expectedHint: protocol.Hint{Acceptable: true, Hint: "3"},
+			expectedHint: protocol.Hint{Acceptable: true, Value: "3"},
 		},
 		{
 			values:       []protocol.VoteValue{"3", "3", "3", "3", "8"},
 			measurements: hintMeasurements{median: 2, meanDeviation: 0.4, maxDeviation: 2},
-			expectedHint: protocol.Hint{Acceptable: false, Hint: "3", RejectReason: maximumDeviationIsTooHigh},
+			expectedHint: protocol.Hint{Acceptable: false, Value: "3", RejectReason: maximumDeviationIsTooHigh},
 		},
 		{
 			values:       []protocol.VoteValue{"3", "3", "3", "3", "13"},
 			measurements: hintMeasurements{median: 2, meanDeviation: 0.6, maxDeviation: 3},
 			// Test: varietyOfVotesIsTooHigh takes precedence over maximumDeviationIsTooHigh
-			expectedHint: protocol.Hint{Acceptable: false, Hint: "3", RejectReason: varietyOfVotesIsTooHigh},
+			expectedHint: protocol.Hint{Acceptable: false, Value: "3", RejectReason: varietyOfVotesIsTooHigh},
 		},
 		{
 			values:       []protocol.VoteValue{"3", "3", "3", "3", "21"},
 			measurements: hintMeasurements{median: 2, meanDeviation: 0.8, maxDeviation: 4},
-			expectedHint: protocol.Hint{Acceptable: false, Hint: "3", RejectReason: varietyOfVotesIsTooHigh},
+			expectedHint: protocol.Hint{Acceptable: false, Value: "3", RejectReason: varietyOfVotesIsTooHigh},
 		},
 		{
 			values:       []protocol.VoteValue{"3", "3", "3", "5", "5"},
 			measurements: hintMeasurements{median: 2, meanDeviation: 0.4, maxDeviation: 1},
-			expectedHint: protocol.Hint{Acceptable: true, Hint: "3"},
+			expectedHint: protocol.Hint{Acceptable: true, Value: "3"},
 		},
 		{
 			values:       []protocol.VoteValue{"3", "3", "3", "5", "8"},
 			measurements: hintMeasurements{median: 2, meanDeviation: 0.6, maxDeviation: 2},
-			expectedHint: protocol.Hint{Acceptable: false, Hint: "3", RejectReason: varietyOfVotesIsTooHigh},
+			expectedHint: protocol.Hint{Acceptable: false, Value: "3", RejectReason: varietyOfVotesIsTooHigh},
 		},
 		{
 			values:       []protocol.VoteValue{"2", "3", "3", "3", "3", "3", "5"},
 			measurements: hintMeasurements{median: 2, meanDeviation: 2 / 7.0, maxDeviation: 1},
-			expectedHint: protocol.Hint{Acceptable: true, Hint: "3"},
+			expectedHint: protocol.Hint{Acceptable: true, Value: "3"},
 		},
 		{
 			values:       []protocol.VoteValue{"2", "3", "3", "3", "3", "5"},
 			measurements: hintMeasurements{median: 2, meanDeviation: 2 / 6.0, maxDeviation: 1},
-			expectedHint: protocol.Hint{Acceptable: true, Hint: "3"},
+			expectedHint: protocol.Hint{Acceptable: true, Value: "3"},
 		},
 		{
 			values:       []protocol.VoteValue{"2", "3", "3", "3", "5"},
 			measurements: hintMeasurements{median: 2, meanDeviation: 2 / 5.0, maxDeviation: 1},
-			expectedHint: protocol.Hint{Acceptable: true, Hint: "3"},
+			expectedHint: protocol.Hint{Acceptable: true, Value: "3"},
 		},
 		{
 			values:       []protocol.VoteValue{"2", "3", "3", "5"},
 			measurements: hintMeasurements{median: 2, meanDeviation: 2 / 4.0, maxDeviation: 1},
-			expectedHint: protocol.Hint{Acceptable: false, Hint: "3", RejectReason: varietyOfVotesIsTooHigh},
+			expectedHint: protocol.Hint{Acceptable: false, Value: "3", RejectReason: varietyOfVotesIsTooHigh},
 		},
 		{
 			values:       []protocol.VoteValue{"2", "3", "5"},
 			measurements: hintMeasurements{median: 2, meanDeviation: 2 / 3.0, maxDeviation: 1},
-			expectedHint: protocol.Hint{Acceptable: false, Hint: "3", RejectReason: varietyOfVotesIsTooHigh},
+			expectedHint: protocol.Hint{Acceptable: false, Value: "3", RejectReason: varietyOfVotesIsTooHigh},
 		},
 		{
 			// This also tests round up median when even number of votes
 			values:       []protocol.VoteValue{"2", "3", "5", "8"},
 			measurements: hintMeasurements{median: 3, meanDeviation: 1, maxDeviation: 2},
-			expectedHint: protocol.Hint{Acceptable: false, Hint: "5", RejectReason: varietyOfVotesIsTooHigh},
+			expectedHint: protocol.Hint{Acceptable: false, Value: "5", RejectReason: varietyOfVotesIsTooHigh},
 		},
 	}
 

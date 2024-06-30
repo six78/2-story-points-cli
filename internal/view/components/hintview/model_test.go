@@ -72,7 +72,7 @@ func TestUpdateAcceptableVote(t *testing.T) {
 				ID: protocol.IssueID(gofakeit.UUID()),
 				Hint: &protocol.Hint{
 					Acceptable:   tc.acceptable,
-					Hint:         protocol.VoteValue(gofakeit.LetterN(5)),
+					Value:        protocol.VoteValue(gofakeit.LetterN(5)),
 					RejectReason: gofakeit.LetterN(10),
 				},
 			}
@@ -94,7 +94,7 @@ func TestUpdateAcceptableVote(t *testing.T) {
 
 			expectedLines := []string{
 				"",
-				"Recommended: " + string(issue.Hint.Hint),
+				"Recommended: " + string(issue.Hint.Value),
 				"Acceptable:  " + expectedVerdict,
 				"What to do:",
 				"",

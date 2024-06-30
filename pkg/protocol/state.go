@@ -37,3 +37,18 @@ func (s *State) VoteState() VoteState {
 	}
 	return FinishedState
 }
+
+func (s *State) GetActiveIssue() *Issue {
+	return s.Issues.Get(s.ActiveIssue)
+}
+
+func (s *State) ActiveIssueHintDeckIndex() int {
+	issue := s.GetActiveIssue()
+	if issue == nil {
+		return -1
+	}
+	if issue.Hint == nil {
+		return -1
+	}
+	return s.Deck.Index(issue.Hint.Value)
+}

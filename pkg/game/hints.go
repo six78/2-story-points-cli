@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/pkg/errors"
-	"golang.org/x/exp/slices"
 
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 )
@@ -50,7 +49,7 @@ func GetResultHint(deck protocol.Deck, issueVotes protocol.IssueVotes) (*protoco
 
 	// Build the hint based on the measures
 	hint := &protocol.Hint{
-		Hint:       medianValue,
+		Value:      medianValue,
 		Advice:     "",
 		Acceptable: true,
 	}
@@ -71,7 +70,7 @@ func GetResultHint(deck protocol.Deck, issueVotes protocol.IssueVotes) (*protoco
 func getVotesAsDeckIndexes(issueVotes protocol.IssueVotes, deck protocol.Deck) ([]int, error) {
 	indexes := make([]int, 0, len(issueVotes))
 	for _, vote := range issueVotes {
-		index := slices.Index(deck, vote.Value)
+		index := deck.Index(vote.Value)
 		if index < 0 {
 			return nil, ErrVoteNotFoundInDeck
 		}
