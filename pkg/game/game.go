@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/jonboulle/clockwork"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
+
 	"github.com/six78/2-story-points-cli/internal/transport"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/six78/2-story-points-cli/pkg/storage"
-	"go.uber.org/zap"
-	"golang.org/x/exp/slices"
-	"reflect"
-	"time"
 )
 
 var (
@@ -187,6 +189,10 @@ func (g *Game) CurrentState() *protocol.State {
 }
 
 func (g *Game) notifyChangedState(publish bool) {
+	if g.state != nil && g.state.VotesRevealed {
+		g.fillActiveIssueHint()
+	}
+
 	state := g.hiddenCurrentState()
 
 	g.logger.Debug("notifying state change",
@@ -797,4 +803,22 @@ func (g *Game) loadStateFromStorage(roomID protocol.RoomID) *protocol.State {
 	}
 
 	return state
+}
+
+func (g *Game) fillActiveIssueHint() {
+	if g.state == nil {
+		return
+	}
+
+	item := g.state.Issues.Get(g.state.ActiveIssue)
+	if item == nil {
+		g.logger.Error("failed to fill active issue hint: vote item not found in the vote list")
+		return
+	}
+
+	var err error
+	item.Hint, err = GetResultHint(g.state.Deck, item.Votes)
+	if err != nil {
+		g.logger.Error("failed to generate hint", zap.Error(err))
+	}
 }
