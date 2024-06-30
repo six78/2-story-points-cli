@@ -4,6 +4,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
+
 	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/internal/view/components/cursor"
 	"github.com/six78/2-story-points-cli/internal/view/components/voteview"
@@ -18,14 +19,15 @@ var (
 )
 
 type Model struct {
-	deck         protocol.Deck
-	voteState    protocol.VoteState
-	myVote       protocol.VoteValue
-	focused      bool
-	isDealer     bool
-	commandMode  bool
-	voteCursor   cursor.Model
-	finishCursor cursor.Model
+	deck          protocol.Deck
+	voteState     protocol.VoteState
+	myVote        protocol.VoteValue
+	votesRevealed bool
+	focused       bool
+	isDealer      bool
+	commandMode   bool
+	voteCursor    cursor.Model
+	finishCursor  cursor.Model
 }
 
 func New() Model {
@@ -49,8 +51,12 @@ func (m Model) Update(msg tea.Msg) Model {
 			m.deck = protocol.Deck{}
 			m.voteState = protocol.IdleState
 			m.voteCursor.SetRange(0, 0)
+			m.finishCursor.SetRange(0, 0)
 		} else {
 			m.deck = msg.State.Deck
+			if msg.State.VotesRevealed && !m.votesRevealed {
+				m.finishCursor.SetPosition(msg.State.ActiveIssueHintDeckIndex())
+			}
 			m.voteState = msg.State.VoteState()
 			m.voteCursor.SetRange(0, len(m.deck)-1)
 			m.finishCursor.SetRange(0, len(m.deck)-1)
