@@ -14,7 +14,6 @@ import (
 
 func TestInit(t *testing.T) {
 	model := New()
-
 	cmd := model.Init()
 	require.Nil(t, cmd)
 	require.Nil(t, model.hint)
@@ -22,8 +21,8 @@ func TestInit(t *testing.T) {
 
 func TestUpdateNilState(t *testing.T) {
 	model := New()
-	cmd := model.Init()
-	model, cmd = model.Update(messages.GameStateMessage{State: nil})
+	_ = model.Init()
+	model, cmd := model.Update(messages.GameStateMessage{State: nil})
 	require.Nil(t, cmd)
 	require.Nil(t, model.hint)
 	require.Empty(t, model.View())
@@ -31,8 +30,8 @@ func TestUpdateNilState(t *testing.T) {
 
 func TestUpdateVotesNotRevealed(t *testing.T) {
 	model := New()
-	cmd := model.Init()
-	model, cmd = model.Update(messages.GameStateMessage{
+	_ = model.Init()
+	model, cmd := model.Update(messages.GameStateMessage{
 		State: &protocol.State{
 			VotesRevealed: false,
 		},
