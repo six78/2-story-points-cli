@@ -377,6 +377,10 @@ func (m *model) handlePastedText(text string) (tea.Msg, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0, len(lines))
 
 	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
 		u, err := url.Parse(line)
 		if err != nil {
 			config.Logger.Warn("failed to parse issue url", zap.Error(err))
