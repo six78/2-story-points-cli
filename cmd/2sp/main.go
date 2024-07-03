@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"os"
+
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/jonboulle/clockwork"
+	"go.uber.org/zap"
+
 	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/internal/transport"
 	"github.com/six78/2-story-points-cli/internal/view"
 	"github.com/six78/2-story-points-cli/pkg/game"
 	"github.com/six78/2-story-points-cli/pkg/storage"
-	"os"
 )
 
 func main() {
@@ -39,8 +43,17 @@ func main() {
 	}
 	defer game.Stop()
 
-	code := view.Run(game, waku)
-	os.Exit(code)
+	// Create UI model and program
+	model := view.InitialModel(game, waku)
+	program := tea.NewProgram(model)
+
+	if _, err := program.Run(); err != nil {
+		config.Logger.Error("error running program", zap.Error(err))
+		os.Exit(1)
+		return
+	}
+
+	os.Exit(0)
 }
 
 func createStorage() storage.Service {

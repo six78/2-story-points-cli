@@ -69,7 +69,7 @@ type model struct {
 	spinner spinner.Model
 }
 
-func initialModel(game *game.Game, transport transport.Service) model {
+func InitialModel(game *game.Game, transport transport.Service) model {
 	const initialRoomViewState = states.ActiveIssueView
 	deckView := deckview.New()
 	deckView.Focus()
