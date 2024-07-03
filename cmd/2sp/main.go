@@ -8,6 +8,7 @@ import (
 	"github.com/jonboulle/clockwork"
 	"go.uber.org/zap"
 
+	"github.com/six78/2-story-points-cli/cmd/2sp/demo"
 	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/internal/transport"
 	"github.com/six78/2-story-points-cli/internal/view"
@@ -46,6 +47,15 @@ func main() {
 	// Create UI model and program
 	model := view.InitialModel(game, waku)
 	program := tea.NewProgram(model)
+
+	// Run demo if enabled
+	if config.Demo() {
+		demonstration := demo.New(ctx, game, program)
+		go func() {
+			demonstration.Routine()
+			program.Quit()
+		}()
+	}
 
 	if _, err := program.Run(); err != nil {
 		config.Logger.Error("error running program", zap.Error(err))
