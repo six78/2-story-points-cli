@@ -55,8 +55,9 @@ func (d *Demo) Routine() {
 	playersNames := []string{"Alice", "Bob", "Charlie"}
 	playerSubs := make([]game.StateSubscription, 0, 4)
 
-	players = append(players, d.game)
-	playerSubs = append(playerSubs, d.state)
+	//players = append(players, d.game)
+	//playerSubs = append(playerSubs, d.state)
+
 	for _, name := range playersNames {
 		player, err := d.createPlayer(name)
 		if err != nil {
@@ -104,7 +105,7 @@ func (d *Demo) Routine() {
 
 	activeIssue := d.game.CurrentState().Issues[0].ID
 
-	votes := []string{"3", "3", "5", "3"}
+	votes := []string{"3", "5", "3"}
 	var errs []error
 	wg := sync.WaitGroup{}
 	wg.Add(len(votes))
@@ -137,6 +138,12 @@ func (d *Demo) Routine() {
 	d.logger.Info("deal issue")
 
 	// TODO: dealer vote by arrows
+	time.Sleep(1000 * time.Millisecond)
+	d.sendKey(tea.KeyRight)
+	time.Sleep(500 * time.Millisecond)
+	d.sendKey(tea.KeyRight)
+	time.Sleep(500 * time.Millisecond)
+	d.sendKey(tea.KeyEnter)
 
 	wg.Wait()
 	d.logger.Info("players voted")
@@ -151,6 +158,7 @@ func (d *Demo) Routine() {
 		d.logger.Error("failed to wait for votes", zap.Error(err))
 		return
 	}
+	time.Sleep(1 * time.Second)
 
 	// Reveal votes
 	d.sendShortcut(commands.DefaultKeyMap.RevealVotes)
