@@ -17,9 +17,9 @@ var (
 			Align(lipgloss.Center)
 	NoVoteStyle     = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#444444"))
 	ReadyVoteStyle  = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#5fd700"))
-	LightVoteStyle  = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#00d7ff"))
+	LightVoteStyle  = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#00B0FF"))
 	MediumVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ffd787"))
-	DangerVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ff005f"))
+	DangerVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#FF6D00")) // ff005f
 )
 
 type VoteValueState int
