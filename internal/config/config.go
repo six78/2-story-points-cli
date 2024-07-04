@@ -3,13 +3,14 @@ package config
 import (
 	"flag"
 	"fmt"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/shibukawa/configdir"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/shibukawa/configdir"
+	"go.uber.org/zap"
 )
 
 const OnlineMessagePeriod = 5 * time.Second
@@ -34,6 +35,7 @@ var wakuStaticNodes StaticWakuNodes
 var wakuLightMode bool
 var wakuDiscV5 bool
 var wakuDnsDiscovery bool
+var demo bool
 
 var Logger *zap.Logger
 var LogFilePath string
@@ -105,6 +107,7 @@ func ParseArguments() {
 	flag.BoolVar(&wakuLightMode, "waku.lightmode", false, "Waku lightpush/filter mode")
 	flag.BoolVar(&wakuDiscV5, "waku.discv5", true, "Enable DiscV5 discovery")
 	flag.BoolVar(&wakuDnsDiscovery, "waku.dnsdiscovery", true, "Enable DNS discovery")
+	flag.BoolVar(&demo, "demo", false, "Run demo and quit")
 	flag.Parse()
 
 	initialAction = strings.Join(flag.Args(), " ")
@@ -152,4 +155,8 @@ func WakuDiscV5() bool {
 
 func WakuDnsDiscovery() bool {
 	return wakuDnsDiscovery
+}
+
+func Demo() bool {
+	return demo
 }
