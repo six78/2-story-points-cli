@@ -91,10 +91,6 @@ func (d *Demo) Routine() {
 	time.Sleep(500 * time.Millisecond)
 
 	// Add issues
-	type issueVotesPlan struct {
-		votes []string
-	}
-
 	links := []string{
 		"https://github.com/golang/go/issues/26492",
 		"https://github.com/golang/go/issues/27605",
@@ -128,6 +124,22 @@ func (d *Demo) Routine() {
 			return
 		}
 	}
+	time.Sleep(2000 * time.Millisecond)
+
+	// Switch to issues view
+	d.sendKey(tea.KeyTab)
+	d.logger.Info("switched to issues view")
+	time.Sleep(500 * time.Millisecond)
+
+	d.sendKey(tea.KeyDown)
+	time.Sleep(200 * time.Millisecond)
+	d.sendKey(tea.KeyDown)
+	time.Sleep(1000 * time.Millisecond)
+
+	d.sendKey(tea.KeyUp)
+	time.Sleep(200 * time.Millisecond)
+	d.sendKey(tea.KeyUp)
+	time.Sleep(3 * time.Second)
 
 	d.logger.Info("finished")
 }
