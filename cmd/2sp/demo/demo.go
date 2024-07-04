@@ -23,23 +23,36 @@ import (
 
 type Demo struct {
 	ctx     context.Context
-	game    *game.Game
+	dealer  *game.Game
 	state   game.StateSubscription
 	program *tea.Program
 	logger  *zap.Logger
+
+	players    []*game.Game
+	playerSubs []game.StateSubscription
 }
 
 func New(ctx context.Context, game *game.Game, program *tea.Program) *Demo {
 	return &Demo{
 		ctx:     ctx,
-		game:    game,
+		dealer:  game,
 		state:   game.SubscribeToStateChanges(),
 		program: program,
 		logger:  config.Logger.Named("demo"),
 	}
 }
 
+func (d *Demo) Stop() {
+	d.logger.Info("stopping")
+
+	for _, player := range d.players {
+		player.Stop()
+	}
+}
+
 func (d *Demo) Routine() {
+	defer d.Stop()
+
 	d.logger.Info("started")
 
 	// TODO: wait for the program to start
@@ -51,12 +64,9 @@ func (d *Demo) Routine() {
 	d.logger.Info("room created")
 
 	// Add players
-	players := make([]*game.Game, 0, 4)
 	playersNames := []string{"Alice", "Bob", "Charlie"}
-	playerSubs := make([]game.StateSubscription, 0, 4)
-
-	//players = append(players, d.game)
-	//playerSubs = append(playerSubs, d.state)
+	d.players = make([]*game.Game, 0, 3)
+	d.playerSubs = make([]game.StateSubscription, 0, 3)
 
 	for _, name := range playersNames {
 		player, err := d.createPlayer(name)
@@ -64,17 +74,11 @@ func (d *Demo) Routine() {
 			d.logger.Error("failed to create player", zap.Error(err))
 			return
 		}
-		players = append(players, player)
-		playerSubs = append(playerSubs, player.SubscribeToStateChanges())
+		d.players = append(d.players, player)
+		d.playerSubs = append(d.playerSubs, player.SubscribeToStateChanges())
 	}
 
-	defer func() {
-		for _, player := range players {
-			player.Stop()
-		}
-	}()
-
-	err := d.waitForPlayers(players)
+	err := d.waitForPlayers(d.players)
 	if err != nil {
 		d.logger.Error("failed to wait for players", zap.Error(err))
 		return
@@ -87,35 +91,60 @@ func (d *Demo) Routine() {
 	time.Sleep(500 * time.Millisecond)
 
 	// Add issues
-	issues := []string{
+	type issueVotesPlan struct {
+		votes []string
+	}
+
+	links := []string{
 		"https://github.com/golang/go/issues/26492",
 		"https://github.com/golang/go/issues/27605",
 		"https://github.com/golang/go/issues/64997",
 	}
-	d.sendText(strings.Join(issues, "\n"))
+	votes := [][]string{
+		{"3", "5", "3"},
+		{"5", "8", "8"},
+		{"13", "13", "8"},
+	}
+	//issuesLinks := maps.Keys(issues)
+
+	d.sendText(strings.Join(links, "\n"))
 	d.logger.Info("issues added")
 	time.Sleep(500 * time.Millisecond)
 
 	// Wait for issues to be added
-	err = d.waitForIssues(issues)
+	err = d.waitForIssues(len(links))
 	if err != nil {
 		d.logger.Error("failed to wait for issues", zap.Error(err))
 		return
 	}
 
-	activeIssue := d.game.CurrentState().Issues[0].ID
+	issues := d.dealer.CurrentState().Issues
+	for i, issue := range issues {
+		err = d.issueSubRoutine(issue.ID, votes[i])
+		if err != nil {
+			d.logger.Error("failed to run issue sub-routine",
+				zap.Error(err),
+				zap.String("issueLink", issue.TitleOrURL))
+			return
+		}
+	}
 
-	votes := []string{"3", "5", "3"}
+	d.logger.Info("finished")
+}
+
+func (d *Demo) issueSubRoutine(issueID protocol.IssueID, votes []string) error {
 	var errs []error
 	wg := sync.WaitGroup{}
 	wg.Add(len(votes))
 	for i, vote := range votes {
 		go func(i int, vote string) {
 			defer wg.Done()
+			player := d.players[i]
+			playerName := player.Player().Name
 
-			err := d.waitForIssueDealt(playerSubs[i], activeIssue)
+			err := d.waitForIssueDealt(d.playerSubs[i], issueID)
 			if err != nil {
-				err = errors.Wrap(err, fmt.Sprintf("%s: failed to wait for issue to be dealt", players[i].Player().Name))
+				err = errors.Wrap(err, fmt.Sprintf("%s: issue not dealt", playerName))
 				errs = append(errs, err)
 				return
 			}
@@ -124,9 +153,9 @@ func (d *Demo) Routine() {
 			delay := time.Duration(rand.Intn(4000)) * time.Millisecond
 			time.Sleep(delay)
 
-			err = players[i].PublishVote(protocol.VoteValue(vote))
+			err = player.PublishVote(protocol.VoteValue(vote))
 			if err != nil {
-				err = errors.Wrap(err, fmt.Sprintf("%s: failed to publish vote", players[i].Player().Name))
+				err = errors.Wrap(err, fmt.Sprintf("%s: failed to publish vote", playerName))
 				errs = append(errs, err)
 				return
 			}
@@ -149,14 +178,14 @@ func (d *Demo) Routine() {
 	d.logger.Info("players voted")
 
 	if len(errs) > 0 {
-		d.logger.Error("failed to publish votes", zap.Errors("errors", errs))
-		return
+		d.logger.Error("errors occurred", zap.Errors("errors", errs))
+		return errors.New("failed to publish votes")
 	}
 
-	err = d.waitForVotes(votes)
+	err := d.waitForVotes(votes)
 	if err != nil {
-		d.logger.Error("failed to wait for votes", zap.Error(err))
-		return
+		err = errors.Wrap(err, "failed to wait for votes")
+		return err
 	}
 	time.Sleep(1 * time.Second)
 
@@ -167,16 +196,15 @@ func (d *Demo) Routine() {
 		return state.VotesRevealed
 	})
 	if err != nil {
-		d.logger.Error("failed to wait for votes to be revealed", zap.Error(err))
-		return
+		err = errors.Wrap(err, "failed to wait for votes to be revealed")
+		return err
 	}
 	time.Sleep(2 * time.Second)
 
 	// Finish vote
 	d.sendKey(tea.KeyEnter)
 
-	time.Sleep(10 * time.Second)
-	d.logger.Info("finished")
+	return nil
 }
 
 func (d *Demo) sendShortcut(key key.Binding) {
@@ -226,10 +254,10 @@ func (d *Demo) createPlayer(name string) (*game.Game, error) {
 
 	err = player.Initialize()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize game")
+		return nil, errors.Wrap(err, "failed to initialize dealer")
 	}
 
-	err = player.JoinRoom(d.game.RoomID(), nil)
+	err = player.JoinRoom(d.dealer.RoomID(), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to join room")
 	}
@@ -259,9 +287,9 @@ func (d *Demo) waitForPlayers(players []*game.Game) error {
 	})
 }
 
-func (d *Demo) waitForIssues(issues []string) error {
+func (d *Demo) waitForIssues(count int) error {
 	return d.waitForStateCondition(d.state, func(state *protocol.State) bool {
-		return len(state.Issues) == len(issues)
+		return len(state.Issues) == count
 	})
 }
 
