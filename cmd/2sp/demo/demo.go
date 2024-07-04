@@ -86,9 +86,8 @@ func (d *Demo) Routine() {
 	d.logger.Info("players joined")
 
 	// Switch to issues view
-	d.sendKey(tea.KeyTab)
+	d.sendKey(tea.KeyTab, 500*time.Millisecond)
 	d.logger.Info("switched to issues view")
-	time.Sleep(500 * time.Millisecond)
 
 	// Add issues
 	links := []string{
@@ -101,7 +100,6 @@ func (d *Demo) Routine() {
 		{"5", "8", "8"},
 		{"13", "13", "8"},
 	}
-	//issuesLinks := maps.Keys(issues)
 
 	d.sendText(strings.Join(links, "\n"))
 	d.logger.Info("issues added")
@@ -127,72 +125,41 @@ func (d *Demo) Routine() {
 	time.Sleep(2000 * time.Millisecond)
 
 	// Switch to issues view
-	d.sendKey(tea.KeyTab)
+	d.sendKey(tea.KeyTab, 500*time.Millisecond)
 	d.logger.Info("switched to issues view")
-	time.Sleep(500 * time.Millisecond)
 
-	d.sendKey(tea.KeyDown)
-	time.Sleep(200 * time.Millisecond)
-	d.sendKey(tea.KeyDown)
-	time.Sleep(1000 * time.Millisecond)
+	d.sendKey(tea.KeyDown, 200*time.Millisecond)
+	d.sendKey(tea.KeyDown, 1000*time.Millisecond)
 
-	d.sendKey(tea.KeyUp)
-	time.Sleep(200 * time.Millisecond)
-	d.sendKey(tea.KeyUp)
-	time.Sleep(3 * time.Second)
+	d.sendKey(tea.KeyUp, 200*time.Millisecond)
+	d.sendKey(tea.KeyUp, 3*time.Second)
 
 	d.logger.Info("finished")
 }
 
 func (d *Demo) issueSubRoutine(issueID protocol.IssueID, votes []string) error {
-	var errs []error
+	errChan := make(chan error)
 	wg := sync.WaitGroup{}
 	wg.Add(len(votes))
 	for i, vote := range votes {
-		go func(i int, vote string) {
-			defer wg.Done()
-			player := d.players[i]
-			playerName := player.Player().Name
-
-			err := d.waitForIssueDealt(d.playerSubs[i], issueID)
-			if err != nil {
-				err = errors.Wrap(err, fmt.Sprintf("%s: issue not dealt", playerName))
-				errs = append(errs, err)
-				return
-			}
-
-			// Random delay to simulate human behavior
-			delay := time.Duration(rand.Intn(4000)) * time.Millisecond
-			time.Sleep(delay)
-
-			err = player.PublishVote(protocol.VoteValue(vote))
-			if err != nil {
-				err = errors.Wrap(err, fmt.Sprintf("%s: failed to publish vote", playerName))
-				errs = append(errs, err)
-				return
-			}
-		}(i, vote)
+		go d.playerVoteSubroutine(i, issueID, protocol.VoteValue(vote), &wg, errChan)
 	}
 
 	// Deal first issue (expect all players to be subscribed to state changes
-	d.sendKey(tea.KeyEnter)
+	d.sendKey(tea.KeyEnter, 1*time.Second)
 	d.logger.Info("deal issue")
 
 	// TODO: dealer vote by arrows
-	time.Sleep(1000 * time.Millisecond)
-	d.sendKey(tea.KeyRight)
-	time.Sleep(500 * time.Millisecond)
-	d.sendKey(tea.KeyRight)
-	time.Sleep(500 * time.Millisecond)
-	d.sendKey(tea.KeyEnter)
+	d.sendKey(tea.KeyRight, 500*time.Millisecond)
+	d.sendKey(tea.KeyRight, 500*time.Millisecond)
+	d.sendKey(tea.KeyEnter, 0)
 
 	wg.Wait()
-	d.logger.Info("players voted")
-
-	if len(errs) > 0 {
-		d.logger.Error("errors occurred", zap.Errors("errors", errs))
-		return errors.New("failed to publish votes")
+	close(errChan)
+	for err := range errChan {
+		return err
 	}
+	d.logger.Info("players voted")
 
 	err := d.waitForVotes(votes)
 	if err != nil {
@@ -214,9 +181,33 @@ func (d *Demo) issueSubRoutine(issueID protocol.IssueID, votes []string) error {
 	time.Sleep(2 * time.Second)
 
 	// Finish vote
-	d.sendKey(tea.KeyEnter)
+	d.sendKey(tea.KeyEnter, 0)
 
 	return nil
+}
+
+func (d *Demo) playerVoteSubroutine(index int, issueID protocol.IssueID, vote protocol.VoteValue, wg *sync.WaitGroup, errChan chan error) {
+	defer wg.Done()
+
+	player := d.players[index]
+	playerName := player.Player().Name
+
+	err := d.waitForIssueDealt(d.playerSubs[index], issueID)
+	if err != nil {
+		errChan <- errors.Wrap(err, fmt.Sprintf("%s: issue not dealt", playerName))
+		return
+	}
+
+	// Random delay to simulate human behavior
+	delay := time.Duration(rand.Intn(4000)) * time.Millisecond
+	time.Sleep(delay)
+
+	// Publish vote
+	err = player.PublishVote(vote)
+	if err != nil {
+		errChan <- errors.Wrap(err, fmt.Sprintf("%s: failed to publish vote", playerName))
+		return
+	}
 }
 
 func (d *Demo) sendShortcut(key key.Binding) {
@@ -227,11 +218,12 @@ func (d *Demo) sendShortcut(key key.Binding) {
 	d.program.Send(keyMsg)
 }
 
-func (d *Demo) sendKey(key tea.KeyType) {
+func (d *Demo) sendKey(key tea.KeyType, sleepDuration time.Duration) {
 	keyMsg := tea.KeyMsg{
 		Type: key,
 	}
 	d.program.Send(keyMsg)
+	time.Sleep(sleepDuration)
 }
 
 func (d *Demo) sendText(text string) {
