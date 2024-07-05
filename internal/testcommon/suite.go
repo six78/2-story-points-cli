@@ -1,21 +1,30 @@
 package testcommon
 
 import (
+	"context"
 	"encoding/json"
+	"reflect"
+
 	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/six78/2-story-points-cli/internal/config"
+	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
-	"reflect"
+
+	"github.com/six78/2-story-points-cli/internal/config"
 )
 
 type Suite struct {
 	suite.Suite
+	Ctx    context.Context
+	cancel context.CancelFunc
 	Logger *zap.Logger
+	Clock  clockwork.FakeClock
 }
 
 func (s *Suite) SetupSuite() {
+	s.Ctx, s.cancel = context.WithCancel(context.Background())
+	s.Clock = clockwork.NewFakeClock()
 	logger, err := zap.NewDevelopment()
 	s.Require().NoError(err)
 	s.Logger = logger
@@ -23,6 +32,7 @@ func (s *Suite) SetupSuite() {
 }
 
 func (s *Suite) TearDownSuite() {
+	s.cancel()
 	_ = config.Logger.Sync()
 }
 
