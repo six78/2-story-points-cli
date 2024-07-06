@@ -3,6 +3,11 @@ package issueview
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -13,10 +18,6 @@ import (
 	"github.com/six78/2-story-points-cli/internal/view/messages"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"go.uber.org/zap"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var (

@@ -2,11 +2,12 @@ package game
 
 import (
 	"context"
+	"time"
+
 	"github.com/jonboulle/clockwork"
 	"github.com/six78/2-story-points-cli/internal/transport"
 	"github.com/six78/2-story-points-cli/pkg/storage"
 	"go.uber.org/zap"
-	"time"
 )
 
 type Option func(*Game)

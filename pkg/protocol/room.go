@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"crypto/rand"
+
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/six78/2-story-points-cli/internal/config"

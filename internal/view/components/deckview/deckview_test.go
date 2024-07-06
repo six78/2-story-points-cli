@@ -1,6 +1,8 @@
 package deckview
 
 import (
+	"testing"
+
 	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/six78/2-story-points-cli/internal/testcommon"
@@ -9,7 +11,6 @@ import (
 	"github.com/six78/2-story-points-cli/pkg/game"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 func TestDeckView(t *testing.T) {
