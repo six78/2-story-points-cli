@@ -78,13 +78,17 @@ jobs:
           path: /tmp/test-results/gotestsum-report.xml
           reporter: jest-junit
 
-      - name: Upload
+      - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
-          path: |
-            /tmp/test-results/gotestsum-report.xml
-            /tmp/test-results/coverage.out
-            /tmp/test-results/coverage.html
+          name: coverage.out
+          path: /tmp/test-results/coverage.out
+
+      - name: Upload coverage report page
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage.html
+          path: /tmp/test-results/coverage.html
 
   golangci:
     name: lint
