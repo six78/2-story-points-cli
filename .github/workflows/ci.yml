@@ -60,10 +60,28 @@ jobs:
               -covermode atomic \
               -coverprofile c.out \
               ./...
+          cp c.out /tmp/test-results/coverage.out
+          go tool cover -html=c.out -o /tmp/test-results/coverage.html
           /tmp/cc-test-reporter after-build \
             --id ${{ secrets.CC_TEST_REPORTER_ID }} \
             --prefix "github.com/six78/2-story-points-cli" \
             --exit-code $?
+
+      - name: Report tests
+        uses: dorny/test-reporter@v1.9.1
+        if: success() || failure()
+        with:
+          name: Go Tests
+          path: /tmp/test-results/gotestsum-report.xml
+          reporter: jest-junit
+
+      - name: Upload artifcats
+        uses: actions/upload-artifact@v4
+        with:
+          path: |
+            /tmp/test-results/gotestsum-report.xml
+            /tmp/test-results/coverage.out
+            /tmp/test-results/coverage.html
 
   golangci:
     name: lint
