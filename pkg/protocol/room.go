@@ -5,6 +5,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
 	"github.com/six78/2-story-points-cli/internal/config"
 )
 
@@ -94,7 +95,7 @@ func generateSymmetricKey() ([]byte, error) {
 	key := make([]byte, config.SymmetricKeyLength)
 	_, err := rand.Read(key)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to generate symmetric key")
 	}
 	return key, nil
 }
