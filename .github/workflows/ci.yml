@@ -8,6 +8,9 @@ on:
       - "main"
       - "release/**"
 
+permissions:
+  checks: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -22,7 +25,7 @@ jobs:
           echo "GIT_COMMIT_SHA=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_ENV"
           echo "GIT_BRANCH=${GITHUB_HEAD_REF}" >> "$GITHUB_ENV"
 
-      - name: Setup Code Climate test-reporter
+      - name: Setup Code Climate
         run: |
           curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > /tmp/cc-test-reporter
           chmod +x /tmp/cc-test-reporter
@@ -60,10 +63,32 @@ jobs:
               -covermode atomic \
               -coverprofile c.out \
               ./...
+          cp c.out /tmp/test-results/coverage.out
+          go tool cover -html=c.out -o /tmp/test-results/coverage.html
           /tmp/cc-test-reporter after-build \
             --id ${{ secrets.CC_TEST_REPORTER_ID }} \
             --prefix "github.com/six78/2-story-points-cli" \
             --exit-code $?
+
+      - name: Report
+        uses: dorny/test-reporter@v1.9.1
+        if: success() || failure()
+        with:
+          name: test result
+          path: /tmp/test-results/gotestsum-report.xml
+          reporter: jest-junit
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage.out
+          path: /tmp/test-results/coverage.out
+
+      - name: Upload coverage report page
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage.html
+          path: /tmp/test-results/coverage.html
 
   golangci:
     name: lint
