@@ -1,7 +1,6 @@
 package hintview
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -70,9 +69,9 @@ func TestUpdateAcceptableVote(t *testing.T) {
 			issue := protocol.Issue{
 				ID: protocol.IssueID(gofakeit.UUID()),
 				Hint: &protocol.Hint{
-					Acceptable:   tc.acceptable,
-					Value:        protocol.VoteValue(gofakeit.LetterN(5)),
-					RejectReason: gofakeit.LetterN(10),
+					Acceptable:  tc.acceptable,
+					Value:       protocol.VoteValue(gofakeit.LetterN(5)),
+					Description: gofakeit.LetterN(10),
 				},
 			}
 			model, cmd = model.Update(messages.GameStateMessage{
@@ -86,16 +85,16 @@ func TestUpdateAcceptableVote(t *testing.T) {
 			require.NotNil(t, model.hint)
 			require.Equal(t, *issue.Hint, *model.hint)
 
-			expectedVerdict := "✓"
+			expectedAcceptableIcon := "✓"
 			if !tc.acceptable {
-				expectedVerdict = "x" + fmt.Sprintf(" (%s)", issue.Hint.RejectReason)
+				expectedAcceptableIcon = "x"
 			}
 
 			expectedLines := []string{
 				"",
 				"Recommended: " + string(issue.Hint.Value),
-				"Acceptable:  " + expectedVerdict,
-				"What to do:",
+				"Acceptable:  " + expectedAcceptableIcon,
+				"> " + issue.Hint.Description,
 				"",
 			}
 

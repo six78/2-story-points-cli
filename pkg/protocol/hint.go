@@ -6,15 +6,12 @@ type Hint struct {
 	// a suggestion to discuss and re-vote.
 	Acceptable bool
 
-	// RejectReason contains an explanation of why the vote is not acceptable.
-	// When Acceptable is true, RejectReason is empty.
-	RejectReason string
-
 	// Value is the recommended value for the issue.
 	// It's guaranteed to be one of the values from the deck.
 	Value VoteValue
 
-	// Advice is a text advice for the team about current vote.
-	// It might contain players mentions in form "@<id>", where <id> a particular player ID.
-	Advice string
+	// Description contains text message for the team.
+	// When Acceptable is false, Description explaining the reject reasoning.
+	// When Acceptable is true, Description contains some congratulatory message.
+	Description string
 }

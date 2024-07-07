@@ -23,11 +23,19 @@ type hintMeasurements struct {
 }
 
 const (
+	// thresholds
 	maxAcceptableMaximumDeviation = 1
 	maxAcceptableMeanDeviation    = 0.5
 	// Rejection reasons
-	varietyOfVotesIsTooHigh   = "Variety of votes is too high"
-	maximumDeviationIsTooHigh = "Maximum deviation is too high"
+	varietyOfVotesIsTooHigh   = "No strong consensus among the players"
+	maximumDeviationIsTooHigh = "Maximum deviation threshold exceeded"
+	// Advices
+	descriptionBingo          = "BINGO! 🎉💃"
+	descriptionGoodJob        = "Good job 😎"
+	descriptionNotBad         = "Not bad 🤞"
+	descriptionYouCanDoBetter = "You can do better 💪"
+	// internal consts
+	float64Epsilon = 1e-9
 )
 
 var (
@@ -50,18 +58,30 @@ func GetResultHint(deck protocol.Deck, issueVotes protocol.IssueVotes) (*protoco
 	// Build the hint based on the measures
 	hint := &protocol.Hint{
 		Value:      medianValue,
-		Advice:     "",
 		Acceptable: true,
 	}
 
 	if resultMeasures.maxDeviation > maxAcceptableMaximumDeviation {
 		hint.Acceptable = false
-		hint.RejectReason = maximumDeviationIsTooHigh
+		hint.Description = maximumDeviationIsTooHigh
 	}
 
-	if resultMeasures.meanDeviation >= maxAcceptableMeanDeviation {
+	if resultMeasures.meanDeviation > maxAcceptableMeanDeviation {
 		hint.Acceptable = false
-		hint.RejectReason = varietyOfVotesIsTooHigh
+		hint.Description = varietyOfVotesIsTooHigh
+	}
+
+	if hint.Acceptable {
+		switch {
+		case resultMeasures.meanDeviation == 0:
+			hint.Description = descriptionBingo
+		case resultMeasures.meanDeviation < maxAcceptableMeanDeviation/2:
+			hint.Description = descriptionGoodJob
+		case resultMeasures.meanDeviation < maxAcceptableMeanDeviation:
+			hint.Description = descriptionNotBad
+		case compareFloats(resultMeasures.meanDeviation, maxAcceptableMeanDeviation):
+			hint.Description = descriptionYouCanDoBetter
+		}
 	}
 
 	return hint, nil
@@ -93,19 +113,17 @@ func getMeasures(values []int) hintMeasurements {
 	// Maximum deviation
 	r.maxDeviation = 0
 	for _, v := range values {
-		deviation := math.Abs(float64(r.median) - float64(v))
-		r.maxDeviation = math.Max(r.maxDeviation, deviation)
+		r.maxDeviation = math.Max(r.maxDeviation, deviation(v, r.median))
 	}
 
 	// Average deviation
 	sum := 0
 	for _, v := range values {
-		sum += int(math.Abs(float64(r.median) - float64(v)))
+		sum += int(deviation(v, r.median))
 	}
 	r.meanDeviation = float64(sum) / float64(len(values))
 
 	return r
-
 }
 
 func median(values []int) int {
@@ -118,4 +136,12 @@ func median(values []int) int {
 	})
 	center := len(values) / 2
 	return values[center]
+}
+
+func deviation(value int, median int) float64 {
+	return math.Abs(float64(median) - float64(value))
+}
+
+func compareFloats(a, b float64) bool {
+	return math.Abs(a-b) < float64Epsilon
 }

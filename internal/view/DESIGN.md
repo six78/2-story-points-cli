@@ -12,17 +12,17 @@ package view
   Issue:  https://github.com/golang/go/issues/19412
           proposal: spec: add sum types / discriminated unions
           [LanguageChange] [v2] [Proposal] [NeedsInvestigation]
-  
-  ╭───────┬─────┬─────────┬────────┬─────────╮                                       
-  │ Alice │ Bob │ Charlie │ Didukh │ Sirotin │  Recommended: 3                          
-  ├───────┼─────┼─────────┼────────┼─────────┤  Acceptable:  x - too big votes variety
-  │   1   │  3  │    8    │   13   │    3    │  What to do:  Listen to Alice and Didukh arguments                                        
-  ╰───────┴─────┴─────────┴────────┴─────────╯                                                                  
-              ╭───╮                                                       
-  ╭───╮ ╭───╮ │ 3 │ ╭───╮ ╭───╮ ╭────╮ ╭────╮ ╭────╮                                    
-  │ 1 │ │ 2 │ ╰───╯ │ 5 │ │ 8 │ │ 13 │ │ 21 │ │ 34 │                                    
-  ╰───╯ ╰───╯       ╰───╯ ╰───╯ ╰────╯ ╰────╯ ╰────╯                                    
-                ^
+          
+  ╭───────┬───────────┬─────────┬───────┬──────╮                                       
+  │ Alice │ Bob (You) │ Charlie │ David │ Erin │  Recommended: 8                          
+  ├───────┼───────────┼─────────┼───────┼──────┤  Acceptable:  ✓
+  │   8   │     8     │    5    │   5   │   8  │  > Not bad.                      
+  ╰───────┴───────────┴─────────┴───────┴──────╯           
+                          ╭───╮                                           
+  ╭───╮ ╭───╮ ╭───╮ ╭───╮ │ 8 │ ╭────╮ ╭────╮ ╭────╮                                    
+  │ 1 │ │ 2 │ │ 3 │ │ 5 │ ╰───╯ │ 13 │ │ 21 │ │ 34 │                                    
+  ╰───╯ ╰───╯ ╰───╯ ╰───╯       ╰────╯ ╰────╯ ╰────╯                                    
+                            ^
                 
  Use [←] and [→] arrows to select a card and press [Enter]
  [Tab] To switch to issues list view

@@ -1,12 +1,9 @@
 package hintview
 
 import (
-	"fmt"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/internal/view/components/voteview"
 	"github.com/six78/2-story-points-cli/internal/view/messages"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
@@ -16,8 +13,7 @@ var (
 	headerStyle       = lipgloss.NewStyle() // .Foreground(lipgloss.Color("#FAFAFA"))
 	acceptableStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
 	unacceptableStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
-	textStyle         = lipgloss.NewStyle() // .Foreground(lipgloss.Color("#FAFAFA"))
-	MentionStyle      = textStyle.Copy().Italic(true).Foreground(config.UserColor)
+	textStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
 )
 
 type Model struct {
@@ -56,23 +52,18 @@ func (m Model) View() string {
 		return ""
 	}
 
-	verdictStyle := unacceptableStyle
-	verdictText := "x"
-	if m.hint.Acceptable {
-		verdictStyle = acceptableStyle
-		verdictText = "✓"
-	}
-
-	rejectionReason := ""
-	if !m.hint.Acceptable {
-		rejectionReason = fmt.Sprintf(" (%s)", textStyle.Render(m.hint.RejectReason))
-	}
-
 	return lipgloss.JoinVertical(lipgloss.Top,
 		"",
 		headerStyle.Render("Recommended:")+""+voteview.Render(m.hint.Value),
-		headerStyle.Render("Acceptable:")+"  "+verdictStyle.Render(verdictText)+rejectionReason,
-		headerStyle.Render("What to do:")+"  "+textStyle.Render(m.hint.Advice),
+		headerStyle.Render("Acceptable:")+"  "+renderAcceptanceIcon(m.hint.Acceptable),
+		headerStyle.Render(">")+" "+textStyle.Render(m.hint.Description),
 		"",
 	)
+}
+
+func renderAcceptanceIcon(acceptable bool) string {
+	if acceptable {
+		return acceptableStyle.Render("✓")
+	}
+	return unacceptableStyle.Render("x")
 }
