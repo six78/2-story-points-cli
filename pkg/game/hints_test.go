@@ -33,7 +33,7 @@ func TestMedian(t *testing.T) {
 }
 
 func TestHint(t *testing.T) {
-	deck := protocol.Deck{"1", "2", "3", "5", "8", "13", "21"}
+	deck := protocol.Deck{"1", "2", "3", "5", "8", "13", "21", "?"}
 
 	type Case struct {
 		values       []protocol.VoteValue
@@ -115,6 +115,24 @@ func TestHint(t *testing.T) {
 		{
 			// This also tests round up median when even number of votes
 			values:       []protocol.VoteValue{},
+			measurements: hintMeasurements{median: -1, meanDeviation: 0, maxDeviation: 0},
+			expectedHint: protocol.Hint{Acceptable: false, Value: "", Description: notEnoughVotes},
+		},
+		{
+			// Question mark doesn't affect the hint
+			values:       []protocol.VoteValue{"3", "3", "3", "3", "?"},
+			measurements: hintMeasurements{median: 2, meanDeviation: 0, maxDeviation: 0},
+			expectedHint: protocol.Hint{Acceptable: true, Value: "3", Description: descriptionBingo},
+		},
+		{
+			// Question mark doesn't affect the hint, can be anywhere in the deck
+			values:       []protocol.VoteValue{"3", "3", "?", "3", "3"},
+			measurements: hintMeasurements{median: 2, meanDeviation: 0, maxDeviation: 0},
+			expectedHint: protocol.Hint{Acceptable: true, Value: "3", Description: descriptionBingo},
+		},
+		{
+			// Question mark doesn't affect the hint
+			values:       []protocol.VoteValue{"?", "?", "?", "?", "?"},
 			measurements: hintMeasurements{median: -1, meanDeviation: 0, maxDeviation: 0},
 			expectedHint: protocol.Hint{Acceptable: false, Value: "", Description: notEnoughVotes},
 		},
