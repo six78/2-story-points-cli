@@ -112,6 +112,12 @@ func TestHint(t *testing.T) {
 			measurements: hintMeasurements{median: 3, meanDeviation: 1, maxDeviation: 2},
 			expectedHint: protocol.Hint{Acceptable: false, Value: "5", Description: varietyOfVotesIsTooHigh},
 		},
+		{
+			// This also tests round up median when even number of votes
+			values:       []protocol.VoteValue{},
+			measurements: hintMeasurements{median: -1, meanDeviation: 0, maxDeviation: 0},
+			expectedHint: protocol.Hint{Acceptable: false, Value: "", Description: notEnoughVotes},
+		},
 	}
 
 	for _, tc := range testCases {
