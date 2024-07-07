@@ -1,10 +1,11 @@
 package transport
 
 import (
+	"testing"
+
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"testing"
 )
 
 func TestContentTopicCache(t *testing.T) {

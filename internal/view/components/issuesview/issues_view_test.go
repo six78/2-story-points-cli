@@ -1,13 +1,14 @@
 package issuesview
 
 import (
+	"strings"
+	"testing"
+
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/six78/2-story-points-cli/internal/testcommon"
 	"github.com/six78/2-story-points-cli/internal/view/messages"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"github.com/stretchr/testify/suite"
-	"strings"
-	"testing"
 )
 
 func TestIssuesView(t *testing.T) {

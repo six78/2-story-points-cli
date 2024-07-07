@@ -319,7 +319,7 @@ func (g *Game) publishMessage(message any) error {
 
 	payload, err := json.Marshal(message)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to marshal message")
 	}
 
 	if g.config.EnableSymmetricEncryption {
@@ -333,7 +333,7 @@ func (g *Game) publishMessage(message any) error {
 		g.messages <- payload
 	}
 
-	return err
+	return errors.Wrap(err, "failed to publish message")
 }
 
 func (g *Game) publishUserOnline(online bool) {

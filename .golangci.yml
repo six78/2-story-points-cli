@@ -8,3 +8,11 @@ linters:
     - staticcheck
     - unused
     - testifylint
+    - goimports
+    - goconst
+    - wrapcheck
+
+issues:
+  exclude-dirs:
+    - .github
+    - docs

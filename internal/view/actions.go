@@ -2,6 +2,9 @@ package view
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pkg/errors"
 	"github.com/six78/2-story-points-cli/internal/view/commands"
@@ -10,8 +13,6 @@ import (
 	"github.com/six78/2-story-points-cli/pkg/game"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"golang.org/x/exp/slices"
-	"strconv"
-	"strings"
 )
 
 type Action string

@@ -2,10 +2,11 @@ package matchers
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"go.uber.org/zap"
-	"testing"
 )
 
 type OnlineMatcher struct {

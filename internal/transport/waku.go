@@ -204,7 +204,7 @@ func discoverNodes(ctx context.Context, logger *zap.Logger) ([]dnsdisc.Discovere
 
 	discoveredNodes, err := dnsdisc.RetrieveNodes(ctx, enrTree, options...)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to retrieve nodes from enr tree")
 	}
 
 	logger.Debug("discovered nodes", zap.String("entree", enrTree))
@@ -251,7 +251,8 @@ func (n *Node) DialPeer(address multiaddr.Multiaddr) error {
 	ctx, cancel := context.WithTimeout(n.ctx, dialTimeout)
 	defer cancel()
 
-	return n.waku.DialPeerWithMultiAddress(ctx, address)
+	err := n.waku.DialPeerWithMultiAddress(ctx, address)
+	return errors.Wrap(err, "failed to dial peer")
 }
 
 func (n *Node) PublishUnencryptedMessage(room *pp.Room, payload []byte) error {
@@ -277,7 +278,8 @@ func (n *Node) encryptPublicPayload(room *pp.Room, message *pb.WakuMessage) erro
 		// PrivKey: Set a privkey if the message requires a signature
 	}
 
-	return wp.EncodeWakuMessage(message, keyInfo)
+	err := wp.EncodeWakuMessage(message, keyInfo)
+	return errors.Wrap(err, "failed to encode waku message")
 }
 
 func (n *Node) PublishPublicMessage(room *pp.Room, payload []byte) error {
