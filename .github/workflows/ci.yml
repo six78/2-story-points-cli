@@ -70,14 +70,6 @@ jobs:
             --prefix "github.com/six78/2-story-points-cli" \
             --exit-code $?
 
-      - name: Report
-        uses: dorny/test-reporter@v1.9.1
-        if: success() || failure()
-        with:
-          name: test result
-          path: /tmp/test-results/gotestsum-report.xml
-          reporter: jest-junit
-
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
@@ -89,6 +81,14 @@ jobs:
         with:
           name: coverage.html
           path: /tmp/test-results/coverage.html
+
+      - name: Report
+        uses: dorny/test-reporter@v1.9.1
+        if: success() || failure()
+        with:
+          name: test
+          path: /tmp/test-results/gotestsum-report.xml
+          reporter: jest-junit
 
   golangci:
     name: lint
