@@ -99,6 +99,9 @@ func GetResultHint(deck protocol.Deck, issueVotes protocol.IssueVotes) (*protoco
 func getVotesAsDeckIndexes(issueVotes protocol.IssueVotes, deck protocol.Deck) ([]int, error) {
 	indexes := make([]int, 0, len(issueVotes))
 	for _, vote := range issueVotes {
+		if vote.Value == protocol.UncertaintyCard {
+			continue
+		}
 		index := deck.Index(vote.Value)
 		if index < 0 {
 			return nil, ErrVoteNotFoundInDeck
