@@ -29,6 +29,7 @@ const (
 	// Rejection reasons
 	varietyOfVotesIsTooHigh   = "No strong consensus among the players"
 	maximumDeviationIsTooHigh = "Maximum deviation threshold exceeded"
+	notEnoughVotes            = "Nobody voted 🤷‍"
 	// Advices
 	descriptionBingo          = "BINGO! 🎉💃"
 	descriptionGoodJob        = "Good job 😎"
@@ -48,6 +49,14 @@ func GetResultHint(deck protocol.Deck, issueVotes protocol.IssueVotes) (*protoco
 	indexes, err := getVotesAsDeckIndexes(issueVotes, deck)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(indexes) == 0 {
+		return &protocol.Hint{
+			Acceptable:  false,
+			Value:       "",
+			Description: notEnoughVotes,
+		}, nil
 	}
 
 	// Calculate measures for the votes
@@ -109,6 +118,12 @@ func getMeasures(values []int) hintMeasurements {
 
 	// median value
 	r.median = median(values)
+
+	if r.median < 0 {
+		r.maxDeviation = 0
+		r.meanDeviation = 0
+		return r
+	}
 
 	// Maximum deviation
 	r.maxDeviation = 0
