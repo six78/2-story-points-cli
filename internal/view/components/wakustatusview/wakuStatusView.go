@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
 	"github.com/six78/2-story-points-cli/internal/transport"
 	"github.com/six78/2-story-points-cli/internal/view/messages"
 )
@@ -45,7 +46,7 @@ func (m Model) View() string {
 		marker = dangerStyle.Render(marker)
 	}
 
-	text := fmt.Sprintf(" Waku connection status: %d peer(s)", m.status.PeersCount)
+	text := fmt.Sprintf(" Waku: %d peer(s)", m.status.PeersCount)
 
 	return lipgloss.JoinHorizontal(lipgloss.Left, marker, text)
 }

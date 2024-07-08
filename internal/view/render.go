@@ -52,8 +52,11 @@ func (m model) renderGame() string {
 		roomViewSeparator = "\n"
 	}
 	return lipgloss.JoinVertical(lipgloss.Top,
-		m.wakuStatusView.View(),
-		m.renderRoomID(),
+		lipgloss.JoinHorizontal(lipgloss.Top,
+			m.wakuStatusView.View(),
+			foregroundShadeStyle.Render("  |  "),
+			m.renderRoomID(),
+		),
 		roomViewSeparator+m.renderRoomView(),
 		m.renderActionInput(),
 		m.errorView.View())
@@ -61,13 +64,13 @@ func (m model) renderGame() string {
 
 func (m model) renderRoomID() string {
 	if m.roomID.Empty() {
-		return "  Join a room or create a new one ..."
+		return "Join a room or create a new one ..."
 	}
 	var dealerString string
 	if m.game.IsDealer() {
 		dealerString = foregroundShadeStyle.Render(" (dealer)")
 	}
-	return "  Room: " + m.roomID.String() + dealerString
+	return "Room: " + m.roomID.String() + dealerString
 }
 
 func (m model) renderRoomView() string {
