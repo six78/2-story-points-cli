@@ -6,9 +6,10 @@ import (
 
 	"github.com/brianvoe/gofakeit/v6"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
+
+	"github.com/six78/2-story-points-cli/internal/config"
 )
 
 type Suite struct {
@@ -17,10 +18,7 @@ type Suite struct {
 }
 
 func (s *Suite) SetupSuite() {
-	logger, err := zap.NewDevelopment()
-	s.Require().NoError(err)
-	s.Logger = logger
-	config.Logger = logger
+	s.Logger = SetupConfigLogger(s.T())
 }
 
 func (s *Suite) TearDownSuite() {
