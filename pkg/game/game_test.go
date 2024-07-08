@@ -8,14 +8,15 @@ import (
 
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
+	"go.uber.org/zap"
+
 	"github.com/six78/2-story-points-cli/internal/testcommon"
 	"github.com/six78/2-story-points-cli/internal/testcommon/matchers"
 	"github.com/six78/2-story-points-cli/internal/transport"
 	mocktransport "github.com/six78/2-story-points-cli/internal/transport/mock"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
-	"github.com/stretchr/testify/suite"
-	"go.uber.org/mock/gomock"
-	"go.uber.org/zap"
 )
 
 func TestGame(t *testing.T) {
@@ -394,7 +395,7 @@ func (s *Suite) TestOnlineState() {
 		WithEnablePublishOnlineState(false), // FIXME: Add a separate test for self publishing
 	})
 
-	s.Logger.Debug("<<< test info",
+	s.Logger.Debug("test info",
 		zap.Any("player", player),
 		zap.Any("dealer", s.dealer.Player()),
 	)
