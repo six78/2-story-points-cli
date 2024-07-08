@@ -102,9 +102,7 @@ func fetchIssue(client *github.Client, input *protocol.Issue) tea.Cmd {
 		}
 
 		msg.info.number = issue.Number
-
-		time.Sleep(1 * time.Second)
-
+		
 		return msg
 	}
 }
