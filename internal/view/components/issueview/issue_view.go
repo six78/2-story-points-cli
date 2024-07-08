@@ -173,17 +173,29 @@ func renderLabels(info *issueInfo) []string {
 	return labels
 }
 
-func splitLabelsToLines(labels []string) ([]string, []string) {
-	if len(labels) < 3 {
-		return labels, []string{}
+func splitLabelsToLines(labels []labelInfo) int {
+	// Calculate full length, ignore space between labels
+	fullLength := 0
+	for _, l := range labels {
+		if l.name == nil {
+			continue
+		}
+		fullLength += len(*l.name)
 	}
 
-	center := len(labels) / 2
-	if len(labels)%2 == 1 {
-		center++
+	// Find the index where the first line should end
+	firstLineLength := 0
+	for i, label := range labels {
+		if label.name == nil {
+			continue
+		}
+		if firstLineLength+len(*label.name) > fullLength/2 {
+			return i
+		}
+		firstLineLength += len(*label.name)
 	}
 
-	return labels[:center], labels[center:]
+	return 0
 }
 
 func joinLabels(labels []string) string {
@@ -191,9 +203,15 @@ func joinLabels(labels []string) string {
 }
 
 func renderLabelLines(info *issueInfo) (string, string) {
+	if info == nil {
+		return "", ""
+	}
+	if len(info.labels) == 0 {
+		return "", ""
+	}
 	labels := renderLabels(info)
-	labelsFirstLine, labelsSecondLine := splitLabelsToLines(labels)
-	return joinLabels(labelsFirstLine), joinLabels(labelsSecondLine)
+	splitIndex := splitLabelsToLines(info.labels)
+	return joinLabels(labels[:splitIndex]), joinLabels(labels[splitIndex:])
 }
 
 func (m *Model) issueInfo() *issueInfo {
