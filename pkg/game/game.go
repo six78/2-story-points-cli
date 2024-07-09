@@ -491,6 +491,10 @@ func (g *Game) CreateNewRoom() (*protocol.Room, *protocol.State, error) {
 }
 
 func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
+	if !g.initialized {
+		return errors.New("game is not initialized")
+	}
+
 	if g.RoomID() == roomID {
 		return errors.New("already in this room")
 	}

@@ -46,9 +46,11 @@ func (s *Suite) newGame(extraOptions []Option) *Game {
 
 	g := NewGame(options)
 	s.Require().NotNil(g)
+	s.Require().False(g.Initialized())
 
 	err := g.Initialize()
 	s.Require().NoError(err)
+	s.Require().True(g.Initialized())
 
 	return g
 }
@@ -63,9 +65,6 @@ func (s *Suite) SetupTest() {
 	s.dealer = s.newGame([]Option{
 		WithEnableSymmetricEncryption(true),
 	})
-
-	err := s.dealer.Initialize()
-	s.Require().NoError(err)
 }
 
 func (s *Suite) TearDownTest() {
@@ -395,7 +394,7 @@ func (s *Suite) TestOnlineState() {
 		WithEnablePublishOnlineState(false), // FIXME: Add a separate test for self publishing
 	})
 
-	s.Logger.Debug("test info",
+	s.Logger.Debug("xtest info",
 		zap.Any("player", player),
 		zap.Any("dealer", s.dealer.Player()),
 	)
