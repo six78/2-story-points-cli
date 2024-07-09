@@ -9,7 +9,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/google/go-github/v61/github"
 	"github.com/muesli/termenv"
 	"github.com/pkg/errors"
 
@@ -21,6 +20,7 @@ var (
 	errOnlyGithubIssuesUnfurled = errors.New("only github issues can be unfurled")
 	errInvalidGithubIssueLink   = errors.New("invalid github issue link")
 	errInvalidGithubIssueNumber = errors.New("invalid github issue number")
+	errGithubIssueFetchFailed   = errors.New("failed to fetch github issue")
 )
 
 type githubIssueRequest struct {
@@ -54,7 +54,7 @@ func parseUrl(input string) (*githubIssueRequest, error) {
 	}, nil
 }
 
-func fetchIssue(client *github.Client, input *protocol.Issue) tea.Cmd {
+func fetchIssue(client GithubIssueService, input *protocol.Issue) tea.Cmd {
 	return func() tea.Msg {
 		if input == nil {
 			return nil
@@ -74,12 +74,12 @@ func fetchIssue(client *github.Client, input *protocol.Issue) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
 
-		issue, _, err := client.Issues.Get(ctx, request.owner, request.repo, request.number)
+		issue, _, err := client.Get(ctx, request.owner, request.repo, request.number)
 		if err != nil {
 			return issueFetchedMessage{
 				url: input.TitleOrURL,
 				info: &issueInfo{
-					err: errors.New("failed to fetch github issue"),
+					err: errGithubIssueFetchFailed,
 				},
 			}
 		}
@@ -94,6 +94,7 @@ func fetchIssue(client *github.Client, input *protocol.Issue) tea.Cmd {
 			url: input.TitleOrURL,
 			info: &issueInfo{
 				err:    nil,
+				number: issue.Number,
 				title:  issue.Title,
 				labels: labels,
 			},
@@ -106,8 +107,6 @@ func fetchIssue(client *github.Client, input *protocol.Issue) tea.Cmd {
 		if issue.Assignee != nil {
 			msg.info.assignee = issue.Assignee.Login
 		}
-
-		msg.info.number = issue.Number
 
 		return msg
 	}

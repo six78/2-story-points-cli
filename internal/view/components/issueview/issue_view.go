@@ -78,7 +78,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if ok {
 			break
 		}
-		cmd = fetchIssue(m.client, m.issue)
+		cmd = fetchIssue(m.client.Issues, m.issue)
 		cmds = append(cmds, cmd)
 		m.issues[m.issue.TitleOrURL] = nil
 
