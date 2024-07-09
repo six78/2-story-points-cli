@@ -190,12 +190,16 @@ func splitLabelsToLines(labels []labelInfo) int {
 			continue
 		}
 		if firstLineLength+len(*label.name) > fullLength/2 {
+			// Ensure at least one item remains on the first line
+			if i == 0 {
+				return 1
+			}
 			return i
 		}
 		firstLineLength += len(*label.name)
 	}
 
-	return 0
+	return len(labels)
 }
 
 func joinLabels(labels []string) string {

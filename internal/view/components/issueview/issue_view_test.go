@@ -1,6 +1,7 @@
 package issueview
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -40,4 +41,33 @@ func TestHeight(t *testing.T) {
 	view := model.View()
 	lines := strings.Split(view, "\n")
 	require.Len(t, lines, viewHeight)
+}
+
+func TestSplitLabelsToLines(t *testing.T) {
+	testCases := []struct {
+		labelsSizes   []uint
+		expectedSplit int
+	}{
+		{labelsSizes: []uint{1}, expectedSplit: 1},
+		{labelsSizes: []uint{1, 1}, expectedSplit: 1},
+		{labelsSizes: []uint{1, 1, 1}, expectedSplit: 1},
+		{labelsSizes: []uint{1, 1, 1, 1}, expectedSplit: 2},
+		{labelsSizes: []uint{1, 1, 1, 1}, expectedSplit: 2},
+		{labelsSizes: []uint{10, 1, 1, 1}, expectedSplit: 1}, // at least one issue at first line
+		{labelsSizes: []uint{1, 1, 1, 10}, expectedSplit: 3},
+	}
+
+	for _, tc := range testCases {
+		name := fmt.Sprint(tc.labelsSizes)
+		t.Run(name, func(t *testing.T) {
+			labels := make([]labelInfo, len(tc.labelsSizes))
+			for i := range labels {
+				label := gofakeit.LetterN(tc.labelsSizes[i])
+				labels[i].name = &label
+			}
+
+			splitIndex := splitLabelsToLines(labels)
+			require.Equal(t, tc.expectedSplit, splitIndex)
+		})
+	}
 }
