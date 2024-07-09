@@ -30,7 +30,6 @@ type Suite struct {
 	cancel    context.CancelFunc
 	transport *mocktransport.MockService
 	clock     clockwork.FakeClock
-	dealer    *Game
 }
 
 func (s *Suite) newGame(extraOptions []Option) *Game {
@@ -61,10 +60,6 @@ func (s *Suite) SetupTest() {
 	ctrl := gomock.NewController(s.T())
 	s.transport = mocktransport.NewMockService(ctrl)
 	s.clock = clockwork.NewFakeClock()
-
-	s.dealer = s.newGame([]Option{
-		WithEnableSymmetricEncryption(true),
-	})
 }
 
 func (s *Suite) TearDownTest() {
@@ -140,13 +135,17 @@ func (s *Suite) TestStateSize() {
 }
 
 func (s *Suite) TestSimpleGame() {
-	room, initialState, err := s.dealer.CreateNewRoom()
+	dealer := s.newGame([]Option{
+		WithEnableSymmetricEncryption(true),
+	})
+
+	room, initialState, err := dealer.CreateNewRoom()
 	s.Require().NoError(err)
 	s.Require().NotNil(room)
 
 	roomID := room.ToRoomID()
 	roomMatcher := matchers.NewRoomMatcher(room)
-	onlineMatcher := matchers.NewOnlineMatcher(s.T(), s.dealer.Player().ID)
+	onlineMatcher := matchers.NewOnlineMatcher(s.T(), dealer.Player().ID)
 
 	// Online state is sent periodically
 	s.transport.EXPECT().PublishPublicMessage(roomMatcher, onlineMatcher).AnyTimes()
@@ -158,7 +157,7 @@ func (s *Suite) TestSimpleGame() {
 	s.transport.EXPECT().PublishPublicMessage(roomMatcher, stateMatcher).
 		Times(1)
 
-	err = s.dealer.JoinRoom(roomID, initialState)
+	err = dealer.JoinRoom(roomID, initialState)
 	s.Require().NoError(err)
 
 	state := stateMatcher.Wait()
@@ -189,7 +188,7 @@ func (s *Suite) TestSimpleGame() {
 			PublishPublicMessage(roomMatcher, stateMatcher).
 			Times(1)
 
-		firstIssueID, err = s.dealer.Deal(firstItemText)
+		firstIssueID, err = dealer.Deal(firstItemText)
 		s.Require().NoError(err)
 
 		state = stateMatcher.Wait()
@@ -199,12 +198,12 @@ func (s *Suite) TestSimpleGame() {
 		s.Logger.Info("match on deal first item")
 	}
 
-	currentIssue := s.dealer.CurrentState().Issues.Get(s.dealer.CurrentState().ActiveIssue)
+	currentIssue := dealer.CurrentState().Issues.Get(dealer.CurrentState().ActiveIssue)
 	s.Require().NotNil(currentIssue)
 	s.Require().Equal(firstItemText, currentIssue.TitleOrURL)
 
 	{ // Publish dealer vote
-		voteMatcher := matchers.NewVoteMatcher(s.dealer.Player().ID, currentIssue.ID, dealerVote)
+		voteMatcher := matchers.NewVoteMatcher(dealer.Player().ID, currentIssue.ID, dealerVote)
 		s.transport.EXPECT().
 			PublishPublicMessage(roomMatcher, voteMatcher).
 			Times(1)
@@ -214,7 +213,7 @@ func (s *Suite) TestSimpleGame() {
 			PublishPublicMessage(roomMatcher, stateMatcher).
 			Times(1)
 
-		err = s.dealer.PublishVote(dealerVote)
+		err = dealer.PublishVote(dealerVote)
 		s.Require().NoError(err)
 
 		state = stateMatcher.Wait()
@@ -223,7 +222,7 @@ func (s *Suite) TestSimpleGame() {
 		s.Require().Nil(item.Result)
 		s.Require().Len(item.Votes, 1)
 
-		vote, ok := item.Votes[s.dealer.Player().ID]
+		vote, ok := item.Votes[dealer.Player().ID]
 		s.Require().True(ok)
 		s.Require().Empty(vote.Value)
 		s.Require().Greater(vote.Timestamp, int64(0))
@@ -235,7 +234,7 @@ func (s *Suite) TestSimpleGame() {
 			PublishPublicMessage(roomMatcher, stateMatcher).
 			Times(1)
 
-		err = s.dealer.Reveal()
+		err = dealer.Reveal()
 		s.Require().NoError(err)
 
 		state = stateMatcher.Wait()
@@ -243,7 +242,7 @@ func (s *Suite) TestSimpleGame() {
 		s.Require().Nil(item.Result)
 		s.Require().Len(item.Votes, 1)
 
-		vote, ok := item.Votes[s.dealer.Player().ID]
+		vote, ok := item.Votes[dealer.Player().ID]
 		s.Require().True(ok)
 		s.Require().NotNil(vote)
 		s.Require().Equal(dealerVote, vote.Value)
@@ -258,7 +257,7 @@ func (s *Suite) TestSimpleGame() {
 			PublishPublicMessage(roomMatcher, stateMatcher).
 			Times(1)
 
-		err = s.dealer.Finish(votingResult)
+		err = dealer.Finish(votingResult)
 		s.Require().NoError(err)
 
 		state = stateMatcher.Wait()
@@ -267,7 +266,7 @@ func (s *Suite) TestSimpleGame() {
 		s.Require().Equal(votingResult, *item.Result)
 		s.Require().Len(item.Votes, 1)
 
-		vote, ok := item.Votes[s.dealer.Player().ID]
+		vote, ok := item.Votes[dealer.Player().ID]
 		s.Require().True(ok)
 		s.Require().Equal(dealerVote, vote.Value)
 		s.Require().Greater(vote.Timestamp, int64(0))
@@ -296,7 +295,7 @@ func (s *Suite) TestSimpleGame() {
 			PublishPublicMessage(roomMatcher, stateMatcher).
 			Times(1)
 
-		secondIssueID, err = s.dealer.Deal(secondItemText)
+		secondIssueID, err = dealer.Deal(secondItemText)
 		s.Require().NoError(err)
 
 		state = stateMatcher.Wait()
@@ -389,17 +388,17 @@ func (s *Suite) TestOnlineState() {
 		Name: gofakeit.Username(),
 	}
 
-	s.dealer = s.newGame([]Option{
+	dealer := s.newGame([]Option{
 		WithPlayerName("dealer"),
 		WithEnablePublishOnlineState(false), // FIXME: Add a separate test for self publishing
 	})
 
 	s.Logger.Debug("xtest info",
 		zap.Any("player", player),
-		zap.Any("dealer", s.dealer.Player()),
+		zap.Any("dealer", dealer.Player()),
 	)
 
-	room, initialState, err := s.dealer.CreateNewRoom()
+	room, initialState, err := dealer.CreateNewRoom()
 	s.Require().NoError(err)
 	s.Require().NotNil(room)
 
@@ -410,7 +409,7 @@ func (s *Suite) TestOnlineState() {
 
 	//s.transport.EXPECT().
 	//	PublishPublicMessage(roomMatcher,
-	//		matchers.NewOnlineMatcher(s.T(), s.dealer.Player().ID)).
+	//		matchers.NewOnlineMatcher(s.T(), dealer.Player().ID)).
 	//	AnyTimes()
 
 	stateMatcher := s.newStateMatcher()
@@ -418,7 +417,7 @@ func (s *Suite) TestOnlineState() {
 		PublishPublicMessage(roomMatcher, stateMatcher).
 		Times(1)
 
-	err = s.dealer.JoinRoom(roomID, initialState)
+	err = dealer.JoinRoom(roomID, initialState)
 	s.Require().NoError(err)
 
 	_ = stateMatcher.Wait()
@@ -438,7 +437,7 @@ func (s *Suite) TestOnlineState() {
 		PublishPublicMessage(roomMatcher, stateMatcher).
 		Times(1)
 
-	s.dealer.handlePlayerOnlineMessage(playerOnlineMessage)
+	dealer.handlePlayerOnlineMessage(playerOnlineMessage)
 
 	// Ensure new player joined
 	state := stateMatcher.Wait()
@@ -464,4 +463,31 @@ func (s *Suite) TestOnlineState() {
 	s.Require().True(ok)
 	s.Require().False(p.Online)
 	s.Require().Equal(lastSeenAt, p.OnlineTimestampMilliseconds)
+}
+
+func (s *Suite) TestGameNotInitialized() {
+	options := []Option{
+		WithContext(s.ctx),
+		WithTransport(s.transport),
+		WithClock(s.clock),
+		WithLogger(s.Logger),
+		WithPlayerName(gofakeit.Username()),
+		WithPublishStateLoop(false),
+	}
+
+	g := NewGame(options)
+	s.Require().NotNil(g)
+	s.Require().False(g.Initialized())
+
+	room, state, err := g.CreateNewRoom()
+	s.Require().ErrorIs(err, ErrGameNotInitialized)
+	s.Require().Nil(room)
+	s.Require().Nil(state)
+
+	err = g.JoinRoom(protocol.NewRoomID(gofakeit.LetterN(5)), nil)
+	s.Require().ErrorIs(err, ErrGameNotInitialized)
+
+	err = g.Initialize()
+	s.Require().NoError(err)
+	s.Require().True(g.Initialized())
 }

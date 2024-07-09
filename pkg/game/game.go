@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	ErrNoRoom = errors.New("no room")
+	ErrNoRoom             = errors.New("no room")
+	ErrGameNotInitialized = errors.New("game is not initialized")
 
 	playerOnlineTimeout = 20 * time.Second
 )
@@ -461,11 +462,7 @@ func (g *Game) Deal(input string) (protocol.IssueID, error) {
 
 func (g *Game) CreateNewRoom() (*protocol.Room, *protocol.State, error) {
 	if !g.initialized {
-		return nil, nil, errors.New("game is not initialized")
-	}
-
-	if g.player == nil {
-		return nil, nil, errors.New("unexpected error: game initialized, player is nil")
+		return nil, nil, ErrGameNotInitialized
 	}
 
 	room, err := protocol.NewRoom()
@@ -492,7 +489,7 @@ func (g *Game) CreateNewRoom() (*protocol.Room, *protocol.State, error) {
 
 func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	if !g.initialized {
-		return errors.New("game is not initialized")
+		return ErrGameNotInitialized
 	}
 
 	if g.RoomID() == roomID {
