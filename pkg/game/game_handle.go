@@ -3,9 +3,10 @@ package game
 import (
 	"encoding/json"
 
-	"github.com/six78/2-story-points-cli/pkg/protocol"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
+
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 )
 
 func (g *Game) handleStateMessage(payload []byte) {
@@ -66,6 +67,9 @@ func (g *Game) handlePlayerOnlineMessage(payload []byte) {
 }
 
 func (g *Game) handlePlayerOfflineMessage(payload []byte) {
+	if g.state == nil {
+		return
+	}
 	var message protocol.PlayerOfflineMessage
 	err := json.Unmarshal(payload, &message)
 	if err != nil {

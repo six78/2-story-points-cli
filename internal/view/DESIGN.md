@@ -1,20 +1,19 @@
-package view
-
 # Full example
 
 ## Room view
 
 ```shell
 
-  ● Waku: 8 peer(s)
-    Room: W1Rka5Dz8GVGzgy1iq6gS5puS1x3JroeW4ZDTfBZkCfm (dealer)
+   ● Waku:  8 peer(s)  |  ● Room:  W1Rka5Dz8GVGzgy1iq6gS5puS1x3JroeW4ZDTfBZkCfm (dealer)     
 
-  Issue:  https://github.com/golang/go/issues/19412
-          proposal: spec: add sum types / discriminated unions
-          [LanguageChange] [v2] [Proposal] [NeedsInvestigation]
-          
+   https://github.com/golang/go/issues/19412
+   proposal: spec: add sum types / discriminated unions  #19412
+   
+   Author:    @Alice               [LanguageChange] [v2] [Proposal] 
+   Assignee:  @Bob                 [NeedsInvestigation]
+
   ╭───────┬───────────┬─────────┬───────┬──────╮                                       
-  │ Alice │ Bob (You) │ Charlie │ David │ Erin │  Recommended: 8                          
+  │ Alice │ Bob (You) │ Charlie │ David │ Erin │  Recommended: 8                         
   ├───────┼───────────┼─────────┼───────┼──────┤  Acceptable:  ✓
   │   8   │     8     │    5    │   5   │   8  │  > Not bad.                      
   ╰───────┴───────────┴─────────┴───────┴──────╯           

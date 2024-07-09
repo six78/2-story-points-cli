@@ -1,28 +1,30 @@
 package issueview
 
 import (
-	"context"
 	"fmt"
-	"net/url"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/go-github/v61/github"
-	"github.com/muesli/termenv"
-	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/internal/view/messages"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
-	"go.uber.org/zap"
 )
 
 var (
-	errorStyle = lipgloss.NewStyle().Foreground(config.ForegroundShadeColor)
-	//defaultStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#555555"))
+	headerStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#AAAAAA"))
+	primaryStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#F0F0F0"))
+	secondaryStyle = lipgloss.NewStyle().Foreground(config.ForegroundShadeColor)
+	hyperlinkStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#648EF8")).Underline(true)
+	errorStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF1744"))
+)
+
+const (
+	viewHeight = 5
 )
 
 type issueFetchedMessage struct {
@@ -36,17 +38,6 @@ type Model struct {
 
 	client  *github.Client
 	spinner spinner.Model
-}
-
-type issueInfo struct {
-	err    error
-	title  *string
-	labels []labelInfo
-}
-
-type labelInfo struct {
-	name  *string
-	style lipgloss.Style
 }
 
 func New() Model {
@@ -87,14 +78,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if ok {
 			break
 		}
-		cmd = fetchIssue(m.client, m.issue)
+		cmd = fetchIssue(m.client.Issues, m.issue)
 		cmds = append(cmds, cmd)
 		m.issues[m.issue.TitleOrURL] = nil
 
 	case issueFetchedMessage:
-		config.Logger.Debug("<<< issue fetched",
-			zap.Any("msg", msg),
-		)
+		config.Logger.Debug("issue fetched", zap.Any("msg", msg))
 		m.issues[msg.url] = msg.info
 	}
 
@@ -105,44 +94,71 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	rightColumn := lipgloss.JoinVertical(lipgloss.Top,
-		m.renderRow1(),
-		m.renderInfo())
-	return lipgloss.JoinHorizontal(lipgloss.Left,
-		"Issue:  \n\n", // Fill at least 3 lines
-		rightColumn)
+	if m.issue == nil {
+		return lipgloss.JoinVertical(lipgloss.Center,
+			"                                                            ",
+			secondaryStyle.Render("No active issue"),
+			strings.Repeat("\n", viewHeight-3),
+		)
+	}
+
+	info := m.issueInfo()
+	labelsFirstLine, labelsSecondLine := renderLabelLines(info)
+
+	block := lipgloss.JoinHorizontal(lipgloss.Top,
+		lipgloss.JoinVertical(lipgloss.Left,
+			headerStyle.Render("Author:"),
+			headerStyle.Render("Assignee:"),
+		),
+		"  ",
+		lipgloss.JoinVertical(lipgloss.Left,
+			primaryStyle.Render(fmt.Sprintf("%-20s", authorString(info))),
+			primaryStyle.Render(fmt.Sprintf("%-20s", assigneeString(info))),
+		),
+		lipgloss.JoinVertical(lipgloss.Top,
+			labelsFirstLine,
+			labelsSecondLine,
+		),
+	)
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		m.renderHeader(),
+		m.renderTitle(info),
+		"",
+		block,
+	)
 }
 
-func (m *Model) renderRow1() string {
+func (m *Model) renderHeader() string {
 	if m.issue != nil {
-		return m.issue.TitleOrURL
+		return hyperlinkStyle.Render(m.issue.TitleOrURL)
 	}
 	return "-"
 }
 
-func (m *Model) renderInfo() string {
+func (m *Model) renderTitle(info *issueInfo) string {
 	if m.issue == nil {
 		return ""
 	}
 
-	info, ok := m.issues[m.issue.TitleOrURL]
-	if !ok {
-		return ""
-	}
-
 	if info == nil {
-		return errorStyle.Render(m.spinner.View() + " fetching title")
+		return secondaryStyle.Render(m.spinner.View() + " fetching title")
 	}
 
 	if info.err != nil {
 		return errorStyle.Render(fmt.Sprintf("[%s]", info.err.Error()))
 	}
 
-	row1 := ""
 	if info.title == nil {
-		row1 = errorStyle.Render("[empty issue title]")
-	} else {
-		row1 = *info.title
+		return secondaryStyle.Render("[empty issue title]")
+	}
+
+	return primaryStyle.Render(*info.title) + "  " + secondaryStyle.Render(renderNumber(info))
+}
+
+func renderLabels(info *issueInfo) []string {
+	if info == nil {
+		return []string{}
 	}
 
 	var labels []string
@@ -153,109 +169,64 @@ func (m *Model) renderInfo() string {
 		labelName := fmt.Sprintf("[%s]", *l.name)
 		labels = append(labels, l.style.Render(labelName))
 	}
-	row2 := strings.Join(labels, " ")
 
-	return lipgloss.JoinVertical(lipgloss.Top, row1, row2)
+	return labels
 }
 
-type githubIssueRequest struct {
-	owner  string
-	repo   string
-	number int
-}
-
-func parseUrl(input string) (*githubIssueRequest, error) {
-	u, err := url.Parse(input)
-	if err != nil {
-		return nil, nil
-	}
-	if u.Host != "github.com" {
-		return nil, errors.New("only github links are unfurled")
-	}
-	path := strings.Split(u.Path, "/")
-	if len(path) != 5 {
-		return nil, errors.New("invalid github issue link")
-	}
-
-	issueNumber, err := strconv.Atoi(path[4])
-	if err != nil {
-		return nil, errors.New("invalid github issue number")
-	}
-
-	return &githubIssueRequest{
-		owner:  path[1],
-		repo:   path[2],
-		number: issueNumber,
-	}, nil
-}
-
-func fetchIssue(client *github.Client, input *protocol.Issue) tea.Cmd {
-	return func() tea.Msg {
-		if input == nil {
-			return nil
+func splitLabelsToLines(labels []labelInfo) int {
+	// Calculate full length, ignore space between labels
+	fullLength := 0
+	for _, l := range labels {
+		if l.name == nil {
+			continue
 		}
-		request, err := parseUrl(input.TitleOrURL)
-		if err != nil {
-			return issueFetchedMessage{
-				url: input.TitleOrURL,
-				info: &issueInfo{
-					err: err,
-				},
+		fullLength += len(*l.name)
+	}
+
+	// Find the index where the first line should end
+	firstLineLength := 0
+	for i, label := range labels {
+		if label.name == nil {
+			continue
+		}
+		if firstLineLength+len(*label.name) > fullLength/2 {
+			// Ensure at least one item remains on the first line
+			if i == 0 {
+				return 1
 			}
+			return i
 		}
-		if request == nil {
-			return nil
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
-
-		issue, _, err := client.Issues.Get(ctx, request.owner, request.repo, request.number)
-		if err != nil {
-			return issueFetchedMessage{
-				url: input.TitleOrURL,
-				info: &issueInfo{
-					err: errors.New("failed to fetch github issue"),
-				},
-			}
-		}
-
-		labels := make([]labelInfo, len(issue.Labels))
-		for i, label := range issue.Labels {
-			labels[i].name = label.Name
-			labels[i].style = labelStyle(label.Color)
-		}
-
-		return issueFetchedMessage{
-			url: input.TitleOrURL,
-			info: &issueInfo{
-				err:    nil,
-				title:  issue.Title,
-				labels: labels,
-			},
-		}
+		firstLineLength += len(*label.name)
 	}
+
+	return len(labels)
 }
 
-func labelStyle(input *string) lipgloss.Style {
-	if input == nil {
-		return lipgloss.NewStyle().Foreground(config.ForegroundShadeColor)
-	}
-
-	color := lipgloss.Color("#" + *input)
-	dark := colorIsDark(color)
-
-	if lipgloss.DefaultRenderer().HasDarkBackground() == dark {
-		return lipgloss.NewStyle().Background(color)
-	}
-
-	return lipgloss.NewStyle().Foreground(color)
+func joinLabels(labels []string) string {
+	return strings.Join(labels, " ")
 }
 
-func colorIsDark(color lipgloss.Color) bool {
-	renderer := lipgloss.DefaultRenderer()
-	c := renderer.ColorProfile().Color(string(color))
-	rgb := termenv.ConvertToRGB(c)
-	//_, _, lightness := rgb.Hsl()
-	perceivedLightness := 0.2126*rgb.R + 0.7152*rgb.G + 0.0722*rgb.B
-	return perceivedLightness < 0.453
+func renderLabelLines(info *issueInfo) (string, string) {
+	if info == nil {
+		return "", ""
+	}
+	if len(info.labels) == 0 {
+		return "", ""
+	}
+	labels := renderLabels(info)
+	splitIndex := splitLabelsToLines(info.labels)
+	return joinLabels(labels[:splitIndex]), joinLabels(labels[splitIndex:])
+}
+
+func (m *Model) issueInfo() *issueInfo {
+	if m.issue == nil {
+		return nil
+	}
+
+	info, ok := m.issues[m.issue.TitleOrURL]
+	if !ok {
+		return nil
+	}
+
+	return info
 }

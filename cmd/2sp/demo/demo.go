@@ -63,8 +63,8 @@ func (d *Demo) Stop() {
 
 func (d *Demo) initializePlayers() error {
 	names := []string{"Alice", "Bob", "Charlie"}
-	d.players = make([]*game.Game, len(names))
-	d.playerSubs = make([]game.StateSubscription, len(names))
+	d.players = make([]*game.Game, 0, len(names))
+	d.playerSubs = make([]game.StateSubscription, 0, len(names))
 
 	wg := sync.WaitGroup{}
 	errChan := make(chan error, len(names))
@@ -78,8 +78,8 @@ func (d *Demo) initializePlayers() error {
 				errChan <- errors.Wrap(err, "failed to create player")
 				return
 			}
-			d.players[i] = player
-			d.playerSubs[i] = player.SubscribeToStateChanges()
+			d.players = append(d.players, player)
+			d.playerSubs = append(d.playerSubs, player.SubscribeToStateChanges())
 		}(i, name)
 	}
 
@@ -99,14 +99,19 @@ func (d *Demo) Routine() {
 	defer d.Stop()
 
 	d.logger.Info("started")
-	time.Sleep(2 * time.Second) // Wait for the program to start
+
+	err := d.waitForGameInitialized()
+	if err != nil {
+		d.logger.Error("game wasn't initialized", zap.Error(err))
+		return
+	}
 
 	// Create new room
 	d.sendShortcut(commands.DefaultKeyMap.NewRoom)
 	d.logger.Info("room created")
 
 	// Add players
-	err := d.initializePlayers()
+	err = d.initializePlayers()
 	if err != nil {
 		d.logger.Error("failed to initialize players", zap.Error(err))
 		return
@@ -337,4 +342,20 @@ func (d *Demo) waitForIssueDealt(sub game.StateSubscription, issueID protocol.Is
 	return d.waitForStateCondition(sub, func(state *protocol.State) bool {
 		return state.ActiveIssue == issueID
 	})
+}
+
+func (d *Demo) waitForGameInitialized() error {
+	timeout := time.After(10 * time.Second)
+	for {
+		select {
+		case <-d.ctx.Done():
+			return errors.New("context done")
+		case <-timeout:
+			return errors.New("timeout waiting for game to be initialized")
+		case <-time.After(100 * time.Millisecond):
+			if d.dealer.Initialized() {
+				return nil
+			}
+		}
+	}
 }
