@@ -17,6 +17,12 @@ import (
 	"github.com/six78/2-story-points-cli/pkg/protocol"
 )
 
+var (
+	errOnlyGithubIssuesUnfurled = errors.New("only github issues can be unfurled")
+	errInvalidGithubIssueLink   = errors.New("invalid github issue link")
+	errInvalidGithubIssueNumber = errors.New("invalid github issue number")
+)
+
 type githubIssueRequest struct {
 	owner  string
 	repo   string
@@ -29,16 +35,16 @@ func parseUrl(input string) (*githubIssueRequest, error) {
 		return nil, nil
 	}
 	if u.Host != "github.com" {
-		return nil, errors.New("only github links are unfurled")
+		return nil, errOnlyGithubIssuesUnfurled
 	}
 	path := strings.Split(u.Path, "/")
 	if len(path) != 5 {
-		return nil, errors.New("invalid github issue link")
+		return nil, errInvalidGithubIssueLink
 	}
 
 	issueNumber, err := strconv.Atoi(path[4])
 	if err != nil {
-		return nil, errors.New("invalid github issue number")
+		return nil, errInvalidGithubIssueNumber
 	}
 
 	return &githubIssueRequest{
