@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
-	"go.uber.org/zap"
 )
 
 type OnlineMatcher struct {
@@ -40,9 +38,6 @@ func (m *OnlineMatcher) Matches(x interface{}) bool {
 		return false
 	}
 
-	config.Logger.Debug("<<< OnlineMatcher.Matches",
-		zap.Any("onlineMessage", onlineMessage),
-	)
 	m.triggered <- onlineMessage
 	return true
 }

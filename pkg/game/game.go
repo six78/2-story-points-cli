@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	ErrNoRoom = errors.New("no room")
+	ErrNoRoom             = errors.New("no room")
+	ErrGameNotInitialized = errors.New("game is not initialized")
 
 	playerOnlineTimeout = 20 * time.Second
 )
@@ -35,6 +36,7 @@ type Game struct {
 	messages     chan []byte
 	features     FeatureFlags
 	codeControls codeControlFlags
+	initialized  bool
 
 	isDealer bool
 	player   *protocol.Player
@@ -54,6 +56,7 @@ func NewGame(opts []Option) *Game {
 		messages:     make(chan []byte, 42),
 		features:     defaultFeatureFlags(),
 		codeControls: defaultCodeControlFlags(),
+		initialized:  false,
 		isDealer:     false,
 		player:       nil,
 		myVote: protocol.VoteResult{
@@ -109,6 +112,7 @@ func (g *Game) Initialize() error {
 		Online: true,
 	}
 
+	g.initialized = true
 	return nil
 }
 
@@ -457,6 +461,10 @@ func (g *Game) Deal(input string) (protocol.IssueID, error) {
 }
 
 func (g *Game) CreateNewRoom() (*protocol.Room, *protocol.State, error) {
+	if !g.initialized {
+		return nil, nil, ErrGameNotInitialized
+	}
+
 	room, err := protocol.NewRoom()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create a new room")
@@ -480,6 +488,10 @@ func (g *Game) CreateNewRoom() (*protocol.Room, *protocol.State, error) {
 }
 
 func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
+	if !g.initialized {
+		return ErrGameNotInitialized
+	}
+
 	if g.RoomID() == roomID {
 		return errors.New("already in this room")
 	}
@@ -566,6 +578,10 @@ func (g *Game) Room() protocol.Room {
 
 func (g *Game) RoomID() protocol.RoomID {
 	return g.roomID
+}
+
+func (g *Game) Initialized() bool {
+	return g.initialized
 }
 
 func (g *Game) Player() protocol.Player {
