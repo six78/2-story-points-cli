@@ -7,21 +7,21 @@ import (
 )
 
 //go:generate sh -c "printf %s $(git describe --tags) > version"
-//go:generate sh -c "git diff-index --quiet HEAD || echo -n dirty > dirty"
+//go:generate sh -c "git status --porcelain > status"
 
 var (
 	//go:embed version
 	tag string
 
-	//go:embed dirty
-	dirty string
+	//go:embed status
+	status string
 
 	buildInfo string
 )
 
 func Version() string {
 	v := tag
-	if dirty != "" {
+	if status != "" {
 		v += "-dirty"
 	}
 	return fmt.Sprintf("%s %s", v, buildInfo)

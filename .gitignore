@@ -4,7 +4,7 @@ dist
 mock
 2sp
 internal/version/version
-internal/version/dirty
+internal/version/status
 
 # Used in ci for goreleaser
 .goreleaser-artifacts
