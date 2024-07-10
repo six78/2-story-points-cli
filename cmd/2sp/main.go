@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -11,6 +12,7 @@ import (
 	"github.com/six78/2-story-points-cli/cmd/2sp/demo"
 	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/internal/transport"
+	"github.com/six78/2-story-points-cli/internal/version"
 	"github.com/six78/2-story-points-cli/internal/view"
 	"github.com/six78/2-story-points-cli/pkg/game"
 	"github.com/six78/2-story-points-cli/pkg/storage"
@@ -19,6 +21,11 @@ import (
 func main() {
 	config.ParseArguments()
 	config.SetupLogger()
+
+	if config.Version() {
+		fmt.Printf("2-story-points version: %s\n", version.Version())
+		return
+	}
 
 	ctx, quit := context.WithCancel(context.Background())
 	defer quit()

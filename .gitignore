@@ -3,6 +3,8 @@ dist
 .DS_Store
 mock
 2sp
+internal/version/version
+internal/version/status
 
 # Used in ci for goreleaser
 .goreleaser-artifacts
