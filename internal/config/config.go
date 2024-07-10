@@ -36,6 +36,7 @@ var wakuLightMode bool
 var wakuDiscV5 bool
 var wakuDnsDiscovery bool
 var demo bool
+var version bool
 
 var Logger *zap.Logger
 var LogFilePath string
@@ -108,6 +109,7 @@ func ParseArguments() {
 	flag.BoolVar(&wakuDiscV5, "waku.discv5", true, "Enable DiscV5 discovery")
 	flag.BoolVar(&wakuDnsDiscovery, "waku.dnsdiscovery", true, "Enable DNS discovery")
 	flag.BoolVar(&demo, "demo", false, "Run demo and quit")
+	flag.BoolVar(&version, "version", false, "Print version and quit")
 	flag.Parse()
 
 	initialAction = strings.Join(flag.Args(), " ")
@@ -160,3 +162,5 @@ func WakuDnsDiscovery() bool {
 func Demo() bool {
 	return demo
 }
+
+func Version() bool { return version }
