@@ -1,12 +1,12 @@
 .PHONY: build run generate test
 
-build:
+build: generate
 	@go build -v -o 2sp ./cmd/2sp
 
-build-all:
+build-all: generate
 	@go build -v ./...
 
-run:
+run: generate
 	@go run -buildvcs=true ./cmd/2sp
 
 generate:
