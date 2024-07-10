@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime/debug"
+
+	"github.com/carlmjohnson/versioninfo"
 
 	"github.com/six78/2-story-points-cli/internal/config"
 	"github.com/six78/2-story-points-cli/pkg/storage"
@@ -11,15 +14,26 @@ import (
 func main() {
 
 	info, ok := debug.ReadBuildInfo()
-	fmt.Println(info, ok)
+	if !ok {
+		fmt.Println("No build info")
+	} else {
+		infoJson, err := json.MarshalIndent(info, "", "\t")
+		if err != nil {
+			fmt.Println("Error marshalling build info:", err)
+		} else {
+			fmt.Println(string(infoJson))
+		}
+	}
 
-	//short := versioninfo.Short()
-	//fmt.Println(short)
+	fmt.Print("\n----------\n")
 
-	//fmt.Println("Version:", versioninfo.Version)
-	//fmt.Println("Revision:", versioninfo.Revision)
-	//fmt.Println("DirtyBuild:", versioninfo.DirtyBuild)
-	//fmt.Println("LastCommit:", versioninfo.LastCommit)
+	short := versioninfo.Short()
+	fmt.Println(short)
+
+	fmt.Println("Version:", versioninfo.Version)
+	fmt.Println("Revision:", versioninfo.Revision)
+	fmt.Println("DirtyBuild:", versioninfo.DirtyBuild)
+	fmt.Println("LastCommit:", versioninfo.LastCommit)
 
 	//program.Println("ok: %w", ok)
 
