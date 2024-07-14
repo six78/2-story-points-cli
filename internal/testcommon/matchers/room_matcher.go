@@ -17,8 +17,15 @@ func NewRoomMatcher(room *protocol.Room) *RoomMatcher {
 }
 
 func (m *RoomMatcher) Matches(x interface{}) bool {
-	room, ok := x.(*protocol.Room)
-	return ok && m.room.ToRoomID() == room.ToRoomID()
+	switch room := x.(type) {
+	case *protocol.Room:
+		return m.room.ToRoomID() == room.ToRoomID()
+	case protocol.Room:
+		return m.room.ToRoomID() == room.ToRoomID()
+	case protocol.RoomID:
+		return m.room.ToRoomID() == room
+	}
+	return false
 }
 
 func (m *RoomMatcher) String() string {

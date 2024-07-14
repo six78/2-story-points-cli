@@ -24,28 +24,41 @@ func NewStateMatcher(t *testing.T, cb Callback) *StateMatcher {
 }
 
 func (m *StateMatcher) Matches(x interface{}) bool {
-	if !m.MessageMatcher.Matches(x) {
+	var state protocol.State
+
+	switch x := x.(type) {
+	case []byte:
+		if !m.MessageMatcher.Matches(x) {
+			return false
+		}
+		if m.message.Type != protocol.MessageTypeState {
+			return false
+		}
+		var stateMessage protocol.GameStateMessage
+		err := json.Unmarshal(m.payload, &stateMessage)
+		if err != nil {
+			return false
+		}
+		state = stateMessage.State
+
+	case *protocol.State:
+		state = *x
+
+	case protocol.State:
+		state = x
+
+	default:
 		return false
 	}
 
-	if m.message.Type != protocol.MessageTypeState {
-		return false
-	}
-
-	var stateMessage protocol.GameStateMessage
-	err := json.Unmarshal(m.payload, &stateMessage)
-	if err != nil {
-		return false
-	}
-
-	m.state = stateMessage.State
-	m.triggered <- stateMessage.State
+	m.state = state
+	m.triggered <- state
 
 	if m.cb == nil {
 		return true
 	}
 
-	return m.cb(&stateMessage.State)
+	return m.cb(&state)
 }
 
 func (m *StateMatcher) String() string {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/six78/2-story-points-cli/internal/transport"
 	mocktransport "github.com/six78/2-story-points-cli/internal/transport/mock"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
+	mockstorage "github.com/six78/2-story-points-cli/pkg/storage/mock"
 )
 
 func TestGame(t *testing.T) {
@@ -545,4 +547,44 @@ func (s *Suite) TestGameNotInitialized() {
 	err = g.Initialize()
 	s.Require().NoError(err)
 	s.Require().True(g.Initialized())
+}
+
+func (s *Suite) TestNotifyChangedState() {
+	ctrl := gomock.NewController(s.T())
+	storageMock := mockstorage.NewMockService(ctrl)
+
+	options := []Option{
+		WithContext(s.ctx),
+		WithTransport(s.transport),
+		WithClock(s.clock),
+		WithLogger(s.Logger),
+		WithStorage(storageMock),
+		WithAutoReveal(false, 0),
+	}
+
+	g := NewGame(options)
+	s.Require().NotNil(g)
+	s.Require().False(g.Initialized())
+
+	room, err := protocol.NewRoom()
+	s.Require().NoError(err)
+
+	var state protocol.State
+	err = gofakeit.Struct(state)
+	s.Require().NoError(err)
+
+	g.isDealer = true
+	g.roomID = room.ToRoomID()
+	g.state = &state
+
+	roomMatcher := matchers.NewRoomMatcher(room)
+	stateMatcher := matchers.NewStateMatcher(s.T(), func(receivedState *protocol.State) bool {
+		return reflect.DeepEqual(*receivedState, state)
+	})
+
+	storageMock.EXPECT().
+		SaveRoomState(roomMatcher, stateMatcher).
+		Times(1)
+
+	g.notifyChangedState(false) // WARNING: true
 }
