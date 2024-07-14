@@ -1,6 +1,8 @@
 package messages
 
 import (
+	"time"
+
 	"github.com/six78/2-story-points-cli/internal/transport"
 	"github.com/six78/2-story-points-cli/internal/view/states"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
@@ -58,4 +60,11 @@ type MyVote struct {
 }
 
 type EnableEnterKey struct {
+}
+
+type AutoRevealScheduled struct {
+	Duration time.Duration
+}
+
+type AutoRevealCancelled struct {
 }

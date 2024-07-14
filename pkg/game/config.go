@@ -8,6 +8,8 @@ type configuration struct {
 	OnlineMessagePeriod       time.Duration
 	StateMessagePeriod        time.Duration
 	PublishStateLoopEnabled   bool
+	AutoRevealEnabled         bool
+	AutoRevealDelay           time.Duration
 }
 
 var defaultConfig = configuration{
@@ -16,4 +18,6 @@ var defaultConfig = configuration{
 	OnlineMessagePeriod:       5 * time.Second,
 	StateMessagePeriod:        30 * time.Second,
 	PublishStateLoopEnabled:   true,
+	AutoRevealEnabled:         true,
+	AutoRevealDelay:           2 * time.Second,
 }

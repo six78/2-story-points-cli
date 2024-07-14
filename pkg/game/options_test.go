@@ -7,11 +7,12 @@ import (
 
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/jonboulle/clockwork"
-	mocktransport "github.com/six78/2-story-points-cli/internal/transport/mock"
-	mockstorage "github.com/six78/2-story-points-cli/pkg/storage/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	mocktransport "github.com/six78/2-story-points-cli/internal/transport/mock"
+	mockstorage "github.com/six78/2-story-points-cli/pkg/storage/mock"
 )
 
 func TestOptions(t *testing.T) {
@@ -26,6 +27,8 @@ func TestOptions(t *testing.T) {
 	onlineMessagePeriod := time.Duration(gofakeit.Int64())
 	stateMessagePeriod := time.Duration(gofakeit.Int64())
 	publishStateLoop := gofakeit.Bool()
+	autoRevealEnabled := gofakeit.Bool()
+	autoRevealDelay := time.Duration(gofakeit.Int64())
 
 	options := []Option{
 		WithContext(ctx),
@@ -38,6 +41,7 @@ func TestOptions(t *testing.T) {
 		WithOnlineMessagePeriod(onlineMessagePeriod),
 		WithStateMessagePeriod(stateMessagePeriod),
 		WithPublishStateLoop(publishStateLoop),
+		WithAutoReveal(autoRevealEnabled, autoRevealDelay),
 	}
 	game := NewGame(options)
 
@@ -52,6 +56,8 @@ func TestOptions(t *testing.T) {
 	require.Equal(t, onlineMessagePeriod, game.config.OnlineMessagePeriod)
 	require.Equal(t, stateMessagePeriod, game.config.StateMessagePeriod)
 	require.Equal(t, publishStateLoop, game.config.PublishStateLoopEnabled)
+	require.Equal(t, autoRevealEnabled, game.config.AutoRevealEnabled)
+	require.Equal(t, autoRevealDelay, game.config.AutoRevealDelay)
 }
 
 func TestNoTransport(t *testing.T) {

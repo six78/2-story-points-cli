@@ -4,6 +4,8 @@ type EventTag int
 
 const (
 	EventStateChanged EventTag = iota
+	EventAutoRevealScheduled
+	EventAutoRevealCancelled
 )
 
 type Event struct {

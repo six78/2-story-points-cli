@@ -1,6 +1,10 @@
 package protocol
 
-import "github.com/six78/2-story-points-cli/internal/config"
+import (
+	"golang.org/x/exp/maps"
+
+	"github.com/six78/2-story-points-cli/internal/config"
+)
 
 type State struct {
 	Players       PlayersList `json:"players"`
@@ -51,4 +55,9 @@ func (s *State) ActiveIssueHintDeckIndex() int {
 		return -1
 	}
 	return s.Deck.Index(issue.Hint.Value)
+}
+
+func (s *State) AllPlayersVoted() bool {
+	issue := s.GetActiveIssue()
+	return issue != nil && len(maps.Keys(issue.Votes)) == len(s.Players)
 }
