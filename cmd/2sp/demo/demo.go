@@ -201,9 +201,7 @@ func (d *Demo) issueSubRoutine(issueID protocol.IssueID, votes []string) error {
 	}
 	time.Sleep(1 * time.Second)
 
-	// Reveal votes
-	d.sendShortcut(commands.DefaultKeyMap.RevealVotes)
-	d.logger.Info("votes revealed")
+	// Wait for votes auto-revealed
 	err = d.waitForStateCondition(d.events, func(state *protocol.State) bool {
 		return state.VotesRevealed
 	})
