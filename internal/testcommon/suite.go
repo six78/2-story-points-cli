@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/six78/2-story-points-cli/internal/config"
+	"github.com/six78/2-story-points-cli/pkg/protocol"
 )
 
 type Suite struct {
@@ -45,4 +46,11 @@ func (s *Suite) FakePayload() ([]byte, []byte) {
 	s.Require().NoError(err)
 
 	return payload, jsonPayload
+}
+
+func (s *Suite) FakeIssue() *protocol.Issue {
+	issue := &protocol.Issue{}
+	err := gofakeit.Struct(&issue)
+	s.Require().NoError(err)
+	return issue
 }
