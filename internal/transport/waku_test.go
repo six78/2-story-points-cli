@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/brianvoe/gofakeit/v6"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/suite"
 	"github.com/waku-org/go-waku/waku/v2/node"
 	wakuenr "github.com/waku-org/go-waku/waku/v2/protocol/enr"
@@ -94,35 +95,22 @@ func (s *WakuSuite) TestWatchConnectionStatus() {
 
 	sub := s.node.SubscribeToConnectionStatus()
 
-	finished := make(chan struct{})
+	sent := node.PeerConnection{
+		PeerID:    peer.ID(gofakeit.UUID()),
+		Connected: true,
+	}
 
-	go func() {
-		s.node.watchConnectionStatus()
-		close(finished)
-	}()
-
-	sent := node.ConnStatus{}
-	err = gofakeit.Struct(&sent)
-	s.Require().NoError(err)
-
-	s.node.wakuConnectionStatus <- sent
+	s.node.peerConnection <- sent
 
 	select {
 	case received := <-sub:
-		s.Require().Equal(sent.IsOnline, received.IsOnline)
-		s.Require().Equal(sent.HasHistory, received.HasHistory)
-		s.Require().Equal(len(sent.Peers), received.PeersCount)
+		s.Require().True(received.IsOnline)
+		s.Require().False(received.HasHistory)
+		s.Require().Equal(1, received.PeersCount)
 		s.Require().True(reflect.DeepEqual(received, s.node.ConnectionStatus()))
 	case <-time.After(500 * time.Millisecond):
 		s.Require().Fail("timeout waiting for connection status")
 	}
 
-	close(s.node.wakuConnectionStatus)
-
-	select {
-	case <-finished:
-		break
-	case <-time.After(500 * time.Millisecond):
-		s.Require().Fail("timeout waiting for connection status watch finish")
-	}
+	close(s.node.peerConnection)
 }

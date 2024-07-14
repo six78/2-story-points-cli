@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
@@ -38,6 +39,7 @@ type Node struct {
 	lightMode         bool
 	statusSubscribers []ConnectionStatusSubscription
 	connectionStatus  ConnectionStatus
+	connectedPeers    map[peer.ID]struct{}
 }
 
 func NewNode(ctx context.Context, logger *zap.Logger) *Node {
@@ -113,6 +115,7 @@ func (n *Node) Initialize() error {
 	n.waku = wakuNode
 	n.peerConnection = peerConnection
 	n.logger = n.logger.Named("waku")
+	n.connectedPeers = make(map[peer.ID]struct{})
 
 	return nil
 }
@@ -357,7 +360,13 @@ func (n *Node) watchConnectionStatus() {
 				return
 			}
 			n.logger.Debug("peer connection", zap.Any("status", status))
-			count := n.waku.PeerCount()
+			if status.Connected {
+				n.connectedPeers[status.PeerID] = struct{}{}
+			} else {
+				delete(n.connectedPeers, status.PeerID)
+			}
+			//count := n.waku.PeerCount()
+			count := len(n.connectedPeers)
 			n.notifyConnectionStatus(ConnectionStatus{
 				IsOnline:   count > 0,
 				HasHistory: false,
