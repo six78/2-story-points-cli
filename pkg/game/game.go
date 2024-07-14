@@ -189,6 +189,13 @@ func (g *Game) CurrentState() *protocol.State {
 }
 
 func (g *Game) notifyChangedState(publish bool) {
+	if g.HasStorage() && g.IsDealer() {
+		err := g.storage.SaveRoomState(g.RoomID(), g.state)
+		if err != nil {
+			g.logger.Error("failed to save room state", zap.Error(err))
+		}
+	}
+
 	if g.state != nil && g.state.VotesRevealed {
 		g.fillActiveIssueHint()
 	}
@@ -421,13 +428,6 @@ func (g *Game) publishState(state *protocol.State) {
 	if state == nil {
 		g.logger.Error("no state to publish")
 		return
-	}
-
-	if g.HasStorage() && g.IsDealer() {
-		err := g.storage.SaveRoomState(g.RoomID(), state)
-		if err != nil {
-			g.logger.Error("failed to save room state", zap.Error(err))
-		}
 	}
 
 	g.logger.Debug("publishing state")
