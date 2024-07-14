@@ -32,23 +32,23 @@ type Node struct {
 	ctx    context.Context
 	logger *zap.Logger
 
-	pubsubTopic          string
-	wakuConnectionStatus chan node.ConnStatus
-	roomCache            ContentTopicCache
-	lightMode            bool
-	statusSubscribers    []ConnectionStatusSubscription
-	connectionStatus     ConnectionStatus
+	pubsubTopic       string
+	peerConnection    chan node.PeerConnection
+	roomCache         ContentTopicCache
+	lightMode         bool
+	statusSubscribers []ConnectionStatusSubscription
+	connectionStatus  ConnectionStatus
 }
 
 func NewNode(ctx context.Context, logger *zap.Logger) *Node {
 	return &Node{
-		waku:                 nil,
-		ctx:                  ctx,
-		logger:               logger,
-		pubsubTopic:          FleetName(config.Fleet()).DefaultPubsubTopic(),
-		wakuConnectionStatus: nil,
-		roomCache:            NewRoomCache(logger),
-		lightMode:            config.WakuLightMode(),
+		waku:           nil,
+		ctx:            ctx,
+		logger:         logger,
+		pubsubTopic:    FleetName(config.Fleet()).DefaultPubsubTopic(),
+		peerConnection: nil,
+		roomCache:      NewRoomCache(logger),
+		lightMode:      config.WakuLightMode(),
 	}
 }
 
@@ -66,14 +66,14 @@ func (n *Node) Initialize() error {
 		}
 	}
 
-	wakuConnectionStatus := make(chan node.ConnStatus)
+	peerConnection := make(chan node.PeerConnection)
 
 	options := []node.WakuNodeOption{
 		node.WithLogger(n.logger.Named("waku")),
 		//node.WithDNS4Domain(),
 		node.WithLogLevel(zap.DebugLevel),
 		node.WithHostAddress(hostAddr),
-		node.WithConnectionStatusChannel(wakuConnectionStatus),
+		node.WithConnectionNotification(peerConnection),
 	}
 
 	if config.WakuDiscV5() {
@@ -111,7 +111,7 @@ func (n *Node) Initialize() error {
 	}
 
 	n.waku = wakuNode
-	n.wakuConnectionStatus = wakuConnectionStatus
+	n.peerConnection = peerConnection
 	n.logger = n.logger.Named("waku")
 
 	return nil
@@ -322,10 +322,10 @@ func (n *Node) buildWakuMessage(room *pp.Room, payload []byte) (*pb.WakuMessage,
 
 func (n *Node) publishWakuMessage(message *pb.WakuMessage) error {
 	var err error
-	var messageID []byte
+	var messageID pb.MessageHash
 
 	if n.lightMode {
-		publishOptions := []lightpush.Option{
+		publishOptions := []lightpush.RequestOption{
 			lightpush.WithPubSubTopic(n.pubsubTopic),
 		}
 		messageID, err = n.waku.Lightpush().Publish(n.ctx, message, publishOptions...)
@@ -342,7 +342,7 @@ func (n *Node) publishWakuMessage(message *pb.WakuMessage) error {
 	}
 
 	n.logger.Info("message sent",
-		zap.String("messageID", hex.EncodeToString(messageID)))
+		zap.String("messageID", hex.EncodeToString(messageID.Bytes())))
 
 	return nil
 }
@@ -352,15 +352,17 @@ func (n *Node) watchConnectionStatus() {
 		select {
 		case <-n.ctx.Done():
 			return
-		case connStatus, more := <-n.wakuConnectionStatus:
-			n.logger.Debug("waku connection status",
-				zap.Bool("isOnline", connStatus.IsOnline),
-				zap.Any("peersCount", len(connStatus.Peers)),
-			)
+		case status, more := <-n.peerConnection:
 			if !more {
 				return
 			}
-			n.notifyConnectionStatus(&connStatus)
+			n.logger.Debug("peer connection", zap.Any("status", status))
+			count := n.waku.PeerCount()
+			n.notifyConnectionStatus(ConnectionStatus{
+				IsOnline:   count > 0,
+				HasHistory: false,
+				PeersCount: count,
+			})
 		}
 	}
 }
@@ -523,13 +525,7 @@ func (n *Node) SubscribeToConnectionStatus() ConnectionStatusSubscription {
 	return channel
 }
 
-func (n *Node) notifyConnectionStatus(s *node.ConnStatus) {
-	status := ConnectionStatus{
-		IsOnline:   s.IsOnline,
-		HasHistory: s.HasHistory,
-		PeersCount: len(s.Peers),
-	}
-
+func (n *Node) notifyConnectionStatus(status ConnectionStatus) {
 	n.connectionStatus = status
 
 	for _, subscriber := range n.statusSubscribers {
