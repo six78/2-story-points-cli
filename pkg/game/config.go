@@ -19,5 +19,5 @@ var defaultConfig = configuration{
 	StateMessagePeriod:        30 * time.Second,
 	PublishStateLoopEnabled:   true,
 	AutoRevealEnabled:         true,
-	AutoRevealDelay:           2 * time.Second,
+	AutoRevealDelay:           1 * time.Second,
 }
