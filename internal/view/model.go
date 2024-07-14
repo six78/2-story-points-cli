@@ -56,7 +56,7 @@ type model struct {
 	deckView              deckview.Model
 	issueView             issueview.Model
 	issuesListView        issuesview.Model
-	gameEventHandler      eventhandler.Model[*protocol.State, messages.GameStateMessage]
+	gameEventHandler      eventhandler.Model[game.Event, interface{}]
 	transportEventHandler eventhandler.Model[transport.ConnectionStatus, messages.ConnectionStatus]
 
 	// Workaround: Used to allow pasting multiline text (list of issues)
@@ -144,7 +144,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.AppStateFinishedMessage:
 		switch msg.State {
 		case states.Initializing:
-			// Notify playerID generated
+			// Send playerID generated
 			cmds.AppendMessage(messages.PlayerIDMessage{
 				PlayerID: m.game.Player().ID,
 			})
@@ -156,23 +156,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// Subscribe to states when app initialized
-			convert := func(status transport.ConnectionStatus) messages.ConnectionStatus {
-				return messages.ConnectionStatus{Status: status}
-			}
-			m.transportEventHandler = eventhandler.New[transport.ConnectionStatus, messages.ConnectionStatus](convert)
-			cmds.AppendCommand(m.transportEventHandler.Init(
-				m.transport.SubscribeToConnectionStatus(),
-				m.transport.ConnectionStatus(),
-			))
-
-			convert2 := func(status *protocol.State) messages.GameStateMessage {
-				return messages.GameStateMessage{State: status}
-			}
-			m.gameEventHandler = eventhandler.New[*protocol.State, messages.GameStateMessage](convert2)
-			cmds.AppendCommand(m.gameEventHandler.Init(
-				m.game.SubscribeToStateChanges(),
-				m.game.CurrentState(),
-			))
+			cmds.AppendCommand(m.initializeEventHandlers())
 
 		case states.InputPlayerName:
 			switchToState(states.WaitingForPeers)
@@ -404,6 +388,42 @@ func (m *model) handlePastedText(text string) (tea.Msg, tea.Cmd) {
 	}
 
 	return nil, tea.Batch(cmds...)
+}
+
+func connectionStatusToMessage(status transport.ConnectionStatus) messages.ConnectionStatus {
+	return messages.ConnectionStatus{Status: status}
+}
+
+func gameEventToMessage(event game.Event) interface{} {
+	switch event.Tag {
+	case game.EventStateChanged:
+		if state, ok := event.Data.(*protocol.State); ok {
+			return messages.GameStateMessage{State: state}
+		}
+	default:
+		return nil
+	}
+	config.Logger.Warn("unexpected event data type", zap.Any("event", event))
+	return nil
+}
+
+func (m *model) initializeEventHandlers() tea.Cmd {
+	m.transportEventHandler = eventhandler.New[transport.ConnectionStatus, messages.ConnectionStatus](connectionStatusToMessage)
+	cmd1 := m.transportEventHandler.Init(
+		m.transport.SubscribeToConnectionStatus(),
+		m.transport.ConnectionStatus(),
+	)
+
+	m.gameEventHandler = eventhandler.New[game.Event, interface{}](gameEventToMessage)
+	cmd2 := m.gameEventHandler.Init(
+		m.game.Subscribe().Events,
+		game.Event{
+			Tag:  game.EventStateChanged,
+			Data: m.game.CurrentState(),
+		},
+	)
+
+	return tea.Batch(cmd1, cmd2)
 }
 
 // Ensure that model fulfils the tea.Model interface at compile time.

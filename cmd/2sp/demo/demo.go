@@ -35,19 +35,19 @@ var votes = [][]string{
 type Demo struct {
 	ctx     context.Context
 	dealer  *game.Game
-	state   game.StateSubscription
+	events  *game.Subscription
 	program *tea.Program
 	logger  *zap.Logger
 
 	players    []*game.Game
-	playerSubs []game.StateSubscription
+	playerSubs []*game.Subscription
 }
 
 func New(ctx context.Context, dealer *game.Game, program *tea.Program) *Demo {
 	return &Demo{
 		ctx:     ctx,
 		dealer:  dealer,
-		state:   dealer.SubscribeToStateChanges(),
+		events:  dealer.Subscribe(),
 		program: program,
 		logger:  config.Logger.Named("demo"),
 	}
@@ -64,7 +64,7 @@ func (d *Demo) Stop() {
 func (d *Demo) initializePlayers() error {
 	names := []string{"Alice", "Bob", "Charlie"}
 	d.players = make([]*game.Game, 0, len(names))
-	d.playerSubs = make([]game.StateSubscription, 0, len(names))
+	d.playerSubs = make([]*game.Subscription, 0, len(names))
 
 	wg := sync.WaitGroup{}
 	errChan := make(chan error, len(names))
@@ -79,7 +79,7 @@ func (d *Demo) initializePlayers() error {
 				return
 			}
 			d.players = append(d.players, player)
-			d.playerSubs = append(d.playerSubs, player.SubscribeToStateChanges())
+			d.playerSubs = append(d.playerSubs, player.Subscribe())
 		}(i, name)
 	}
 
@@ -176,7 +176,7 @@ func (d *Demo) issueSubRoutine(issueID protocol.IssueID, votes []string) error {
 		}(i, vote)
 	}
 
-	// Deal first issue (expect all players to be subscribed to state changes
+	// Deal first issue (expect all players to be subscribed to events changes
 	d.sendKey(tea.KeyEnter, 1*time.Second)
 	d.logger.Info("deal issue")
 
@@ -204,7 +204,7 @@ func (d *Demo) issueSubRoutine(issueID protocol.IssueID, votes []string) error {
 	// Reveal votes
 	d.sendShortcut(commands.DefaultKeyMap.RevealVotes)
 	d.logger.Info("votes revealed")
-	err = d.waitForStateCondition(d.state, func(state *protocol.State) bool {
+	err = d.waitForStateCondition(d.events, func(state *protocol.State) bool {
 		return state.VotesRevealed
 	})
 	if err != nil {
@@ -232,7 +232,7 @@ func (d *Demo) playerVoteSubroutine(index int, issueID protocol.IssueID, vote pr
 	delay := time.Duration(rand.Intn(4000)) * time.Millisecond
 	time.Sleep(delay)
 
-	// Publish vote
+	// Send vote
 	err = player.PublishVote(vote)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("%s: failed to publish vote", playerName))
@@ -300,36 +300,40 @@ func (d *Demo) createPlayer(name string) (*game.Game, error) {
 	return player, nil
 }
 
-func (d *Demo) waitForStateCondition(sub game.StateSubscription, condition func(state *protocol.State) bool) error {
+func (d *Demo) waitForStateCondition(sub *game.Subscription, condition func(state *protocol.State) bool) error {
 	timeout := time.After(10 * time.Second)
 	for {
 		select {
-		case state := <-sub:
+		case event := <-sub.Events:
+			if event.Tag != game.EventStateChanged {
+				continue
+			}
+			state := event.Data.(*protocol.State)
 			if condition(state) {
 				time.Sleep(500 * time.Millisecond)
 				return nil
 			}
 		case <-timeout:
-			return errors.New("timeout waiting for state condition")
+			return errors.New("timeout waiting for events condition")
 		case <-d.ctx.Done():
 		}
 	}
 }
 
 func (d *Demo) waitForPlayers(players []*game.Game) error {
-	return d.waitForStateCondition(d.state, func(state *protocol.State) bool {
+	return d.waitForStateCondition(d.events, func(state *protocol.State) bool {
 		return len(state.Players) == len(players)
 	})
 }
 
 func (d *Demo) waitForIssues(count int) error {
-	return d.waitForStateCondition(d.state, func(state *protocol.State) bool {
+	return d.waitForStateCondition(d.events, func(state *protocol.State) bool {
 		return len(state.Issues) == count
 	})
 }
 
 func (d *Demo) waitForVotes(votes []string) error {
-	return d.waitForStateCondition(d.state, func(state *protocol.State) bool {
+	return d.waitForStateCondition(d.events, func(state *protocol.State) bool {
 		issue := state.GetActiveIssue()
 		if issue == nil {
 			return false
@@ -338,7 +342,7 @@ func (d *Demo) waitForVotes(votes []string) error {
 	})
 }
 
-func (d *Demo) waitForIssueDealt(sub game.StateSubscription, issueID protocol.IssueID) error {
+func (d *Demo) waitForIssueDealt(sub *game.Subscription, issueID protocol.IssueID) error {
 	return d.waitForStateCondition(sub, func(state *protocol.State) bool {
 		return state.ActiveIssue == issueID
 	})
