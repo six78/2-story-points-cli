@@ -102,21 +102,30 @@ func (s *WakuSuite) TestWatchConnectionStatus() {
 		close(finished)
 	}()
 
-	sent := node.PeerConnection{
-		PeerID:    peer.ID(gofakeit.UUID()),
-		Connected: true,
-	}
+	peerID := peer.ID(gofakeit.UUID())
 
-	s.node.peerConnection <- sent
+	for _, connected := range []bool{true, false} {
+		expectedCount := 0
+		if connected {
+			expectedCount = 1
+		}
 
-	select {
-	case received := <-sub:
-		s.Require().True(received.IsOnline)
-		s.Require().False(received.HasHistory)
-		s.Require().Equal(1, received.PeersCount)
-		s.Require().True(reflect.DeepEqual(received, s.node.ConnectionStatus()))
-	case <-time.After(500 * time.Millisecond):
-		s.Require().Fail("timeout waiting for connection status")
+		sent := node.PeerConnection{
+			PeerID:    peerID,
+			Connected: connected,
+		}
+
+		s.node.peerConnection <- sent
+
+		select {
+		case received := <-sub:
+			s.Require().Equal(connected, received.IsOnline)
+			s.Require().False(received.HasHistory)
+			s.Require().Equal(expectedCount, received.PeersCount)
+			s.Require().True(reflect.DeepEqual(received, s.node.ConnectionStatus()))
+		case <-time.After(500 * time.Millisecond):
+			s.Require().Fail("timeout waiting for connection status")
+		}
 	}
 
 	close(s.node.peerConnection)
