@@ -1,4 +1,12 @@
-.PHONY: build run generate test
+.PHONY:
+	build
+	build-all
+	run
+	generate
+	test
+	lint
+	lint-fix
+	demo
 
 build: generate
 	@go build -v -o 2sp ./cmd/2sp
