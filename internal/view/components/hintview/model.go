@@ -53,11 +53,9 @@ func (m Model) View() string {
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Top,
-		"",
 		headerStyle.Render("Recommended:")+""+voteview.Render(m.hint.Value),
 		headerStyle.Render("Acceptable:")+"  "+renderAcceptanceIcon(m.hint.Acceptable),
 		headerStyle.Render(">")+" "+textStyle.Render(m.hint.Description),
-		"",
 	)
 }
 

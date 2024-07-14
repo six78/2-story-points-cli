@@ -20,7 +20,6 @@ var (
 	primaryStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#F0F0F0"))
 	secondaryStyle = lipgloss.NewStyle().Foreground(config.ForegroundShadeColor)
 	hyperlinkStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#648EF8")).Underline(true)
-	errorStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF1744"))
 )
 
 const (
@@ -146,7 +145,7 @@ func (m *Model) renderTitle(info *issueInfo) string {
 	}
 
 	if info.err != nil {
-		return errorStyle.Render(fmt.Sprintf("[%s]", info.err.Error()))
+		return secondaryStyle.Render(fmt.Sprintf("[%s]", info.err.Error()))
 	}
 
 	if info.title == nil {

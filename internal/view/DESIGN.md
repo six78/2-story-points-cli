@@ -11,18 +11,18 @@
    
    Author:    @Alice               [LanguageChange] [v2] [Proposal] 
    Assignee:  @Bob                 [NeedsInvestigation]
-
+   
   ╭───────┬───────────┬─────────┬───────┬──────╮                                       
-  │ Alice │ Bob (You) │ Charlie │ David │ Erin │  Recommended: 8                         
-  ├───────┼───────────┼─────────┼───────┼──────┤  Acceptable:  ✓
-  │   8   │     8     │    5    │   5   │   8  │  > Not bad.                      
+  │ Alice │ Bob (You) │ Charlie │ David │ Erin │                        
+  ├───────┼───────────┼─────────┼───────┼──────┤  
+  │   8   │     8     │    5    │   5   │   8  │  Revealing in 3.0        
   ╰───────┴───────────┴─────────┴───────┴──────╯           
                           ╭───╮                                           
-  ╭───╮ ╭───╮ ╭───╮ ╭───╮ │ 8 │ ╭────╮ ╭────╮ ╭────╮                                    
-  │ 1 │ │ 2 │ │ 3 │ │ 5 │ ╰───╯ │ 13 │ │ 21 │ │ 34 │                                    
-  ╰───╯ ╰───╯ ╰───╯ ╰───╯       ╰────╯ ╰────╯ ╰────╯                                    
+  ╭───╮ ╭───╮ ╭───╮ ╭───╮ │ 8 │ ╭────╮ ╭────╮ ╭───╮                                    
+  │ 1 │ │ 2 │ │ 3 │ │ 5 │ ╰───╯ │ 13 │ │ 21 │ │ ? │                                    
+  ╰───╯ ╰───╯ ╰───╯ ╰───╯       ╰────╯ ╰────╯ ╰───╯                                    
                             ^
-                
+
  Use [←] and [→] arrows to select a card and press [Enter]
  [Tab] To switch to issues list view
  [C] Switch to command mode  [Q] Leave room  [E] Exit  [H] Help
@@ -192,7 +192,7 @@ Therefore the card can be in one of these 4 states:
 </tr>
 </table>
 
-For example for a Fibbonacci deck  
+For example for a Fibonacci deck  
 
 ```shell
   Your vote:
