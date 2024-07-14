@@ -24,8 +24,6 @@ var (
 	playerOnlineTimeout = 20 * time.Second
 )
 
-type StateSubscription chan *protocol.State
-
 type Game struct {
 	logger       *zap.Logger
 	ctx          context.Context
@@ -34,6 +32,7 @@ type Game struct {
 	clock        clockwork.Clock
 	exitRoom     chan struct{}
 	messages     chan []byte
+	config       configuration
 	features     FeatureFlags
 	codeControls codeControlFlags
 	initialized  bool
@@ -42,12 +41,11 @@ type Game struct {
 	player   *protocol.Player
 	myVote   protocol.VoteResult // We save our vote to show it in UI
 
-	room             *protocol.Room
-	roomID           protocol.RoomID
-	state            *protocol.State
-	stateTimestamp   int64
-	stateSubscribers []StateSubscription
-	config           gameConfig
+	room           *protocol.Room
+	roomID         protocol.RoomID
+	state          *protocol.State
+	stateTimestamp int64
+	events         EventManager
 }
 
 func NewGame(opts []Option) *Game {
@@ -137,10 +135,7 @@ func (g *Game) LeaveRoom() {
 }
 
 func (g *Game) Stop() {
-	for _, subscriber := range g.stateSubscribers {
-		close(subscriber)
-	}
-	g.stateSubscribers = nil
+	g.events.Close()
 	g.LeaveRoom()
 	// WARNING: wait for all routines to finish
 }
@@ -182,10 +177,8 @@ func (g *Game) handleMessage(payload []byte) {
 	}
 }
 
-func (g *Game) SubscribeToStateChanges() StateSubscription {
-	channel := make(StateSubscription, 10)
-	g.stateSubscribers = append(g.stateSubscribers, channel)
-	return channel
+func (g *Game) Subscribe() *Subscription {
+	return g.events.Subscribe()
 }
 
 func (g *Game) CurrentState() *protocol.State {
@@ -201,13 +194,14 @@ func (g *Game) notifyChangedState(publish bool) {
 
 	g.logger.Debug("notifying state change",
 		zap.Bool("publish", publish),
-		zap.Int("subscribers", len(g.stateSubscribers)),
+		zap.Int("subscribers", g.events.Count()),
 		zap.Any("state", state),
 	)
 
-	for _, subscriber := range g.stateSubscribers {
-		subscriber <- state
-	}
+	g.events.Send(Event{
+		Tag:  EventStateChanged,
+		Data: state,
+	})
 
 	if publish {
 		go g.publishState(state)

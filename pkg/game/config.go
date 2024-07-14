@@ -2,7 +2,7 @@ package game
 
 import "time"
 
-type gameConfig struct {
+type configuration struct {
 	PlayerName                string
 	EnableSymmetricEncryption bool
 	OnlineMessagePeriod       time.Duration
@@ -10,7 +10,7 @@ type gameConfig struct {
 	PublishStateLoopEnabled   bool
 }
 
-var defaultConfig = gameConfig{
+var defaultConfig = configuration{
 	PlayerName:                "",
 	EnableSymmetricEncryption: true,
 	OnlineMessagePeriod:       5 * time.Second,

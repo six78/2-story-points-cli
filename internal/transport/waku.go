@@ -481,9 +481,6 @@ func (n *Node) SubscribeToMessages(room *pp.Room) (*MessagesSubscription, error)
 			case <-leaveRoom:
 				return
 			case value := <-in:
-				n.logger.Info("waku message received (relay)",
-					zap.String("payload", string(value.Message().Payload)),
-				)
 				payload, err := decryptMessage(room, value.Message())
 				if err != nil {
 					n.logger.Warn("failed to decrypt message payload")

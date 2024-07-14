@@ -7,7 +7,7 @@ build-all: generate
 	@go build -v ./...
 
 run: generate
-	@go run -buildvcs=true ./cmd/2sp
+	@go run ./cmd/2sp
 
 generate:
 	@go generate ./...
@@ -20,3 +20,6 @@ lint:
 
 lint-fix:
 	golangci-lint run --fix ./...
+
+demo:
+	@go run ./cmd/2sp --anonymous --demo --name=Alice
