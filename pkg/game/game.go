@@ -396,7 +396,7 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 	return nil
 }
 
-func (g *Game) RetrieveVote() error {
+func (g *Game) RetractVote() error {
 	return g.PublishVote("")
 }
 
