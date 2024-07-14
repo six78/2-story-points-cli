@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"github.com/waku-org/go-waku/waku/v2/dnsdisc"
@@ -32,23 +33,24 @@ type Node struct {
 	ctx    context.Context
 	logger *zap.Logger
 
-	pubsubTopic          string
-	wakuConnectionStatus chan node.ConnStatus
-	roomCache            ContentTopicCache
-	lightMode            bool
-	statusSubscribers    []ConnectionStatusSubscription
-	connectionStatus     ConnectionStatus
+	pubsubTopic       string
+	peerConnection    chan node.PeerConnection
+	roomCache         ContentTopicCache
+	lightMode         bool
+	statusSubscribers []ConnectionStatusSubscription
+	connectionStatus  ConnectionStatus
+	connectedPeers    map[peer.ID]struct{}
 }
 
 func NewNode(ctx context.Context, logger *zap.Logger) *Node {
 	return &Node{
-		waku:                 nil,
-		ctx:                  ctx,
-		logger:               logger,
-		pubsubTopic:          FleetName(config.Fleet()).DefaultPubsubTopic(),
-		wakuConnectionStatus: nil,
-		roomCache:            NewRoomCache(logger),
-		lightMode:            config.WakuLightMode(),
+		waku:           nil,
+		ctx:            ctx,
+		logger:         logger.Named("waku"),
+		pubsubTopic:    FleetName(config.Fleet()).DefaultPubsubTopic(),
+		peerConnection: nil,
+		roomCache:      NewRoomCache(logger),
+		lightMode:      config.WakuLightMode(),
 	}
 }
 
@@ -66,14 +68,13 @@ func (n *Node) Initialize() error {
 		}
 	}
 
-	wakuConnectionStatus := make(chan node.ConnStatus)
+	n.peerConnection = make(chan node.PeerConnection)
 
 	options := []node.WakuNodeOption{
-		node.WithLogger(n.logger.Named("waku")),
-		//node.WithDNS4Domain(),
+		node.WithLogger(n.logger),
 		node.WithLogLevel(zap.DebugLevel),
 		node.WithHostAddress(hostAddr),
-		node.WithConnectionStatusChannel(wakuConnectionStatus),
+		node.WithConnectionNotification(n.peerConnection),
 	}
 
 	if config.WakuDiscV5() {
@@ -95,9 +96,7 @@ func (n *Node) Initialize() error {
 		)
 	}
 
-	fleet := FleetName(config.Fleet())
-
-	if fleet.IsSharded() {
+	if FleetName(config.Fleet()).IsSharded() {
 		options = append(options,
 			node.WithClusterID(DefaultClusterID),
 		)
@@ -111,8 +110,7 @@ func (n *Node) Initialize() error {
 	}
 
 	n.waku = wakuNode
-	n.wakuConnectionStatus = wakuConnectionStatus
-	n.logger = n.logger.Named("waku")
+	n.connectedPeers = make(map[peer.ID]struct{})
 
 	return nil
 }
@@ -322,10 +320,10 @@ func (n *Node) buildWakuMessage(room *pp.Room, payload []byte) (*pb.WakuMessage,
 
 func (n *Node) publishWakuMessage(message *pb.WakuMessage) error {
 	var err error
-	var messageID []byte
+	var messageID pb.MessageHash
 
 	if n.lightMode {
-		publishOptions := []lightpush.Option{
+		publishOptions := []lightpush.RequestOption{
 			lightpush.WithPubSubTopic(n.pubsubTopic),
 		}
 		messageID, err = n.waku.Lightpush().Publish(n.ctx, message, publishOptions...)
@@ -342,7 +340,7 @@ func (n *Node) publishWakuMessage(message *pb.WakuMessage) error {
 	}
 
 	n.logger.Info("message sent",
-		zap.String("messageID", hex.EncodeToString(messageID)))
+		zap.String("messageID", hex.EncodeToString(messageID.Bytes())))
 
 	return nil
 }
@@ -352,15 +350,23 @@ func (n *Node) watchConnectionStatus() {
 		select {
 		case <-n.ctx.Done():
 			return
-		case connStatus, more := <-n.wakuConnectionStatus:
-			n.logger.Debug("waku connection status",
-				zap.Bool("isOnline", connStatus.IsOnline),
-				zap.Any("peersCount", len(connStatus.Peers)),
-			)
+		case status, more := <-n.peerConnection:
 			if !more {
 				return
 			}
-			n.notifyConnectionStatus(&connStatus)
+			n.logger.Debug("peer connection", zap.Any("status", status))
+			if status.Connected {
+				n.connectedPeers[status.PeerID] = struct{}{}
+			} else {
+				delete(n.connectedPeers, status.PeerID)
+			}
+			// using manual calculation instead of n.waku.PeerCount() for simpler testing
+			count := len(n.connectedPeers)
+			n.notifyConnectionStatus(ConnectionStatus{
+				IsOnline:   count > 0,
+				HasHistory: false,
+				PeersCount: count,
+			})
 		}
 	}
 }
@@ -523,13 +529,7 @@ func (n *Node) SubscribeToConnectionStatus() ConnectionStatusSubscription {
 	return channel
 }
 
-func (n *Node) notifyConnectionStatus(s *node.ConnStatus) {
-	status := ConnectionStatus{
-		IsOnline:   s.IsOnline,
-		HasHistory: s.HasHistory,
-		PeersCount: len(s.Peers),
-	}
-
+func (n *Node) notifyConnectionStatus(status ConnectionStatus) {
 	n.connectionStatus = status
 
 	for _, subscriber := range n.statusSubscribers {

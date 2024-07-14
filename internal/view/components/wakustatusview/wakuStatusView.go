@@ -46,7 +46,7 @@ func (m Model) View() string {
 		marker = dangerStyle.Render(marker)
 	}
 
-	text := fmt.Sprintf(" Waku: %d peer(s)", m.status.PeersCount)
+	text := fmt.Sprintf(" Waku: %2d peer(s)", m.status.PeersCount)
 
 	return lipgloss.JoinHorizontal(lipgloss.Left, marker, text)
 }
