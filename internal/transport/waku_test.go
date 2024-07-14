@@ -95,6 +95,13 @@ func (s *WakuSuite) TestWatchConnectionStatus() {
 
 	sub := s.node.SubscribeToConnectionStatus()
 
+	finished := make(chan struct{})
+
+	go func() {
+		s.node.watchConnectionStatus()
+		close(finished)
+	}()
+
 	sent := node.PeerConnection{
 		PeerID:    peer.ID(gofakeit.UUID()),
 		Connected: true,
@@ -113,4 +120,11 @@ func (s *WakuSuite) TestWatchConnectionStatus() {
 	}
 
 	close(s.node.peerConnection)
+
+	select {
+	case <-finished:
+		break
+	case <-time.After(500 * time.Millisecond):
+		s.Require().Fail("timeout waiting for connection status watch finish")
+	}
 }

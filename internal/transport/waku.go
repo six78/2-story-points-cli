@@ -46,7 +46,7 @@ func NewNode(ctx context.Context, logger *zap.Logger) *Node {
 	return &Node{
 		waku:           nil,
 		ctx:            ctx,
-		logger:         logger,
+		logger:         logger.Named("waku"),
 		pubsubTopic:    FleetName(config.Fleet()).DefaultPubsubTopic(),
 		peerConnection: nil,
 		roomCache:      NewRoomCache(logger),
@@ -68,14 +68,13 @@ func (n *Node) Initialize() error {
 		}
 	}
 
-	peerConnection := make(chan node.PeerConnection)
+	n.peerConnection = make(chan node.PeerConnection)
 
 	options := []node.WakuNodeOption{
-		node.WithLogger(n.logger.Named("waku")),
-		//node.WithDNS4Domain(),
+		node.WithLogger(n.logger),
 		node.WithLogLevel(zap.DebugLevel),
 		node.WithHostAddress(hostAddr),
-		node.WithConnectionNotification(peerConnection),
+		node.WithConnectionNotification(n.peerConnection),
 	}
 
 	if config.WakuDiscV5() {
@@ -97,9 +96,7 @@ func (n *Node) Initialize() error {
 		)
 	}
 
-	fleet := FleetName(config.Fleet())
-
-	if fleet.IsSharded() {
+	if FleetName(config.Fleet()).IsSharded() {
 		options = append(options,
 			node.WithClusterID(DefaultClusterID),
 		)
@@ -113,8 +110,6 @@ func (n *Node) Initialize() error {
 	}
 
 	n.waku = wakuNode
-	n.peerConnection = peerConnection
-	n.logger = n.logger.Named("waku")
 	n.connectedPeers = make(map[peer.ID]struct{})
 
 	return nil
@@ -365,7 +360,7 @@ func (n *Node) watchConnectionStatus() {
 			} else {
 				delete(n.connectedPeers, status.PeerID)
 			}
-			//count := n.waku.PeerCount()
+			// using manual calculation instead of n.waku.PeerCount() for simpler testing
 			count := len(n.connectedPeers)
 			n.notifyConnectionStatus(ConnectionStatus{
 				IsOnline:   count > 0,
