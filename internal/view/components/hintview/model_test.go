@@ -91,11 +91,9 @@ func TestUpdateAcceptableVote(t *testing.T) {
 			}
 
 			expectedLines := []string{
-				"",
 				"Recommended: " + string(issue.Hint.Value),
 				"Acceptable:  " + expectedAcceptableIcon,
 				"> " + issue.Hint.Description,
-				"",
 			}
 
 			lines := strings.Split(model.View(), "\n")

@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pkg/errors"
+
 	"github.com/six78/2-story-points-cli/internal/transport"
 	"github.com/six78/2-story-points-cli/internal/view/messages"
 	"github.com/six78/2-story-points-cli/internal/view/states"
@@ -89,6 +90,19 @@ func ToggleRoomView(currentRoomView states.RoomView) tea.Cmd {
 func PublishVote(game *game.Game, vote protocol.VoteValue) tea.Cmd {
 	return func() tea.Msg {
 		err := game.PublishVote(vote)
+		if err != nil {
+			return messages.NewErrorMessage(err)
+		}
+		// TODO: Send err=nil ErrorMessage here
+		return messages.MyVote{
+			Result: game.MyVote(),
+		}
+	}
+}
+
+func RetractVote(game *game.Game) tea.Cmd {
+	return func() tea.Msg {
+		err := game.RetractVote()
 		if err != nil {
 			return messages.NewErrorMessage(err)
 		}

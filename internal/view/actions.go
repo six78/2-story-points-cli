@@ -7,46 +7,47 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
+
 	"github.com/six78/2-story-points-cli/internal/view/commands"
 	"github.com/six78/2-story-points-cli/internal/view/messages"
 	"github.com/six78/2-story-points-cli/internal/view/states"
 	"github.com/six78/2-story-points-cli/pkg/game"
 	"github.com/six78/2-story-points-cli/pkg/protocol"
-	"golang.org/x/exp/slices"
 )
 
 type Action string
 
 const (
-	Rename Action = "rename"
-	New    Action = "new"
-	Join   Action = "join"
-	Exit   Action = "exit"
-	Vote   Action = "vote"
-	Unvote Action = "unvote"
-	Deal   Action = "deal"
-	Add    Action = "add"
-	Reveal Action = "reveal"
-	Finish Action = "finish"
-	Deck   Action = "deck"
-	Select Action = "select"
+	Rename  Action = "rename"
+	New     Action = "new"
+	Join    Action = "join"
+	Exit    Action = "exit"
+	Vote    Action = "vote"
+	Retract Action = "retract"
+	Deal    Action = "deal"
+	Add     Action = "add"
+	Reveal  Action = "reveal"
+	Finish  Action = "finish"
+	Deck    Action = "deck"
+	Select  Action = "select"
 )
 
 type actionFunc func(m *model, args []string) tea.Cmd
 
 var actions = map[Action]actionFunc{
-	Rename: runRenameAction,
-	Vote:   runVoteAction,
-	Unvote: runUnvoteAction,
-	Deal:   runDealAction,
-	Add:    runAddAction,
-	New:    runNewAction,
-	Join:   runJoinAction,
-	Exit:   runExitAction,
-	Reveal: runRevealAction,
-	Finish: runFinishAction,
-	Deck:   runDeckAction,
-	Select: runSelectAction,
+	Rename:  runRenameAction,
+	Vote:    runVoteAction,
+	Retract: runRetractAction,
+	Deal:    runDealAction,
+	Add:     runAddAction,
+	New:     runNewAction,
+	Join:    runJoinAction,
+	Exit:    runExitAction,
+	Reveal:  runRevealAction,
+	Finish:  runFinishAction,
+	Deck:    runDeckAction,
+	Select:  runSelectAction,
 }
 
 func processPlayerNameInput(m *model, playerName string) tea.Cmd {
@@ -93,9 +94,9 @@ func runVoteAction(m *model, args []string) tea.Cmd {
 	}
 }
 
-func runUnvoteAction(m *model, args []string) tea.Cmd {
+func runRetractAction(m *model, args []string) tea.Cmd {
 	return func() tea.Msg {
-		return commands.PublishVote(m.game, "")()
+		return commands.RetractVote(m.game)()
 	}
 }
 

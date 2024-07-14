@@ -25,6 +25,7 @@ import (
 	"github.com/six78/2-story-points-cli/internal/view/components/playersview"
 	"github.com/six78/2-story-points-cli/internal/view/components/shortcutsview"
 	"github.com/six78/2-story-points-cli/internal/view/components/userinput"
+	"github.com/six78/2-story-points-cli/internal/view/components/votestate"
 	"github.com/six78/2-story-points-cli/internal/view/components/wakustatusview"
 	"github.com/six78/2-story-points-cli/internal/view/messages"
 	"github.com/six78/2-story-points-cli/internal/view/states"
@@ -46,16 +47,18 @@ type model struct {
 	connectionStatus transport.ConnectionStatus
 
 	// UI components state
-	commandMode           bool
-	roomViewState         states.RoomView
-	errorView             errorview.Model
-	playersView           playersview.Model
-	hintView              hintview.Model
-	shortcutsView         shortcutsview.Model
-	wakuStatusView        wakustatusview.Model
-	deckView              deckview.Model
-	issueView             issueview.Model
-	issuesListView        issuesview.Model
+	commandMode    bool
+	roomViewState  states.RoomView
+	errorView      errorview.Model
+	playersView    playersview.Model
+	hintView       hintview.Model
+	shortcutsView  shortcutsview.Model
+	wakuStatusView wakustatusview.Model
+	deckView       deckview.Model
+	issueView      issueview.Model
+	issuesListView issuesview.Model
+	voteStateView  votestate.Model
+
 	gameEventHandler      eventhandler.Model[game.Event, interface{}]
 	transportEventHandler eventhandler.Model[transport.ConnectionStatus, messages.ConnectionStatus]
 
@@ -95,6 +98,7 @@ func InitialModel(game *game.Game, transport transport.Service) model {
 		deckView:       deckView,
 		issueView:      issueview.New(),
 		issuesListView: issuesview.New(),
+		voteStateView:  votestate.Model{},
 		// Other
 		disableEnterKey:     false,
 		disableEnterRestart: nil,
@@ -120,6 +124,7 @@ func (m model) Init() tea.Cmd {
 		m.deckView.Init(),
 		m.issueView.Init(),
 		m.issuesListView.Init(),
+		m.voteStateView.Init(),
 		commands.InitializeApp(m.game, m.transport),
 	)
 }
@@ -286,6 +291,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.deckView = m.deckView.Update(msg)
 	m.issueView, cmds.IssueViewCommand = m.issueView.Update(msg)
 	m.issuesListView, cmds.IssuesListViewCommand = m.issuesListView.Update(msg)
+	m.voteStateView, _ = m.voteStateView.Update(msg)
 	m.gameEventHandler, cmds.GameEventHandlerCommand = m.gameEventHandler.Update(msg)
 	m.transportEventHandler, cmds.TransportEventHandlerCommand = m.transportEventHandler.Update(msg)
 
@@ -400,6 +406,12 @@ func gameEventToMessage(event game.Event) interface{} {
 		if state, ok := event.Data.(*protocol.State); ok {
 			return messages.GameStateMessage{State: state}
 		}
+	case game.EventAutoRevealScheduled:
+		if duration, ok := event.Data.(time.Duration); ok {
+			return messages.AutoRevealScheduled{Duration: duration}
+		}
+	case game.EventAutoRevealCancelled:
+		return messages.AutoRevealCancelled{}
 	default:
 		return nil
 	}

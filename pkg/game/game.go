@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/jonboulle/clockwork"
@@ -41,17 +42,20 @@ type Game struct {
 	player   *protocol.Player
 	myVote   protocol.VoteResult // We save our vote to show it in UI
 
-	room           *protocol.Room
-	roomID         protocol.RoomID
-	state          *protocol.State
-	stateTimestamp int64
-	events         EventManager
+	room            *protocol.Room
+	roomID          protocol.RoomID
+	state           *protocol.State
+	stateTimestamp  int64
+	events          EventManager
+	revealTimer     clockwork.Timer
+	revealTimerLock sync.Mutex
 }
 
 func NewGame(opts []Option) *Game {
 	game := &Game{
 		exitRoom:     nil,
 		messages:     make(chan []byte, 42),
+		config:       defaultConfig,
 		features:     defaultFeatureFlags(),
 		codeControls: defaultCodeControlFlags(),
 		initialized:  false,
@@ -63,7 +67,6 @@ func NewGame(opts []Option) *Game {
 		},
 		room:           nil,
 		stateTimestamp: 0,
-		config:         defaultConfig,
 	}
 
 	for _, opt := range opts {
@@ -205,6 +208,15 @@ func (g *Game) notifyChangedState(publish bool) {
 
 	if publish {
 		go g.publishState(state)
+	}
+
+	if g.config.AutoRevealEnabled {
+		if g.revealTimer != nil && (g.state != nil || !g.state.AllPlayersVoted()) {
+			g.cancelAutoReveal()
+		}
+		if g.state != nil && !g.state.VotesRevealed && g.state.AllPlayersVoted() {
+			g.scheduleAutoReveal()
+		}
 	}
 }
 
@@ -396,7 +408,7 @@ func (g *Game) PublishVote(vote protocol.VoteValue) error {
 	return nil
 }
 
-func (g *Game) RetrieveVote() error {
+func (g *Game) RetractVote() error {
 	return g.PublishVote("")
 }
 
@@ -608,6 +620,8 @@ func (g *Game) Reveal() error {
 		return errors.New("cannot reveal when voting is not in progress")
 	}
 
+	g.cancelAutoReveal()
+
 	g.state.VotesRevealed = true
 	g.notifyChangedState(true)
 	return nil
@@ -748,6 +762,9 @@ func (g *Game) SelectIssue(index int) error {
 }
 
 func (g *Game) playerIndex(playerID protocol.PlayerID) int {
+	if g.state == nil {
+		return -1
+	}
 	return slices.IndexFunc(g.state.Players, func(player protocol.Player) bool {
 		return player.ID == playerID
 	})
@@ -830,5 +847,50 @@ func (g *Game) fillActiveIssueHint() {
 	item.Hint, err = GetResultHint(g.state.Deck, item.Votes)
 	if err != nil {
 		g.logger.Error("failed to generate hint", zap.Error(err))
+	}
+}
+
+func (g *Game) scheduleAutoReveal() {
+	g.revealTimerLock.Lock()
+	defer g.revealTimerLock.Unlock()
+
+	g.logger.Debug("scheduling auto reveal")
+
+	issueToReveal := g.state.ActiveIssue
+
+	g.events.Send(Event{
+		Tag:  EventAutoRevealScheduled,
+		Data: g.config.AutoRevealDelay,
+	})
+
+	g.revealTimer = g.clock.AfterFunc(g.config.AutoRevealDelay, func() {
+		g.cancelAutoReveal()
+		go func() {
+			if g.state.ActiveIssue != issueToReveal {
+				g.logger.Debug("auto reveal cancelled: issue changed")
+			}
+			err := g.Reveal()
+			if err != nil {
+				g.logger.Warn("auto reveal failed", zap.Error(err))
+			}
+		}()
+	})
+}
+
+func (g *Game) cancelAutoReveal() {
+	g.revealTimerLock.Lock()
+	defer g.revealTimerLock.Unlock()
+
+	if g.revealTimer == nil {
+		return
+	}
+
+	cancelled := g.revealTimer.Stop()
+	g.revealTimer = nil
+
+	if cancelled {
+		g.events.Send(Event{
+			Tag: EventAutoRevealCancelled,
+		})
 	}
 }

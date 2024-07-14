@@ -95,10 +95,17 @@ func (m model) renderRoomCurrentIssueView() string {
 		)
 	}
 
+	playersView := m.playersView.View()
+	if m.gameState.VotesRevealed {
+		playersView = lipgloss.JoinHorizontal(lipgloss.Center, playersView, "  ", m.hintView.View())
+	} else if m.game.IsDealer() && m.gameState.AllPlayersVoted() {
+		playersView = lipgloss.JoinHorizontal(0.75, playersView, "  ", m.voteStateView.View())
+	}
+
 	return lipgloss.JoinVertical(lipgloss.Top,
 		m.issueView.View(),
 		"",
-		lipgloss.JoinHorizontal(lipgloss.Left, m.playersView.View(), "  ", m.hintView.View()),
+		playersView,
 		m.deckView.View(),
 	)
 }

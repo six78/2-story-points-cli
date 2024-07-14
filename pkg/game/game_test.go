@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/jonboulle/clockwork"
@@ -135,8 +136,11 @@ func (s *Suite) TestStateSize() {
 }
 
 func (s *Suite) TestSimpleGame() {
+	const autoRevealDelay = 3 * time.Second
+
 	dealer := s.newGame([]Option{
 		WithEnableSymmetricEncryption(true),
+		WithAutoReveal(true, autoRevealDelay),
 	})
 
 	room, initialState, err := dealer.CreateNewRoom()
@@ -228,24 +232,75 @@ func (s *Suite) TestSimpleGame() {
 		s.Require().Greater(vote.Timestamp, int64(0))
 	}
 
-	{ // Reveal votes
+	{ // Expect votes auto reveal, but cancel because retract dealer vote
+		s.clock.Advance(autoRevealDelay / 2)
+
+		voteMatcher := matchers.NewVoteMatcher(dealer.Player().ID, currentIssue.ID, "")
+		s.transport.EXPECT().
+			PublishPublicMessage(roomMatcher, voteMatcher).
+			Times(1)
+
 		stateMatcher = s.newStateMatcher()
 		s.transport.EXPECT().
 			PublishPublicMessage(roomMatcher, stateMatcher).
 			Times(1)
 
-		err = dealer.Reveal()
+		err = dealer.RetractVote()
+		s.Require().NoError(err)
+
+		state = stateMatcher.Wait()
+		item := checkIssues(state.Issues)
+		s.Require().Nil(item.Result)
+		s.Require().Empty(item.Votes)
+	}
+
+	const newDealerVote = protocol.VoteValue("2")
+
+	{ // Publish dealer vote again
+		voteMatcher := matchers.NewVoteMatcher(dealer.Player().ID, currentIssue.ID, newDealerVote)
+		s.transport.EXPECT().
+			PublishPublicMessage(roomMatcher, voteMatcher).
+			Times(1)
+
+		stateMatcher = s.newStateMatcher()
+		s.transport.EXPECT().
+			PublishPublicMessage(roomMatcher, stateMatcher).
+			Times(1)
+
+		err = dealer.PublishVote(newDealerVote)
+		s.Require().NoError(err)
+
+		state = stateMatcher.Wait()
+		item := checkIssues(state.Issues)
+		s.Require().NotNil(item)
+		s.Require().Nil(item.Result)
+		s.Require().Len(item.Votes, 1)
+
+		vote, ok := item.Votes[dealer.Player().ID]
+		s.Require().True(ok)
+		s.Require().Empty(vote.Value)
+		s.Require().Greater(vote.Timestamp, int64(0))
+	}
+
+	{ // Auto-revealed votes
+		stateMatcher = s.newStateMatcher()
+		s.transport.EXPECT().
+			PublishPublicMessage(roomMatcher, stateMatcher).
+			Times(1)
+
+		s.clock.Advance(autoRevealDelay)
 		s.Require().NoError(err)
 
 		state = stateMatcher.Wait()
 		item := checkIssues(state.Issues)
 		s.Require().Nil(item.Result)
 		s.Require().Len(item.Votes, 1)
+		s.Require().True(state.VotesRevealed)
 
 		vote, ok := item.Votes[dealer.Player().ID]
 		s.Require().True(ok)
 		s.Require().NotNil(vote)
-		s.Require().Equal(dealerVote, vote.Value)
+		s.Require().Equal(newDealerVote, vote.Value)
 		s.Require().Greater(vote.Timestamp, int64(0))
 	}
 
@@ -268,7 +323,7 @@ func (s *Suite) TestSimpleGame() {
 
 		vote, ok := item.Votes[dealer.Player().ID]
 		s.Require().True(ok)
-		s.Require().Equal(dealerVote, vote.Value)
+		s.Require().Equal(newDealerVote, vote.Value)
 		s.Require().Greater(vote.Timestamp, int64(0))
 	}
 

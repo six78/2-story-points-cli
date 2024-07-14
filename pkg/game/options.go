@@ -5,9 +5,10 @@ import (
 	"time"
 
 	"github.com/jonboulle/clockwork"
+	"go.uber.org/zap"
+
 	"github.com/six78/2-story-points-cli/internal/transport"
 	"github.com/six78/2-story-points-cli/pkg/storage"
-	"go.uber.org/zap"
 )
 
 type Option func(*Game)
@@ -69,5 +70,12 @@ func WithStateMessagePeriod(d time.Duration) Option {
 func WithPublishStateLoop(enabled bool) Option {
 	return func(g *Game) {
 		g.config.PublishStateLoopEnabled = enabled
+	}
+}
+
+func WithAutoReveal(enabled bool, delay time.Duration) Option {
+	return func(g *Game) {
+		g.config.AutoRevealEnabled = enabled
+		g.config.AutoRevealDelay = delay
 	}
 }
