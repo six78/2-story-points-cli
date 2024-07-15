@@ -1,6 +1,7 @@
 ![ci](https://github.com/six78/2-story-points-cli/actions/workflows/ci.yml/badge.svg)
 [![Maintainability](https://api.codeclimate.com/v1/badges/7159536b897586bb0137/maintainability)](https://codeclimate.com/github/six78/2-story-points-cli/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/7159536b897586bb0137/test_coverage)](https://codeclimate.com/github/six78/2-story-points-cli/test_coverage)
+[![Go Report Card](https://goreportcard.com/badge/github.com/six78/2-story-points-cli)](https://goreportcard.com/report/github.com/six78/2-story-points-cli)
 
 # Lock, Stock and Two Story Points
 
