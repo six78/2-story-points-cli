@@ -9,7 +9,7 @@ Decentralized. Poker planning. In terminal.
 
 <!-- 765px = 3/8 of 2040 (width of the original gif) for better rendering -->
 <p align="left">
-  <img width="765" src="docs/demo.gif">
+  <img width="750" src="docs/demo.gif">
 </p>
 
 [//]: # (Fancy a web version? -> https://six78.github.io/2-story-points )
