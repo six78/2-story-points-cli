@@ -15,6 +15,7 @@ require (
 	github.com/google/go-github/v61 v61.0.0
 	github.com/google/uuid v1.4.0
 	github.com/jonboulle/clockwork v0.4.0
+	github.com/libp2p/go-libp2p v0.35.2
 	github.com/mr-tron/base58 v1.2.0
 	github.com/muesli/termenv v0.15.2
 	github.com/multiformats/go-multiaddr v0.12.4
@@ -74,7 +75,6 @@ require (
 	github.com/koron/go-ssdp v0.0.4 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
-	github.com/libp2p/go-libp2p v0.35.2 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.4.1 // indirect
 	github.com/libp2p/go-libp2p-pubsub v0.11.0 // indirect
 	github.com/libp2p/go-msgio v0.3.0 // indirect
