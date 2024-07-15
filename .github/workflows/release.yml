@@ -28,6 +28,10 @@ jobs:
         with:
           go-version: '1.21'
 
+      - name: Install dependencies
+        run: |
+          go install go.uber.org/mock/mockgen@latest
+
       - name: Generate
         run: make generate
 
@@ -58,6 +62,10 @@ jobs:
         with:
           go-version: '1.21'
 
+      - name: Install dependencies
+        run: |
+          go install go.uber.org/mock/mockgen@latest
+
       - name: Generate
         run: make generate
 
@@ -84,6 +92,10 @@ jobs:
 #        uses: actions/setup-go@v5
 #        with:
 #          go-version: '1.21'
+#
+#      - name: Install dependencies
+#        run: |
+#          go install go.uber.org/mock/mockgen@latest
 #
 #      - name: Generate
 #        run: make generate
