@@ -20,8 +20,6 @@ Decentralized. Poker planning. In terminal.
 - We use [Waku](https://waku.org) for decantralized players communication
 - Messages are end-to-end encrypted, the key is shared elsewhere as part of the room id
 
-[//]: # (# Get it)
-
 # Build it your own
  ```shell
  git clone https://github.io/six78/2-story-points-cli
@@ -37,3 +35,7 @@ make run
 ```
 
 Now share your room id with friends and start estimating your issues!
+
+# Protocol
+
+Description of the protocol can be found [here](docs/PROTOCOL.md).
