@@ -55,7 +55,7 @@ func NewGame(opts []Option) *Game {
 	game := &Game{
 		exitRoom:     nil,
 		messages:     make(chan []byte, 42),
-		config:       defaultConfig,
+		config:       defaultConfig(),
 		features:     defaultFeatureFlags(),
 		codeControls: defaultCodeControlFlags(),
 		initialized:  false,
