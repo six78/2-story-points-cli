@@ -43,6 +43,7 @@ func main() {
 		game.WithStateMessagePeriod(config.StateMessagePeriod),
 		game.WithEnableSymmetricEncryption(config.EnableSymmetricEncryption),
 		game.WithClock(clockwork.NewRealClock()),
+		game.WithFeatureDeckSelection(config.FeatureDeckSelection()),
 	}
 
 	game := game.NewGame(options)
