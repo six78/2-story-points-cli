@@ -5,16 +5,19 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-const Fibonacci = "fibonacci"
-const Priority = "priority"
+const (
+	DefaultDeck   = FibonacciDeck
+	FibonacciDeck = "fibonacci"
+	PriorityDeck  = "priority"
+)
 
 //var TShirtDeck = []protocol.VoteResult{
 //	"XS", "S", "M", "L", "XL", "XXL",
 //}
 
 var decks = map[string]protocol.Deck{
-	Fibonacci: {"1", "2", "3", "5", "8", "13", "21", "?"},
-	Priority:  {"4", "3", "2", "1", "0", "?"},
+	FibonacciDeck: {"1", "2", "3", "5", "8", "13", "21", "?"},
+	PriorityDeck:  {"4", "3", "2", "1", "0", "?"},
 }
 
 func GetDeck(deckName string) (protocol.Deck, bool) {

@@ -100,7 +100,7 @@ func (s *Suite) TestStateSize() {
 	}
 
 	votes := make(map[protocol.PlayerID]protocol.VoteResult, playersCount)
-	deck, deckFound := GetDeck(Fibonacci)
+	deck, deckFound := GetDeck(FibonacciDeck)
 	s.Require().True(deckFound)
 
 	state.Deck = deck

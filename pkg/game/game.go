@@ -476,7 +476,7 @@ func (g *Game) CreateNewRoom() (*protocol.Room, *protocol.State, error) {
 		return nil, nil, errors.Wrap(err, "failed to create a new room")
 	}
 
-	deckName := Fibonacci // FIXME: Remove hardcoded deck
+	deckName := DefaultDeck
 	deck, deckFound := GetDeck(deckName)
 	if !deckFound {
 		return nil, nil, errors.Wrap(err, fmt.Sprintf("unknown deck '%s'", deckName))
@@ -526,9 +526,6 @@ func (g *Game) JoinRoom(roomID protocol.RoomID, state *protocol.State) error {
 	g.roomID = roomID
 	g.state = state
 	g.stateTimestamp = 0
-	if g.isDealer {
-		g.state.Deck, _ = GetDeck(Fibonacci) // FIXME: remove hardcoded deck
-	}
 
 	g.resetMyVote()
 

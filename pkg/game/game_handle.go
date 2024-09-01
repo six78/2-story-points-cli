@@ -25,7 +25,10 @@ func (g *Game) handleStateMessage(payload []byte) {
 	}
 
 	g.state = &message.State
-	g.state.Deck, _ = GetDeck(Fibonacci) // FIXME: remove hardcoded deck
+	if g.state.Deck == nil {
+		// Fallback to FibonacciDeck deck, it was default before 1.2.0
+		g.state.Deck, _ = GetDeck(FibonacciDeck)
+	}
 	g.notifyChangedState(false)
 }
 
