@@ -37,7 +37,11 @@ func (s *Suite) TestRenderCard() {
 	}
 
 	for _, tc := range testCases {
-		result := renderCard(tc.value, deck, tc.cursor, false, tc.voted)
+		result := renderCard(tc.value, deck, renderCardFlags{
+			voteCursor:   tc.cursor,
+			finishCursor: false,
+			voted:        tc.voted},
+		)
 		s.Require().Equal(tc.expected, result)
 	}
 }
