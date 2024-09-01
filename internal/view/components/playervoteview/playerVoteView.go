@@ -58,6 +58,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		m.voteView.SetValue(vote.Value)
+		m.voteView.SetDeck(state.Deck)
 		m.voteView.Show()
 	}
 

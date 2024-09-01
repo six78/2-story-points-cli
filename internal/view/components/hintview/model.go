@@ -18,6 +18,7 @@ var (
 
 type Model struct {
 	hint *protocol.Hint
+	deck protocol.Deck
 }
 
 func New() Model {
@@ -42,6 +43,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if issue != nil {
 			m.hint = issue.Hint
 		}
+
+		m.deck = msg.State.Deck
 	}
 
 	return m, nil
@@ -53,7 +56,7 @@ func (m Model) View() string {
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Top,
-		headerStyle.Render("Recommended:")+""+voteview.Render(m.hint.Value),
+		headerStyle.Render("Recommended:")+""+voteview.Render(m.hint.Value, m.deck),
 		headerStyle.Render("Acceptable:")+"  "+renderAcceptanceIcon(m.hint.Acceptable),
 		headerStyle.Render(">")+" "+textStyle.Render(m.hint.Description),
 	)

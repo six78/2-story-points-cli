@@ -87,6 +87,7 @@ func (m Model) View() string {
 	for i, value := range m.deck {
 		card := renderCard(
 			value,
+			m.deck,
 			m.voteCursor.Match(i),
 			m.finishCursor.Match(i),
 			value == m.myVote,
@@ -120,12 +121,12 @@ func (m *Model) FinishCursor() int {
 	return m.finishCursor.Position()
 }
 
-func renderCard(value protocol.VoteValue, voteCursor bool, finishCursor bool, voted bool) string {
+func renderCard(value protocol.VoteValue, deck protocol.Deck, voteCursor bool, finishCursor bool, voted bool) string {
 	card := table.New().
 		Border(lipgloss.RoundedBorder()).
 		BorderStyle(*cardBorderStyle(voted, finishCursor)).
 		StyleFunc(func(row, col int) lipgloss.Style {
-			return *voteview.VoteStyle(value)
+			return *voteview.VoteStyle(value, deck)
 		}).
 		Rows([]string{string(value)}).
 		String()

@@ -1,8 +1,6 @@
 package voteview
 
 import (
-	"strconv"
-
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -18,7 +16,7 @@ var (
 	NoVoteStyle     = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#444444"))
 	ReadyVoteStyle  = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#5fd700"))
 	LightVoteStyle  = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#00B0FF"))
-	MediumVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#ffd787"))
+	MediumVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#FFD787"))
 	DangerVoteStyle = CommonVoteStyle.Copy().Foreground(lipgloss.Color("#FF6D00")) // ff005f
 )
 
@@ -34,6 +32,7 @@ const (
 
 type Model struct {
 	value protocol.VoteValue
+	deck  protocol.Deck
 	style *lipgloss.Style
 	state VoteValueState
 
@@ -99,6 +98,10 @@ func (m *Model) SetValue(value protocol.VoteValue) {
 	m.value = value
 }
 
+func (m *Model) SetDeck(deck protocol.Deck) {
+	m.deck = deck
+}
+
 func (m *Model) Reset() {
 	m.state = voteValueDefault
 	m.value = ""
@@ -107,7 +110,7 @@ func (m *Model) Reset() {
 
 func (m *Model) Show() {
 	m.state = voteValueDefault
-	m.style = VoteStyle(m.value)
+	m.style = VoteStyle(m.value, m.deck)
 }
 
 func (m *Model) Hide() {
@@ -130,20 +133,26 @@ func (m *Model) Clear() {
 	m.style = &CommonVoteStyle
 }
 
-func VoteStyle(vote protocol.VoteValue) *lipgloss.Style {
-	voteNumber, err := strconv.Atoi(string(vote))
-	if err != nil {
+func VoteStyle(vote protocol.VoteValue, deck protocol.Deck) *lipgloss.Style {
+	if vote == protocol.UncertaintyCard {
 		return &CommonVoteStyle
 	}
-	if voteNumber >= 13 {
+	index := deck.Index(vote)
+	if index < 0 {
+		return &CommonVoteStyle
+	}
+
+	deckLength := float32(len(deck))
+
+	if index >= int(deckLength*0.8) {
 		return &DangerVoteStyle
 	}
-	if voteNumber >= 5 {
+	if index >= int(deckLength*0.4) {
 		return &MediumVoteStyle
 	}
 	return &LightVoteStyle
 }
 
-func Render(vote protocol.VoteValue) string {
-	return VoteStyle(vote).Render(string(vote))
+func Render(vote protocol.VoteValue, deck protocol.Deck) string {
+	return VoteStyle(vote, deck).Render(string(vote))
 }
