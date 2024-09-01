@@ -654,9 +654,6 @@ func (g *Game) hiddenCurrentState() *protocol.State {
 }
 
 func (g *Game) SetDeck(deck protocol.Deck) error {
-	if !g.features.EnableDeckSelection {
-		return errors.New("deck selection is disabled")
-	}
 	if !g.isDealer {
 		return errors.New("only dealer can set deck")
 	}

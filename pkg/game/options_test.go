@@ -29,7 +29,6 @@ func TestOptions(t *testing.T) {
 	publishStateLoop := gofakeit.Bool()
 	autoRevealEnabled := gofakeit.Bool()
 	autoRevealDelay := time.Duration(gofakeit.Int64())
-	enableDeckSelection := gofakeit.Bool()
 
 	options := []Option{
 		WithContext(ctx),
@@ -43,7 +42,6 @@ func TestOptions(t *testing.T) {
 		WithStateMessagePeriod(stateMessagePeriod),
 		WithPublishStateLoop(publishStateLoop),
 		WithAutoReveal(autoRevealEnabled, autoRevealDelay),
-		WithFeatureDeckSelection(enableDeckSelection),
 	}
 	game := NewGame(options)
 
@@ -60,7 +58,6 @@ func TestOptions(t *testing.T) {
 	require.Equal(t, publishStateLoop, game.config.PublishStateLoopEnabled)
 	require.Equal(t, autoRevealEnabled, game.config.AutoRevealEnabled)
 	require.Equal(t, autoRevealDelay, game.config.AutoRevealDelay)
-	require.Equal(t, enableDeckSelection, game.features.EnableDeckSelection)
 }
 
 func TestNoTransport(t *testing.T) {

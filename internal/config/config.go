@@ -37,7 +37,6 @@ var wakuDiscV5 bool
 var wakuDnsDiscovery bool
 var demo bool
 var version bool
-var featureFlagEnableDeckSelection bool
 
 var Logger *zap.Logger
 var LogFilePath string
@@ -101,7 +100,6 @@ func ParseArguments() {
 	flag.BoolVar(&wakuDnsDiscovery, "waku.dnsdiscovery", true, "Enable DNS discovery")
 	flag.BoolVar(&demo, "demo", false, "Run demo and quit")
 	flag.BoolVar(&version, "version", false, "Print version and quit")
-	flag.BoolVar(&featureFlagEnableDeckSelection, "feature.deck", false, "Enable deck selection feature")
 	flag.Parse()
 
 	initialAction = strings.Join(flag.Args(), " ")
@@ -156,7 +154,3 @@ func Demo() bool {
 }
 
 func Version() bool { return version }
-
-func FeatureDeckSelection() bool {
-	return featureFlagEnableDeckSelection
-}

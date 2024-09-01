@@ -79,9 +79,3 @@ func WithAutoReveal(enabled bool, delay time.Duration) Option {
 		g.config.AutoRevealDelay = delay
 	}
 }
-
-func WithFeatureDeckSelection(enabled bool) Option {
-	return func(g *Game) {
-		g.features.EnableDeckSelection = enabled
-	}
-}
