@@ -87,9 +87,12 @@ func (m Model) View() string {
 	for i, value := range m.deck {
 		card := renderCard(
 			value,
-			m.voteCursor.Match(i),
-			m.finishCursor.Match(i),
-			value == m.myVote,
+			m.deck,
+			renderCardFlags{
+				voteCursor:   m.voteCursor.Match(i),
+				finishCursor: m.finishCursor.Match(i),
+				voted:        value == m.myVote,
+			},
 		)
 		cards = append(cards, card, " ") // Add a space between cards
 	}
@@ -120,12 +123,18 @@ func (m *Model) FinishCursor() int {
 	return m.finishCursor.Position()
 }
 
-func renderCard(value protocol.VoteValue, voteCursor bool, finishCursor bool, voted bool) string {
+type renderCardFlags struct {
+	voteCursor   bool
+	finishCursor bool
+	voted        bool
+}
+
+func renderCard(value protocol.VoteValue, deck protocol.Deck, flags renderCardFlags) string {
 	card := table.New().
 		Border(lipgloss.RoundedBorder()).
-		BorderStyle(*cardBorderStyle(voted, finishCursor)).
+		BorderStyle(*cardBorderStyle(flags.voted, flags.finishCursor)).
 		StyleFunc(func(row, col int) lipgloss.Style {
-			return *voteview.VoteStyle(value)
+			return *voteview.VoteStyle(value, deck)
 		}).
 		Rows([]string{string(value)}).
 		String()
@@ -133,14 +142,14 @@ func renderCard(value protocol.VoteValue, voteCursor bool, finishCursor bool, vo
 	var column []string
 	column = []string{}
 
-	if !voted {
+	if !flags.voted {
 		column = append(column, "")
 	}
 
 	column = append(column, card)
 
-	if voteCursor {
-		if voted {
+	if flags.voteCursor {
+		if flags.voted {
 			column = append(column, "")
 		}
 		column = append(column, "  ^")

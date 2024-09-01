@@ -11,8 +11,8 @@ type State struct {
 	Issues        IssuesList  `json:"issues"`
 	ActiveIssue   IssueID     `json:"activeIssue"`
 	VotesRevealed bool        `json:"votesRevealed"`
-	Timestamp     int64       `json:"-"` // TODO: Fix conflict with Message.Timestamp. Change type to time.Time.
-	Deck          Deck        `json:"-"`
+	Timestamp     int64       `json:"-"`    // TODO: Fix conflict with Message.Timestamp. Change type to time.Time.
+	Deck          Deck        `json:"deck"` // NOTE: This field is experimental and not supported by web client
 }
 
 type VoteState string

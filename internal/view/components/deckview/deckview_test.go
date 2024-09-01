@@ -22,6 +22,8 @@ type Suite struct {
 }
 
 func (s *Suite) TestRenderCard() {
+	deck := protocol.Deck{"1", "2", "3", "4"}
+
 	testCases := []struct {
 		value    protocol.VoteValue
 		cursor   bool
@@ -35,7 +37,11 @@ func (s *Suite) TestRenderCard() {
 	}
 
 	for _, tc := range testCases {
-		result := renderCard(tc.value, tc.cursor, false, tc.voted)
+		result := renderCard(tc.value, deck, renderCardFlags{
+			voteCursor:   tc.cursor,
+			finishCursor: false,
+			voted:        tc.voted},
+		)
 		s.Require().Equal(tc.expected, result)
 	}
 }

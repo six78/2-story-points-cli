@@ -71,21 +71,11 @@ func SetupLogger() {
 }
 
 func createLogFile() string {
-	//executableFilePath, err := os.Executable()
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	//s.configDirs.QueryFolderContainsFile(playerFileName).Path)
-
 	name := fmt.Sprintf("waku-pp-%s.log", time.Now().UTC().Format(time.RFC3339))
 	name = strings.Replace(name, ":", "-", -1)
-	//executableDir := filepath.Dir(executableFilePath)
-
 	configDirs := configdir.New(VendorName, ApplicationName)
 	folders := configDirs.QueryFolders(configdir.Global)
 	path := filepath.Join(folders[0].Path, logsDirectory, name)
-	//err = folders[0].WriteFile(path, []byte(playerUUID))
 
 	if err := os.MkdirAll(filepath.Dir(path), 0770); err != nil {
 		panic(err)

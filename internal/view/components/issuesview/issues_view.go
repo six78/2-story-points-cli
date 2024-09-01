@@ -24,6 +24,7 @@ var (
 type Model struct {
 	issues      protocol.IssuesList
 	activeIssue protocol.IssueID
+	deck        protocol.Deck
 	commandMode bool
 	isDealer    bool
 	focused     bool
@@ -55,6 +56,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		} else {
 			m.issues = msg.State.Issues
 			m.activeIssue = msg.State.ActiveIssue
+			m.deck = msg.State.Deck
 		}
 		m.cursor.SetRange(0, len(m.issues)-1)
 		m.updateCursorFocus()
@@ -85,7 +87,7 @@ func (m Model) View() string {
 		result := "  - "
 		if issue.Result != nil {
 			vote := fmt.Sprintf("%2s", string(*issue.Result))
-			result = voteview.VoteStyle(*issue.Result).Render(vote)
+			result = voteview.VoteStyle(*issue.Result, m.deck).Render(vote)
 		} else if issue.ID == activeIssue {
 			result = fmt.Sprintf(" %2s ", m.spinner.View())
 		}
