@@ -119,7 +119,7 @@ func runAddAction(m *model, args []string) tea.Cmd {
 			err := errors.New("empty issue")
 			return messages.NewErrorMessage(err)
 		}
-		return commands.AddIssue(m.game, args[0])()
+		return commands.AddIssue(m.game, strings.Join(args, " "))()
 	}
 }
 
