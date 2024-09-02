@@ -22,7 +22,7 @@ Decentralized. Poker planning. In terminal.
 
 # Build it your own
  ```shell
- git clone https://github.io/six78/2-story-points-cli
+ git clone https://github.com/six78/2-story-points-cli.git
  cd 2-story-points
  make build
  ./2sp
